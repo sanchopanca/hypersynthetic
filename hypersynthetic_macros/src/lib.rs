@@ -27,11 +27,20 @@ impl Parse for Node {
         if input.peek(Token![<]) && input.peek2(Ident) {
             let _: Token![<] = input.parse()?;
             let tag_name: Ident = input.parse()?;
-            let _: Token![>] = input.parse()?;
 
+            let mut attributes = Vec::new();
+
+            loop {
+                if input.peek(Token![>]) {
+                    break;
+                }
+                let attribute: Attribute = input.parse()?;
+                attributes.push(attribute);
+            }
+            let _: Token![>] = input.parse()?;
             let element = ElementData {
                 tag_name: tag_name.clone(),
-                attributes: Vec::new(),
+                attributes,
                 children: vec![input.parse()?],
             };
 
@@ -60,6 +69,15 @@ impl Parse for Node {
     }
 }
 
+impl Parse for Attribute {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let name: Ident = input.parse()?;
+        let _: Token![=] = input.parse()?;
+        let value: LitStr = input.parse()?;
+        Ok(Attribute { name, value })
+    }
+}
+
 #[proc_macro]
 pub fn html(input: TokenStream) -> TokenStream {
     let parsed_html = parse_macro_input!(input as Node);
@@ -73,10 +91,15 @@ fn generate_node(tag: Node) -> TokenStream2 {
             let tag_name = element.tag_name.to_string();
             let children: Vec<TokenStream2> =
                 element.children.into_iter().map(generate_node).collect();
+            let attributes: Vec<TokenStream2> = element
+                .attributes
+                .into_iter()
+                .map(generate_attribute)
+                .collect();
             quote! {
                 hypersynthetic::Node::Element(hypersynthetic::ElementData {
                     tag_name: #tag_name.to_owned(),
-                    attributes: vec![],
+                    attributes: vec![#(#attributes),*],
                     children: vec![#(#children),*]
                 })
             }
@@ -85,6 +108,17 @@ fn generate_node(tag: Node) -> TokenStream2 {
             quote! {
                 hypersynthetic::Node::Text(#text.to_string())
             }
+        }
+    }
+}
+
+fn generate_attribute(attr: Attribute) -> TokenStream2 {
+    let name = attr.name.to_string();
+    let value = attr.value;
+    quote! {
+        hypersynthetic::Attribute {
+            name: #name.to_owned(),
+            value: #value.to_owned(),
         }
     }
 }
