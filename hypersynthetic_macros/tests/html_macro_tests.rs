@@ -32,3 +32,62 @@ fn test_tags_and_attributes() {
         "<body id=\"main\" class=\"container\"><div><a href=\"https://example.com\">Link</a></div></body>";
     assert_eq!(string_representation, expected);
 }
+
+#[test]
+fn test_several_children() {
+    let result = html! {
+        <body>
+            <div>
+                <p>"Text 1"</p>
+                <p>"Text 2"</p>
+            </div>
+        </body>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<body><div><p>Text 1</p><p>Text 2</p></div></body>";
+    assert_eq!(string_representation, expected);
+}
+#[test]
+fn test_no_children() {
+    let result = html! {
+        <body>
+            <div>
+            </div>
+        </body>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<body><div></div></body>";
+    assert_eq!(string_representation, expected);
+}
+
+#[test]
+fn test_deep_nesting() {
+    let result = html! {
+        <body>
+            <div>
+                <p><span><em>"Text"</em></span></p>
+            </div>
+        </body>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<body><div><p><span><em>Text</em></span></p></div></body>";
+    assert_eq!(string_representation, expected);
+}
+
+#[test]
+fn test_one_tag_with_text() {
+    let result = html! {
+        <p>"Text"</p>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<p>Text</p>";
+    assert_eq!(string_representation, expected);
+}

@@ -38,12 +38,20 @@ impl Parse for Node {
                 attributes.push(attribute);
             }
             let _: Token![>] = input.parse()?;
+
+            let mut children: Vec<Node> = Vec::new();
+            while input.peek(Token![<]) && input.peek2(Ident) || input.peek(LitStr) {
+                let child: Node = input.parse()?;
+                children.push(child);
+            }
+
             let element = ElementData {
                 tag_name: tag_name.clone(),
                 attributes,
-                children: vec![input.parse()?],
+                children,
             };
 
+            // this is a closing tag
             if input.peek(Token![<]) && input.peek2(Token![/]) && input.peek3(Ident) {
                 let _: Token![<] = input.parse()?;
                 let _: Token![/] = input.parse()?;
@@ -51,7 +59,7 @@ impl Parse for Node {
                 if closing_tag_name != tag_name {
                     Err(input.error(format!(
                         "Expected closing tag {}, found {}",
-                        closing_tag_name, tag_name
+                        tag_name, closing_tag_name
                     )))
                 } else {
                     let _: Token![>] = input.parse()?;
