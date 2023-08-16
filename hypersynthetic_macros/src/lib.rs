@@ -7,14 +7,15 @@ use syn::{parse::Parse, parse::ParseStream, LitStr, Result, Token};
 use syn::{parse_macro_input, Ident};
 
 enum Node {
-    Element(ElementData),
+    Element(Tag),
     Text(LitStr),
 }
 
-struct ElementData {
+struct Tag {
     tag_name: Ident,
     attributes: Vec<Attribute>,
     children: Vec<Node>,
+    self_closing_anus: bool,
 }
 
 struct Attribute {
@@ -30,12 +31,22 @@ impl Parse for Node {
 
             let mut attributes = Vec::new();
 
-            loop {
-                if input.peek(Token![>]) {
-                    break;
-                }
+            // found closing angle bracket
+            while !input.peek(Token![>]) && !input.peek2(Token![>]) {
                 let attribute: Attribute = input.parse()?;
                 attributes.push(attribute);
+            }
+
+            // self-closing tag
+            if input.peek(Token![/]) && input.peek2(Token![>]) {
+                let _: Token![/] = input.parse()?;
+                let _: Token![>] = input.parse()?;
+                return Ok(Node::Element(Tag {
+                    tag_name,
+                    attributes,
+                    children: Vec::new(),
+                    self_closing_anus: true,
+                }));
             }
             let _: Token![>] = input.parse()?;
 
@@ -45,10 +56,11 @@ impl Parse for Node {
                 children.push(child);
             }
 
-            let element = ElementData {
+            let element = Tag {
                 tag_name: tag_name.clone(),
                 attributes,
                 children,
+                self_closing_anus: false,
             };
 
             // this is a closing tag
@@ -97,6 +109,7 @@ fn generate_node(tag: Node) -> TokenStream2 {
     match tag {
         Node::Element(element) => {
             let tag_name = element.tag_name.to_string();
+            let self_closing = element.self_closing_anus;
             let children: Vec<TokenStream2> =
                 element.children.into_iter().map(generate_node).collect();
             let attributes: Vec<TokenStream2> = element
@@ -108,13 +121,14 @@ fn generate_node(tag: Node) -> TokenStream2 {
                 hypersynthetic::Node::Element(hypersynthetic::ElementData {
                     tag_name: #tag_name.to_owned(),
                     attributes: vec![#(#attributes),*],
-                    children: vec![#(#children),*]
+                    children: vec![#(#children),*],
+                    self_closing: #self_closing,
                 })
             }
         }
         Node::Text(text) => {
             quote! {
-                hypersynthetic::Node::Text(#text.to_string())
+                hypersynthetic::Node::Text(#text.to_owned())
             }
         }
     }

@@ -7,6 +7,7 @@ pub struct ElementData {
     pub tag_name: String,
     pub attributes: Vec<Attribute>,
     pub children: Vec<Node>,
+    pub self_closing: bool,
 }
 
 pub struct Attribute {
@@ -29,6 +30,7 @@ impl ElementData {
             tag_name,
             attributes: Vec::new(),
             children: Vec::new(),
+            self_closing: false,
         }
     }
 
@@ -49,10 +51,14 @@ impl ElementData {
 
         let children_string: String = self.children.iter().map(|child| child.to_html()).collect();
 
-        format!(
-            "<{}{}>{}</{}>",
-            self.tag_name, attributes_string, children_string, self.tag_name
-        )
+        if self.self_closing {
+            format!("<{}{} />", self.tag_name, attributes_string)
+        } else {
+            format!(
+                "<{}{}>{}</{}>",
+                self.tag_name, attributes_string, children_string, self.tag_name
+            )
+        }
     }
 }
 

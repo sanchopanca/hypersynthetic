@@ -91,3 +91,24 @@ fn test_one_tag_with_text() {
     let expected = "<p>Text</p>";
     assert_eq!(string_representation, expected);
 }
+
+#[test]
+fn test_self_closing() {
+    let result = html! {
+        <body>
+            <div>
+                <p>"Text 1"</p>
+                <br />
+                <p>"Text 2"</p>
+                <br class="foo" />
+                <p>"Text 3"</p>
+            </div>
+        </body>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected =
+        "<body><div><p>Text 1</p><br /><p>Text 2</p><br class=\"foo\" /><p>Text 3</p></div></body>";
+    assert_eq!(string_representation, expected);
+}
