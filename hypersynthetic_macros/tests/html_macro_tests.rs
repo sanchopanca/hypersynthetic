@@ -112,3 +112,19 @@ fn test_self_closing() {
         "<body><div><p>Text 1</p><br /><p>Text 2</p><br class=\"foo\" /><p>Text 3</p></div></body>";
     assert_eq!(string_representation, expected);
 }
+
+#[test]
+fn test_mixed_children() {
+    let result = html! {
+        <body>
+            <div>
+                <p>"text1"<em>"text1"</em>"text3"</p>
+            </div>
+        </body>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<body><div><p>text1<em>text1</em>text3</p></div></body>";
+    assert_eq!(string_representation, expected);
+}
