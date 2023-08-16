@@ -1,0 +1,21 @@
+[package]
+name = "hypersynthetic_macros"
+version = "0.1.0"
+authors = ["Aleksandr Kovalev <aleksandr@kovalev.engineer>"]
+edition = "2021"
+description = "An HTML template engine that chose composition over inheritance"
+readme = "README.md"
+homepage = "https://github.com/sanchopanca/hypersynthetic"
+repository = "https://github.com/sanchopanca/hypersynthetic"
+license = "MIT OR Apache-2.0"
+keywords = ["hypermedia", "html", "template"]
+categories = ["template-engine", "web-programming"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "2.0"
+quote = "1.0"
+proc-macro2 = "1.0"
+hypersynthetic = { path = "../hypersynthetic" }
