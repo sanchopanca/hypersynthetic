@@ -15,7 +15,7 @@ struct Tag {
     tag_name: Ident,
     attributes: Vec<Attribute>,
     children: Vec<Node>,
-    self_closing_anus: bool,
+    self_closing: bool,
 }
 
 struct Attribute {
@@ -45,7 +45,7 @@ impl Parse for Node {
                     tag_name,
                     attributes,
                     children: Vec::new(),
-                    self_closing_anus: true,
+                    self_closing: true,
                 }));
             }
             let _: Token![>] = input.parse()?;
@@ -60,7 +60,7 @@ impl Parse for Node {
                 tag_name: tag_name.clone(),
                 attributes,
                 children,
-                self_closing_anus: false,
+                self_closing: false,
             };
 
             // this is a closing tag
@@ -109,7 +109,7 @@ fn generate_node(tag: Node) -> TokenStream2 {
     match tag {
         Node::Element(element) => {
             let tag_name = element.tag_name.to_string();
-            let self_closing = element.self_closing_anus;
+            let self_closing = element.self_closing;
             let children: Vec<TokenStream2> =
                 element.children.into_iter().map(generate_node).collect();
             let attributes: Vec<TokenStream2> = element
