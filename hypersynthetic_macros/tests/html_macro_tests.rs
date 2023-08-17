@@ -204,9 +204,33 @@ fn test_attributes_names_which_are_rust_keywords_with_hyphens() {
     assert_eq!(string_representation, expected);
 }
 
+#[test]
+fn test_attribute_value_substitution() {
+    let x = 3;
+    let result = html! {
+        <p class={format!("y{x}")}>"text"</p>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<p class=\"y3\">text</p>";
+    assert_eq!(string_representation, expected);
+}
+
+#[test]
+fn test_attribute_name_substitution() {
+    let hx_method = "hx-get";
+    let result = html! {
+        <button {hx_method}="/resources">"Get 'em"</button>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<button hx-get=\"/resources\">Get 'em</button>";
+    assert_eq!(string_representation, expected);
+}
 // TODO: several nodes without a single parent
 // TODO: components
-// TODO: templates for attributes (values and names)
 // TODO: rest of the keywords in attribute names
 // TODO: keywords in tag names
 // TODO: extend possible attribute names ('-' is not the only valid character that can be used)

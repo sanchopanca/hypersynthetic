@@ -23,11 +23,17 @@ struct Tag {
 
 struct Attribute {
     name: AttrName,
-    value: Option<LitStr>,
+    value: Option<AttrValue>,
 }
 
-struct AttrName {
-    name: String,
+enum AttrName {
+    Literal(LitStr),
+    Expression(Expr),
+}
+
+enum AttrValue {
+    Literal(LitStr),
+    Expression(Expr),
 }
 
 impl Parse for Node {
@@ -122,6 +128,15 @@ impl Parse for Attribute {
 
 impl Parse for AttrName {
     fn parse(input: ParseStream) -> Result<Self> {
+        if input.peek(Brace) {
+            let content_brackets;
+            braced!(content_brackets in input);
+            let content_expr: Expr = content_brackets.parse()?;
+            return Ok(AttrName::Expression(content_expr));
+        }
+
+        let span = input.span();
+
         let mut name = String::new();
         loop {
             let lookahead = input.lookahead1();
@@ -141,9 +156,23 @@ impl Parse for AttrName {
         }
 
         if !name.is_empty() {
-            Ok(AttrName { name })
+            Ok(AttrName::Literal(LitStr::new(&name, span)))
         } else {
             Err(input.error("Expected a valid attribute name"))
+        }
+    }
+}
+
+impl Parse for AttrValue {
+    fn parse(input: ParseStream) -> Result<Self> {
+        if input.peek(Brace) {
+            let content_brackets;
+            braced!(content_brackets in input);
+            let content_expr: Expr = content_brackets.parse()?;
+            Ok(AttrValue::Expression(content_expr))
+        } else {
+            let lit_str: LitStr = input.parse()?;
+            Ok(AttrValue::Literal(lit_str))
         }
     }
 }
@@ -190,19 +219,65 @@ fn generate_node(tag: Node) -> TokenStream2 {
 }
 
 fn generate_attribute(attr: Attribute) -> TokenStream2 {
-    let name = attr.name.name;
-    if let Some(value) = &attr.value {
-        quote! {
-            hypersynthetic::Attribute {
-                name: #name.to_owned(),
-                value: Some(#value.to_owned()),
+    match &attr.name {
+        AttrName::Literal(name) => {
+            let name_literal = quote! { #name.to_owned() };
+
+            match &attr.value {
+                Some(AttrValue::Literal(value)) => {
+                    quote! {
+                        hypersynthetic::Attribute {
+                            name: #name_literal,
+                            value: Some(#value.to_owned()),
+                        }
+                    }
+                }
+                Some(AttrValue::Expression(expr)) => {
+                    quote! {
+                        hypersynthetic::Attribute {
+                            name: #name_literal,
+                            value: Some(format!("{}", #expr)),
+                        }
+                    }
+                }
+                None => {
+                    quote! {
+                        hypersynthetic::Attribute {
+                            name: #name_literal,
+                            value: None,
+                        }
+                    }
+                }
             }
         }
-    } else {
-        quote! {
-            hypersynthetic::Attribute {
-                name: #name.to_owned(),
-                value: None,
+        AttrName::Expression(name_expr) => {
+            let name_expression = quote! { format!("{}", #name_expr) };
+
+            match &attr.value {
+                Some(AttrValue::Literal(value)) => {
+                    quote! {
+                        hypersynthetic::Attribute {
+                            name: #name_expression,
+                            value: Some(#value.to_owned()),
+                        }
+                    }
+                }
+                Some(AttrValue::Expression(value_expr)) => {
+                    quote! {
+                        hypersynthetic::Attribute {
+                            name: #name_expression,
+                            value: Some(format!("{}", #value_expr)),
+                        }
+                    }
+                }
+                None => {
+                    quote! {
+                        hypersynthetic::Attribute {
+                            name: #name_expression,
+                            value: None,
+                        }
+                    }
+                }
             }
         }
     }
