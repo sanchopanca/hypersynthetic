@@ -6,6 +6,7 @@ pub enum NodeCollection {
 pub enum Node {
     Element(ElementData),
     Text(String),
+    DocType,
 }
 
 #[derive(Clone, Debug)]
@@ -46,6 +47,7 @@ impl Node {
         match self {
             Node::Text(text) => text.clone(),
             Node::Element(element_data) => element_data.to_html(),
+            Node::DocType => "<!DOCTYPE html>".to_owned(),
         }
     }
 }

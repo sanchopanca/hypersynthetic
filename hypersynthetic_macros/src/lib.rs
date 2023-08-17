@@ -16,6 +16,7 @@ enum Node {
     Element(Tag),
     Text(LitStr),
     Expression(Expr),
+    DocType,
 }
 
 struct Tag {
@@ -42,6 +43,23 @@ enum AttrValue {
 
 impl Parse for Node {
     fn parse(input: ParseStream) -> Result<Self> {
+        if input.peek(Token![<]) && input.peek2(Token![!]) {
+            let _: Token![<] = input.parse()?;
+            let _: Token![!] = input.parse()?;
+
+            let lookahead = input.lookahead1();
+            if lookahead.peek(Ident) {
+                let ident: Ident = input.parse()?;
+                if ident.to_string().to_lowercase() == "doctype" {
+                    let html_ident: Ident = input.parse()?;
+                    if html_ident.to_string().to_lowercase() == "html" {
+                        let _: Token![>] = input.parse()?;
+                        return Ok(Node::DocType);
+                    }
+                }
+            }
+        }
+
         if input.peek(Token![<]) && input.peek2(Ident) {
             let _: Token![<] = input.parse()?;
             let tag_name: Ident = input.parse()?;
@@ -241,6 +259,11 @@ fn generate_node(tag: Node) -> TokenStream2 {
         Node::Expression(expr) => {
             quote! {
                 hypersynthetic::Node::Text(format!("{}", #expr))
+            }
+        }
+        Node::DocType => {
+            quote! {
+                hypersynthetic::Node::DocType
             }
         }
     }

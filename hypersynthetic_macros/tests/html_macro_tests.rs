@@ -242,8 +242,21 @@ fn test_several_elemnts_without_a_parent() {
     let expected = "<head></head><body></body>";
     assert_eq!(string_representation, expected);
 }
+
+#[test]
+fn test_doctype() {
+    let result = html! {
+        <!doctype html>
+        <head></head>
+        <body></body>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<!DOCTYPE html><head></head><body></body>";
+    assert_eq!(string_representation, expected);
+}
 // TODO: components
-// TODO: <!doctype>
 // TODO: comments
 // TODO: rest of the keywords in attribute names
 // TODO: keywords in tag names
