@@ -143,3 +143,27 @@ fn test_mixed_attributes() {
     let expected = "<p>42</p>";
     assert_eq!(string_representation, expected);
 }
+
+#[test]
+fn test_hyphens_in_attribute_names() {
+    let result = html! {
+        <button hx-get="/resources">"Get 'em"</button>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<button hx-get=\"/resources\">Get 'em</button>";
+    assert_eq!(string_representation, expected);
+}
+
+#[test]
+fn test_many_hyphens_in_attribute_names() {
+    let result = html! {
+        <br we-can-have-a-lot-of-hyphens="in the name" />
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<br we-can-have-a-lot-of-hyphens=\"in the name\" />";
+    assert_eq!(string_representation, expected);
+}

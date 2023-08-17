@@ -22,8 +22,12 @@ struct Tag {
 }
 
 struct Attribute {
-    name: Ident,
+    name: AttrName,
     value: LitStr,
+}
+
+struct AttrName {
+    name: String,
 }
 
 impl Parse for Node {
@@ -102,10 +106,31 @@ impl Parse for Node {
 
 impl Parse for Attribute {
     fn parse(input: ParseStream) -> Result<Self> {
-        let name: Ident = input.parse()?;
+        let name: AttrName = input.parse()?;
         let _: Token![=] = input.parse()?;
         let value: LitStr = input.parse()?;
         Ok(Attribute { name, value })
+    }
+}
+
+impl Parse for AttrName {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut name = String::new();
+
+        loop {
+            let lookahead = input.lookahead1();
+            if lookahead.peek(Ident) {
+                let ident: Ident = input.parse()?;
+                name.push_str(&ident.to_string());
+            } else if lookahead.peek(Token![-]) {
+                let _: Token![-] = input.parse()?;
+                name.push('-');
+            } else {
+                break;
+            }
+        }
+
+        Ok(AttrName { name })
     }
 }
 
@@ -151,7 +176,7 @@ fn generate_node(tag: Node) -> TokenStream2 {
 }
 
 fn generate_attribute(attr: Attribute) -> TokenStream2 {
-    let name = attr.name.to_string();
+    let name = attr.name.name;
     let value = attr.value;
     quote! {
         hypersynthetic::Attribute {
