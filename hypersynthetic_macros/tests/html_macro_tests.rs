@@ -167,3 +167,15 @@ fn test_many_hyphens_in_attribute_names() {
     let expected = "<br we-can-have-a-lot-of-hyphens=\"in the name\" />";
     assert_eq!(string_representation, expected);
 }
+
+#[test]
+fn test_attributes_without_values() {
+    let result = html! {
+        <input disabled />
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<input disabled />";
+    assert_eq!(string_representation, expected);
+}

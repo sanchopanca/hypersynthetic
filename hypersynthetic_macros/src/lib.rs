@@ -23,7 +23,7 @@ struct Tag {
 
 struct Attribute {
     name: AttrName,
-    value: LitStr,
+    value: Option<LitStr>,
 }
 
 struct AttrName {
@@ -107,8 +107,15 @@ impl Parse for Node {
 impl Parse for Attribute {
     fn parse(input: ParseStream) -> Result<Self> {
         let name: AttrName = input.parse()?;
-        let _: Token![=] = input.parse()?;
-        let value: LitStr = input.parse()?;
+
+        // If the next token is '=', then expect a value. Otherwise, no value.
+        let value = if input.peek(Token![=]) {
+            let _: Token![=] = input.parse()?;
+            Some(input.parse()?)
+        } else {
+            None
+        };
+
         Ok(Attribute { name, value })
     }
 }
@@ -177,11 +184,19 @@ fn generate_node(tag: Node) -> TokenStream2 {
 
 fn generate_attribute(attr: Attribute) -> TokenStream2 {
     let name = attr.name.name;
-    let value = attr.value;
-    quote! {
-        hypersynthetic::Attribute {
-            name: #name.to_owned(),
-            value: #value.to_owned(),
+    if let Some(value) = &attr.value {
+        quote! {
+            hypersynthetic::Attribute {
+                name: #name.to_owned(),
+                value: Some(#value.to_owned()),
+            }
+        }
+    } else {
+        quote! {
+            hypersynthetic::Attribute {
+                name: #name.to_owned(),
+                value: None,
+            }
         }
     }
 }

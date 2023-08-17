@@ -12,7 +12,7 @@ pub struct ElementData {
 
 pub struct Attribute {
     pub name: String,
-    pub value: String,
+    pub value: Option<String>,
 }
 
 impl Node {
@@ -39,14 +39,20 @@ impl ElementData {
     }
 
     pub fn add_attribute(&mut self, name: String, value: String) {
-        self.attributes.push(Attribute { name, value });
+        self.attributes.push(Attribute {
+            name,
+            value: Some(value),
+        });
     }
 
     fn to_html(&self) -> String {
         let attributes_string: String = self
             .attributes
             .iter()
-            .map(|attr| format!(" {}=\"{}\"", attr.name, attr.value))
+            .map(|attr| match &attr.value {
+                Some(value) => format!(" {}=\"{}\"", attr.name, value),
+                None => format!(" {}", attr.name),
+            })
             .collect();
 
         let children_string: String = self.children.iter().map(|child| child.to_html()).collect();
