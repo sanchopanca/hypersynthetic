@@ -1,8 +1,14 @@
+pub enum NodeCollection {
+    Nodes(Vec<Node>),
+}
+
+#[derive(Clone, Debug)]
 pub enum Node {
     Element(ElementData),
     Text(String),
 }
 
+#[derive(Clone, Debug)]
 pub struct ElementData {
     pub tag_name: String,
     pub attributes: Vec<Attribute>,
@@ -10,9 +16,29 @@ pub struct ElementData {
     pub self_closing: bool,
 }
 
+#[derive(Clone, Debug)]
 pub struct Attribute {
     pub name: String,
     pub value: Option<String>,
+}
+
+impl NodeCollection {
+    // TODO: consider something else except Vec
+    pub fn new(nodes: Vec<Node>) -> Self {
+        NodeCollection::Nodes(nodes)
+    }
+
+    pub fn to_html(&self) -> String {
+        match self {
+            NodeCollection::Nodes(nodes) => nodes.iter().map(|node| node.to_html()).collect(),
+        }
+    }
+
+    pub fn get_nodes(&self) -> Vec<Node> {
+        match self {
+            NodeCollection::Nodes(nodes) => nodes.clone(),
+        }
+    }
 }
 
 impl Node {

@@ -8,6 +8,10 @@ use syn::{
     Result, Token,
 };
 
+enum NodeCollection {
+    Nodes(Vec<Node>),
+}
+
 enum Node {
     Element(Tag),
     Text(LitStr),
@@ -177,11 +181,35 @@ impl Parse for AttrValue {
     }
 }
 
+impl Parse for NodeCollection {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut nodes = Vec::new();
+        while !input.is_empty() {
+            nodes.push(input.parse()?);
+        }
+        Ok(NodeCollection::Nodes(nodes))
+    }
+}
+
 #[proc_macro]
 pub fn html(input: TokenStream) -> TokenStream {
-    let parsed_html = parse_macro_input!(input as Node);
-    let expanded = generate_node(parsed_html);
+    let parsed_html_nodes = parse_macro_input!(input as NodeCollection);
+    let expanded = generate_nodes(parsed_html_nodes);
     TokenStream::from(expanded)
+}
+
+fn generate_nodes(NodeCollection::Nodes(nodes): NodeCollection) -> TokenStream2 {
+    let nodes: Vec<TokenStream2> = nodes.into_iter().map(generate_node).collect();
+    if nodes.len() == 1 {
+        let node = nodes[0].clone();
+        quote! {
+            #node
+        }
+    } else {
+        quote! {
+            hypersynthetic::NodeCollection::new(vec![#(#nodes),*])
+        }
+    }
 }
 
 fn generate_node(tag: Node) -> TokenStream2 {

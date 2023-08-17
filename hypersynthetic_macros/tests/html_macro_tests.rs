@@ -229,8 +229,22 @@ fn test_attribute_name_substitution() {
     let expected = "<button hx-get=\"/resources\">Get 'em</button>";
     assert_eq!(string_representation, expected);
 }
-// TODO: several nodes without a single parent
+
+#[test]
+fn test_several_elemnts_without_a_parent() {
+    let result = html! {
+        <head></head>
+        <body></body>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<head></head><body></body>";
+    assert_eq!(string_representation, expected);
+}
 // TODO: components
+// TODO: <!doctype>
+// TODO: comments
 // TODO: rest of the keywords in attribute names
 // TODO: keywords in tag names
 // TODO: extend possible attribute names ('-' is not the only valid character that can be used)
