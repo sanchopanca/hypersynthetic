@@ -128,3 +128,18 @@ fn test_mixed_children() {
     let expected = "<body><div><p>text1<em>text1</em>text3</p></div></body>";
     assert_eq!(string_representation, expected);
 }
+
+#[test]
+fn test_mixed_attributes() {
+    let x = 41;
+    let result = html! {
+        <p>
+            { 1 + x }
+        </p>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<p>42</p>";
+    assert_eq!(string_representation, expected);
+}

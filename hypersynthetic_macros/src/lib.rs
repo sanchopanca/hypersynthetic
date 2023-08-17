@@ -3,12 +3,15 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{parse::Parse, parse::ParseStream, LitStr, Result, Token};
-use syn::{parse_macro_input, Ident};
+use syn::{
+    braced, parse::Parse, parse::ParseStream, parse_macro_input, token::Brace, Expr, Ident, LitStr,
+    Result, Token,
+};
 
 enum Node {
     Element(Tag),
     Text(LitStr),
+    Expression(Expr),
 }
 
 struct Tag {
@@ -51,7 +54,10 @@ impl Parse for Node {
             let _: Token![>] = input.parse()?;
 
             let mut children: Vec<Node> = Vec::new();
-            while input.peek(Token![<]) && input.peek2(Ident) || input.peek(LitStr) {
+            while input.peek(Token![<]) && input.peek2(Ident)
+                || input.peek(LitStr)
+                || input.peek(Brace)
+            {
                 let child: Node = input.parse()?;
                 children.push(child);
             }
@@ -83,6 +89,11 @@ impl Parse for Node {
         } else if input.peek(LitStr) {
             let content: LitStr = input.parse()?;
             Ok(Node::Text(content))
+        } else if input.peek(Brace) {
+            let content_brackets;
+            braced!(content_brackets in input);
+            let content_expr: Expr = content_brackets.parse()?;
+            Ok(Node::Expression(content_expr))
         } else {
             Err(input.error("Expected a node"))
         }
@@ -129,6 +140,11 @@ fn generate_node(tag: Node) -> TokenStream2 {
         Node::Text(text) => {
             quote! {
                 hypersynthetic::Node::Text(#text.to_owned())
+            }
+        }
+        Node::Expression(expr) => {
+            quote! {
+                hypersynthetic::Node::Text(format!("{}", #expr))
             }
         }
     }
