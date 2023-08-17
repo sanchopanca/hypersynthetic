@@ -179,3 +179,34 @@ fn test_attributes_without_values() {
     let expected = "<input disabled />";
     assert_eq!(string_representation, expected);
 }
+
+#[test]
+fn test_attributes_names_which_are_rust_keywords() {
+    let result = html! {
+        <input type="ckeckbox" checked />
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<input type=\"ckeckbox\" checked />";
+    assert_eq!(string_representation, expected);
+}
+
+#[test]
+fn test_attributes_names_which_are_rust_keywords_with_hyphens() {
+    let result = html! {
+        <p my-type>"Text"</p>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<p my-type>Text</p>";
+    assert_eq!(string_representation, expected);
+}
+
+// TODO: several nodes without a single parent
+// TODO: components
+// TODO: templates for attributes (values and names)
+// TODO: rest of the keywords in attribute names
+// TODO: keywords in tag names
+// TODO: extend possible attribute names ('-' is not the only valid character that can be used)

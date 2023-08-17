@@ -123,12 +123,15 @@ impl Parse for Attribute {
 impl Parse for AttrName {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut name = String::new();
-
         loop {
             let lookahead = input.lookahead1();
             if lookahead.peek(Ident) {
                 let ident: Ident = input.parse()?;
                 name.push_str(&ident.to_string());
+            } else if lookahead.peek(Token![type]) {
+                // TODO all the rest of keywords
+                let _: Token![type] = input.parse()?;
+                name.push_str("type");
             } else if lookahead.peek(Token![-]) {
                 let _: Token![-] = input.parse()?;
                 name.push('-');
@@ -137,7 +140,11 @@ impl Parse for AttrName {
             }
         }
 
-        Ok(AttrName { name })
+        if !name.is_empty() {
+            Ok(AttrName { name })
+        } else {
+            Err(input.error("Expected a valid attribute name"))
+        }
     }
 }
 
