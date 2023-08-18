@@ -1,5 +1,5 @@
-use hypersynthetic::Node;
 use hypersynthetic_macros::{component, html};
+use hypersynthetic_types::Node;
 
 #[test]
 fn test_tags_and_literal_strings() {

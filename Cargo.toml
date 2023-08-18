@@ -1,2 +1,2 @@
 [workspace]
-members = ["hypersynthetic", "hypersynthetic_macros"]
+members = ["hypersynthetic_macros", "hypersynthetic_types"]

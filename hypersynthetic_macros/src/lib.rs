@@ -276,7 +276,7 @@ fn generate_nodes(NodeCollection::Nodes(nodes): NodeCollection) -> TokenStream2 
         }
     } else {
         quote! {
-            hypersynthetic::NodeCollection::new(vec![#(#nodes),*])
+            hypersynthetic_types::NodeCollection::new(vec![#(#nodes),*])
         }
     }
 }
@@ -294,7 +294,7 @@ fn generate_node(tag: Node) -> TokenStream2 {
                 .map(generate_attribute)
                 .collect();
             quote! {
-                hypersynthetic::Node::Element(hypersynthetic::ElementData {
+                hypersynthetic_types::Node::Element(hypersynthetic_types::ElementData {
                     tag_name: #tag_name.to_owned(),
                     attributes: vec![#(#attributes),*],
                     children: vec![#(#children),*],
@@ -304,17 +304,17 @@ fn generate_node(tag: Node) -> TokenStream2 {
         }
         Node::Text(text) => {
             quote! {
-                hypersynthetic::Node::Text(#text.to_owned())
+                hypersynthetic_types::Node::Text(#text.to_owned())
             }
         }
         Node::Expression(expr) => {
             quote! {
-                hypersynthetic::Node::Text(format!("{}", #expr))
+                hypersynthetic_types::Node::Text(format!("{}", #expr))
             }
         }
         Node::DocType => {
             quote! {
-                hypersynthetic::Node::DocType
+                hypersynthetic_types::Node::DocType
             }
         }
         Node::Component(component) => {
@@ -339,7 +339,7 @@ fn generate_attribute(attr: Attribute) -> TokenStream2 {
             match &attr.value {
                 Some(AttrValue::Literal(value)) => {
                     quote! {
-                        hypersynthetic::Attribute {
+                        hypersynthetic_types::Attribute {
                             name: #name_literal,
                             value: Some(#value.to_owned()),
                         }
@@ -347,7 +347,7 @@ fn generate_attribute(attr: Attribute) -> TokenStream2 {
                 }
                 Some(AttrValue::Expression(expr)) => {
                     quote! {
-                        hypersynthetic::Attribute {
+                        hypersynthetic_types::Attribute {
                             name: #name_literal,
                             value: Some(format!("{}", #expr)),
                         }
@@ -355,7 +355,7 @@ fn generate_attribute(attr: Attribute) -> TokenStream2 {
                 }
                 None => {
                     quote! {
-                        hypersynthetic::Attribute {
+                        hypersynthetic_types::Attribute {
                             name: #name_literal,
                             value: None,
                         }
@@ -369,7 +369,7 @@ fn generate_attribute(attr: Attribute) -> TokenStream2 {
             match &attr.value {
                 Some(AttrValue::Literal(value)) => {
                     quote! {
-                        hypersynthetic::Attribute {
+                        hypersynthetic_types::Attribute {
                             name: #name_expression,
                             value: Some(#value.to_owned()),
                         }
@@ -377,7 +377,7 @@ fn generate_attribute(attr: Attribute) -> TokenStream2 {
                 }
                 Some(AttrValue::Expression(value_expr)) => {
                     quote! {
-                        hypersynthetic::Attribute {
+                        hypersynthetic_types::Attribute {
                             name: #name_expression,
                             value: Some(format!("{}", #value_expr)),
                         }
@@ -385,7 +385,7 @@ fn generate_attribute(attr: Attribute) -> TokenStream2 {
                 }
                 None => {
                     quote! {
-                        hypersynthetic::Attribute {
+                        hypersynthetic_types::Attribute {
                             name: #name_expression,
                             value: None,
                         }
