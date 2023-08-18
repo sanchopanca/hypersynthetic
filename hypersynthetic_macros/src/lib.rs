@@ -4,8 +4,11 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{
-    braced, parse::Parse, parse::ParseStream, parse_macro_input, token::Brace, Expr, Ident, LitStr,
-    Result, Token,
+    braced,
+    parse::{Parse, ParseStream},
+    parse_macro_input,
+    token::Brace,
+    Expr, Ident, ItemFn, LitStr, Result, Token,
 };
 
 enum NodeCollection {
@@ -13,10 +16,11 @@ enum NodeCollection {
 }
 
 enum Node {
-    Element(Tag),
-    Text(LitStr),
-    Expression(Expr),
+    Component(Component),
     DocType,
+    Element(Tag),
+    Expression(Expr),
+    Text(LitStr),
 }
 
 struct Tag {
@@ -24,6 +28,11 @@ struct Tag {
     attributes: Vec<Attribute>,
     children: Vec<Node>,
     self_closing: bool,
+}
+
+struct Component {
+    name: Ident,
+    props: Vec<Attribute>,
 }
 
 struct Attribute {
@@ -70,6 +79,18 @@ impl Parse for Node {
             while !input.peek(Token![>]) && !input.peek2(Token![>]) {
                 let attribute: Attribute = input.parse()?;
                 attributes.push(attribute);
+            }
+
+            // this is a component
+            if is_pascal_case(&tag_name) {
+                // components are always self-closing
+                let _: Token![/] = input.parse()?;
+                let _: Token![>] = input.parse()?;
+
+                return Ok(Node::Component(Component {
+                    name: tag_name,
+                    props: attributes,
+                }));
             }
 
             // self-closing tag
@@ -216,6 +237,36 @@ pub fn html(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+#[proc_macro_attribute]
+pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    // Parse the input TokenStream into a syn::ItemFn
+    let mut function: ItemFn = syn::parse(item.clone()).unwrap();
+
+    // Check if the function's identifier is PascalCase
+    let fn_name = &function.sig.ident;
+    if !is_pascal_case(fn_name) {
+        return syn::Error::new(
+            function.sig.ident.span(),
+            "Component name must be in PascalCase",
+        )
+        .to_compile_error()
+        .into();
+    }
+
+    // Add the allow attribute to suppress the non_snake_case warning
+    // We require function to be in PascalCase
+    let allow_attr: syn::Attribute = syn::parse_quote!(#[allow(non_snake_case)]);
+    function.attrs.push(allow_attr);
+
+    quote!(#function).into()
+}
+
+// This is one lazy implementation that only checks that the first character is uppercase
+fn is_pascal_case(name: &Ident) -> bool {
+    let first_char = name.to_string().chars().next();
+    matches!(first_char, Some(ch) if ch.is_uppercase())
+}
+
 fn generate_nodes(NodeCollection::Nodes(nodes): NodeCollection) -> TokenStream2 {
     let nodes: Vec<TokenStream2> = nodes.into_iter().map(generate_node).collect();
     if nodes.len() == 1 {
@@ -264,6 +315,17 @@ fn generate_node(tag: Node) -> TokenStream2 {
         Node::DocType => {
             quote! {
                 hypersynthetic::Node::DocType
+            }
+        }
+        Node::Component(component) => {
+            let component_name = &component.name;
+            let props: Vec<TokenStream2> = component
+                .props
+                .into_iter()
+                .map(generate_attribute_as_prop) // Create this function. It will transform attributes into function arguments.
+                .collect();
+            quote! {
+                #component_name(#(#props),*)
             }
         }
     }
@@ -330,6 +392,20 @@ fn generate_attribute(attr: Attribute) -> TokenStream2 {
                     }
                 }
             }
+        }
+    }
+}
+
+fn generate_attribute_as_prop(attr: Attribute) -> TokenStream2 {
+    match &attr.value {
+        Some(AttrValue::Literal(value)) => {
+            quote! { #value }
+        }
+        Some(AttrValue::Expression(expr)) => {
+            quote! { #expr }
+        }
+        None => {
+            quote! {}
         }
     }
 }
