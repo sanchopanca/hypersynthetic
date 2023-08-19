@@ -319,12 +319,12 @@ fn generate_node(tag: Node) -> TokenStream2 {
         }
         Node::Text(text) => {
             quote! {
-                vec![hypersynthetic_types::Node::Text(#text.to_owned())]
+                vec![hypersynthetic_types::Node::Text(htmlize::escape_text(#text).to_string())]
             }
         }
         Node::Expression(expr) => {
             quote! {
-                vec![hypersynthetic_types::Node::Text(format!("{}", #expr))]
+                vec![hypersynthetic_types::Node::Text(htmlize::escape_text(format!("{}", #expr)).to_string())]
             }
         }
         Node::Iterator(expr) => {
@@ -352,66 +352,27 @@ fn generate_node(tag: Node) -> TokenStream2 {
 }
 
 fn generate_attribute(attr: Attribute) -> TokenStream2 {
-    match &attr.name {
-        AttrName::Literal(name) => {
-            let name_literal = quote! { #name.to_owned() };
-
-            match &attr.value {
-                Some(AttrValue::Literal(value)) => {
-                    quote! {
-                        hypersynthetic_types::Attribute {
-                            name: #name_literal,
-                            value: Some(#value.to_owned()),
-                        }
-                    }
-                }
-                Some(AttrValue::Expression(expr)) => {
-                    quote! {
-                        hypersynthetic_types::Attribute {
-                            name: #name_literal,
-                            value: Some(format!("{}", #expr)),
-                        }
-                    }
-                }
-                None => {
-                    quote! {
-                        hypersynthetic_types::Attribute {
-                            name: #name_literal,
-                            value: None,
-                        }
-                    }
-                }
-            }
+    let attr_name = match &attr.name {
+        AttrName::Literal(name) => quote! { #name.to_owned() },
+        AttrName::Expression(expr) => {
+            quote! { htmlize::escape_attribute(format!("{}", #expr)).to_string() }
         }
-        AttrName::Expression(name_expr) => {
-            let name_expression = quote! { format!("{}", #name_expr) };
+    };
 
-            match &attr.value {
-                Some(AttrValue::Literal(value)) => {
-                    quote! {
-                        hypersynthetic_types::Attribute {
-                            name: #name_expression,
-                            value: Some(#value.to_owned()),
-                        }
-                    }
-                }
-                Some(AttrValue::Expression(value_expr)) => {
-                    quote! {
-                        hypersynthetic_types::Attribute {
-                            name: #name_expression,
-                            value: Some(format!("{}", #value_expr)),
-                        }
-                    }
-                }
-                None => {
-                    quote! {
-                        hypersynthetic_types::Attribute {
-                            name: #name_expression,
-                            value: None,
-                        }
-                    }
-                }
-            }
+    let attr_value = match &attr.value {
+        Some(AttrValue::Literal(value)) => {
+            quote! { Some(htmlize::escape_attribute(#value).to_string()) }
+        }
+        Some(AttrValue::Expression(expr)) => {
+            quote! { Some(htmlize::escape_attribute(format!("{}", #expr)).to_string()) }
+        }
+        None => quote! { None },
+    };
+
+    quote! {
+        hypersynthetic_types::Attribute {
+            name: #attr_name,
+            value: #attr_value,
         }
     }
 }

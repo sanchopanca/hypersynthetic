@@ -19,3 +19,4 @@ syn = { version = "2.0", features = ["full"] }
 quote = "1.0"
 proc-macro2 = "1.0"
 hypersynthetic_types = { path = "../hypersynthetic_types" }
+htmlize = "1.0.3"

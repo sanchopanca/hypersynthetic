@@ -131,7 +131,7 @@ fn test_mixed_children() {
 }
 
 #[test]
-fn test_mixed_attributes() {
+fn test_expression() {
     let x = 41;
     let result = html! {
         <p>
@@ -314,6 +314,71 @@ fn test_map() {
     assert_eq!(string_representation, expected);
 }
 
+#[test]
+fn test_escaping_in_expression() {
+    let result = html! {
+        <div>
+            <p>{ "<script>alert(1)</script>" }</p>
+        </div>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<div><p>&lt;script&gt;alert(1)&lt;/script&gt;</p></div>";
+    assert_eq!(string_representation, expected);
+}
+
+#[test]
+fn test_escaping_in_literal() {
+    let result = html! {
+        <div>
+            <p>"<script>alert(1)</script>"</p>
+        </div>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<div><p>&lt;script&gt;alert(1)&lt;/script&gt;</p></div>";
+    assert_eq!(string_representation, expected);
+}
+
+#[test]
+fn test_escaping_in_attribute_value_literal() {
+    let result = html! {
+        <div class="<script>alert(1)</script>"></div>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<div class=\"&lt;script&gt;alert(1)&lt;/script&gt;\"></div>";
+    assert_eq!(string_representation, expected);
+}
+
+#[test]
+fn test_escaping_in_attribute_value_expression() {
+    let result = html! {
+        <div class={ "<script>alert(1)</script>" }></div>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<div class=\"&lt;script&gt;alert(1)&lt;/script&gt;\"></div>";
+    assert_eq!(string_representation, expected);
+}
+
+#[test]
+fn test_escaping_in_attribute_name() {
+    let result = html! {
+        <div { "<script>alert(1)</script>" }="whatever"></div>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<div &lt;script&gt;alert(1)&lt;/script&gt;=\"whatever\"></div>";
+    assert_eq!(string_representation, expected);
+}
+
+// TODO: add option to disable escaping
 // TODO: check attribute names in components and call the function accordingly (i.e. allow both Component val1="test" val2={1} /> and <Component val2={1} val2="test" />)
 // TODO: comments
 // TODO: rest of the keywords in attribute names
