@@ -1,3 +1,4 @@
+#[derive(Clone, Debug)]
 pub enum NodeCollection {
     Nodes(Vec<Node>),
 }
@@ -13,7 +14,7 @@ pub enum Node {
 pub struct ElementData {
     pub tag_name: String,
     pub attributes: Vec<Attribute>,
-    pub children: Vec<Node>,
+    pub children: NodeCollection,
     pub self_closing: bool,
 }
 
@@ -27,6 +28,12 @@ impl NodeCollection {
     // TODO: consider something else except Vec
     pub fn new(nodes: Vec<Node>) -> Self {
         NodeCollection::Nodes(nodes)
+    }
+
+    pub fn push(&mut self, node: Node) {
+        match self {
+            NodeCollection::Nodes(nodes) => nodes.push(node),
+        }
     }
 
     pub fn to_html(&self) -> String {
@@ -57,7 +64,7 @@ impl ElementData {
         ElementData {
             tag_name,
             attributes: Vec::new(),
-            children: Vec::new(),
+            children: NodeCollection::new(Vec::new()),
             self_closing: false,
         }
     }
@@ -83,7 +90,11 @@ impl ElementData {
             })
             .collect();
 
-        let children_string: String = self.children.iter().map(|child| child.to_html()).collect();
+        let children_string: String = match &self.children {
+            NodeCollection::Nodes(nodes) => nodes.iter().map(|node| node.to_html()).collect(),
+        };
+
+        // let children_string: String = self.children.iter().map(|child| child.to_html()).collect();
 
         if self.self_closing {
             format!("<{}{} />", self.tag_name, attributes_string)

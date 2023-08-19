@@ -20,6 +20,7 @@ enum Node {
     DocType,
     Element(Tag),
     Expression(Expr),
+    Iterator(Expr),
     Text(LitStr),
 }
 
@@ -146,6 +147,12 @@ impl Parse for Node {
             let content_brackets;
             braced!(content_brackets in input);
             let content_expr: Expr = content_brackets.parse()?;
+
+            if let Expr::MethodCall(method) = &content_expr {
+                if method.method == "map" {
+                    return Ok(Node::Iterator(content_expr));
+                }
+            }
             Ok(Node::Expression(content_expr))
         } else {
             Err(input.error("Expected a node"))
@@ -269,14 +276,23 @@ fn is_pascal_case(name: &Ident) -> bool {
 
 fn generate_nodes(NodeCollection::Nodes(nodes): NodeCollection) -> TokenStream2 {
     let nodes: Vec<TokenStream2> = nodes.into_iter().map(generate_node).collect();
-    if nodes.len() == 1 {
-        let node = nodes[0].clone();
-        quote! {
-            #node
-        }
-    } else {
-        quote! {
-            hypersynthetic_types::NodeCollection::new(vec![#(#nodes),*])
+
+    let nodes: Vec<TokenStream2> = nodes
+        .into_iter()
+        .map(|node| {
+            quote! {
+                v.extend(#node);
+            }
+        })
+        .collect();
+
+    quote! {
+        {
+            hypersynthetic_types::NodeCollection::new({
+                let mut v = vec![];
+                #(#nodes)*
+                v
+            })
         }
     }
 }
@@ -286,35 +302,39 @@ fn generate_node(tag: Node) -> TokenStream2 {
         Node::Element(element) => {
             let tag_name = element.tag_name.to_string();
             let self_closing = element.self_closing;
-            let children: Vec<TokenStream2> =
-                element.children.into_iter().map(generate_node).collect();
+            let children: TokenStream2 = generate_nodes(NodeCollection::Nodes(element.children));
             let attributes: Vec<TokenStream2> = element
                 .attributes
                 .into_iter()
                 .map(generate_attribute)
                 .collect();
             quote! {
-                hypersynthetic_types::Node::Element(hypersynthetic_types::ElementData {
+                vec![hypersynthetic_types::Node::Element(hypersynthetic_types::ElementData {
                     tag_name: #tag_name.to_owned(),
                     attributes: vec![#(#attributes),*],
-                    children: vec![#(#children),*],
+                    children: #children,
                     self_closing: #self_closing,
-                })
+                })]
             }
         }
         Node::Text(text) => {
             quote! {
-                hypersynthetic_types::Node::Text(#text.to_owned())
+                vec![hypersynthetic_types::Node::Text(#text.to_owned())]
             }
         }
         Node::Expression(expr) => {
             quote! {
-                hypersynthetic_types::Node::Text(format!("{}", #expr))
+                vec![hypersynthetic_types::Node::Text(format!("{}", #expr))]
+            }
+        }
+        Node::Iterator(expr) => {
+            quote! {
+                #expr.collect::<Vec<_>>().into_iter().flat_map(|collection| collection.get_nodes())
             }
         }
         Node::DocType => {
             quote! {
-                hypersynthetic_types::Node::DocType
+                vec![hypersynthetic_types::Node::DocType]
             }
         }
         Node::Component(component) => {
@@ -322,10 +342,10 @@ fn generate_node(tag: Node) -> TokenStream2 {
             let props: Vec<TokenStream2> = component
                 .props
                 .into_iter()
-                .map(generate_attribute_as_prop) // Create this function. It will transform attributes into function arguments.
+                .map(generate_attribute_as_prop)
                 .collect();
             quote! {
-                #component_name(#(#props),*)
+                #component_name(#(#props),*).get_nodes()
             }
         }
     }

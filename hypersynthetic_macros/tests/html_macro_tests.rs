@@ -1,5 +1,5 @@
 use hypersynthetic_macros::{component, html};
-use hypersynthetic_types::Node;
+use hypersynthetic_types::NodeCollection;
 
 #[test]
 fn test_tags_and_literal_strings() {
@@ -259,7 +259,7 @@ fn test_doctype() {
 }
 
 #[component]
-fn Component(val1: &str, val2: i32) -> Node {
+fn Component(val1: &str, val2: i32) -> NodeCollection {
     html! {
         <div>
             <p>{val1}</p>
@@ -295,6 +295,25 @@ fn test_component_as_a_child() {
 
     assert_eq!(string_representation, expected);
 }
+#[test]
+fn test_map() {
+    let numbers = vec![1, 2, 3];
+    let result = html! {
+        <div>
+            {
+                numbers.iter().map(|x| html! {
+                <p>{ x }</p>
+                })
+            }
+        </div>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<div><p>1</p><p>2</p><p>3</p></div>";
+    assert_eq!(string_representation, expected);
+}
+
 // TODO: check attribute names in components and call the function accordingly (i.e. allow both Component val1="test" val2={1} /> and <Component val2={1} val2="test" />)
 // TODO: comments
 // TODO: rest of the keywords in attribute names
