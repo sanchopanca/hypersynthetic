@@ -1,6 +1,6 @@
 [package]
 name = "hypersynthetic_types"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Aleksandr Kovalev <aleksandr@kovalev.engineer>"]
 edition = "2021"
 description = "Common types definitions for hypersynthetic and hypersynthetic_macros"

@@ -1,6 +1,6 @@
 [package]
 name = "hypersynthetic"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Aleksandr Kovalev <aleksandr@kovalev.engineer>"]
 edition = "2021"
 description = "An HTML template engine that chose composition over inheritance"
@@ -14,3 +14,4 @@ categories = ["template-engine", "web-programming"]
 [dependencies]
 hypersynthetic_macros = { path = "../hypersynthetic_macros", version = "0.1.0" }
 hypersynthetic_types = { path = "../hypersynthetic_types", version = "0.1.0" }
+htmlize = "1.0.3"
