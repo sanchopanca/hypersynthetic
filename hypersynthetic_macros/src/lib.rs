@@ -288,7 +288,7 @@ fn generate_nodes(NodeCollection::Nodes(nodes): NodeCollection) -> TokenStream2 
 
     quote! {
         {
-            hypersynthetic_types::NodeCollection::new({
+            hypersynthetic::NodeCollection::new({
                 let mut v = vec![];
                 #(#nodes)*
                 v
@@ -309,7 +309,7 @@ fn generate_node(tag: Node) -> TokenStream2 {
                 .map(generate_attribute)
                 .collect();
             quote! {
-                vec![hypersynthetic_types::Node::Element(hypersynthetic_types::ElementData {
+                vec![hypersynthetic::Node::Element(hypersynthetic::ElementData {
                     tag_name: #tag_name.to_owned(),
                     attributes: vec![#(#attributes),*],
                     children: #children,
@@ -319,12 +319,12 @@ fn generate_node(tag: Node) -> TokenStream2 {
         }
         Node::Text(text) => {
             quote! {
-                vec![hypersynthetic_types::Node::Text(htmlize::escape_text(#text).to_string())]
+                vec![hypersynthetic::Node::Text(hypersynthetic::escape_text(#text).to_string())]
             }
         }
         Node::Expression(expr) => {
             quote! {
-                vec![hypersynthetic_types::Node::Text(htmlize::escape_text(format!("{}", #expr)).to_string())]
+                vec![hypersynthetic::Node::Text(hypersynthetic::escape_text(format!("{}", #expr)).to_string())]
             }
         }
         Node::Iterator(expr) => {
@@ -334,7 +334,7 @@ fn generate_node(tag: Node) -> TokenStream2 {
         }
         Node::DocType => {
             quote! {
-                vec![hypersynthetic_types::Node::DocType]
+                vec![hypersynthetic::Node::DocType]
             }
         }
         Node::Component(component) => {
@@ -355,22 +355,22 @@ fn generate_attribute(attr: Attribute) -> TokenStream2 {
     let attr_name = match &attr.name {
         AttrName::Literal(name) => quote! { #name.to_owned() },
         AttrName::Expression(expr) => {
-            quote! { htmlize::escape_attribute(format!("{}", #expr)).to_string() }
+            quote! { hypersynthetic::escape_attribute(format!("{}", #expr)).to_string() }
         }
     };
 
     let attr_value = match &attr.value {
         Some(AttrValue::Literal(value)) => {
-            quote! { Some(htmlize::escape_attribute(#value).to_string()) }
+            quote! { Some(hypersynthetic::escape_attribute(#value).to_string()) }
         }
         Some(AttrValue::Expression(expr)) => {
-            quote! { Some(htmlize::escape_attribute(format!("{}", #expr)).to_string()) }
+            quote! { Some(hypersynthetic::escape_attribute(format!("{}", #expr)).to_string()) }
         }
         None => quote! { None },
     };
 
     quote! {
-        hypersynthetic_types::Attribute {
+        hypersynthetic::Attribute {
             name: #attr_name,
             value: #attr_value,
         }

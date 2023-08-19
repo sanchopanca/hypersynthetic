@@ -1,6 +1,6 @@
 [package]
 name = "hypersynthetic_macros"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Aleksandr Kovalev <aleksandr@kovalev.engineer>"]
 edition = "2021"
 description = "Macros for hypersynthetic"
@@ -18,7 +18,3 @@ proc-macro = true
 syn = { version = "2.0", features = ["full"] }
 quote = "1.0"
 proc-macro2 = "1.0"
-
-[dev-dependencies]
-hypersynthetic_types = { path = "../hypersynthetic_types", version = "0.1.0" }
-htmlize = "1.0.3"
