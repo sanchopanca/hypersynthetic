@@ -1,5 +1,6 @@
 use hypersynthetic::NodeCollection;
 use hypersynthetic::{component, html};
+extern crate alloc;
 
 #[test]
 fn test_tags_and_literal_strings() {
@@ -375,6 +376,24 @@ fn test_escaping_in_attribute_name() {
     let string_representation = result.to_html();
 
     let expected = "<div &lt;script&gt;alert(1)&lt;/script&gt;=\"whatever\"></div>";
+    assert_eq!(string_representation, expected);
+}
+
+#[test]
+fn test_interpolation_in_attr_values() {
+    struct S {
+        a: &'static str,
+        b: i32,
+    }
+
+    let s = S { a: "test", b: 42 };
+    let result = html! {
+        <div id="x{s.a}-{s.b}{s.a}">"Text"</div>
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<div id=\"xtest-42test\">Text</div>";
     assert_eq!(string_representation, expected);
 }
 

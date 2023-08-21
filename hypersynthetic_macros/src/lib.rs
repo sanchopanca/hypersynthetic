@@ -1,7 +1,7 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::quote;
 use syn::{
     braced,
@@ -49,6 +49,12 @@ enum AttrName {
 enum AttrValue {
     Literal(LitStr),
     Expression(Expr),
+    Interpolated(Vec<InterpolatedSegment>),
+}
+
+enum InterpolatedSegment {
+    Str(LitStr),
+    Expr(Expr),
 }
 
 impl Parse for Node {
@@ -222,9 +228,45 @@ impl Parse for AttrValue {
             Ok(AttrValue::Expression(content_expr))
         } else {
             let lit_str: LitStr = input.parse()?;
-            Ok(AttrValue::Literal(lit_str))
+            if lit_str.value().contains('{') && lit_str.value().contains('}') {
+                // Contains interpolation
+                let segments = parse_interpolated_string(&lit_str.value())?;
+                Ok(AttrValue::Interpolated(segments))
+            } else {
+                Ok(AttrValue::Literal(lit_str))
+            }
         }
     }
+}
+
+fn parse_interpolated_string(s: &str) -> Result<Vec<InterpolatedSegment>> {
+    let mut segments = Vec::new();
+    let mut start = 0;
+    while let Some(open) = s[start..].find('{') {
+        if start != open {
+            segments.push(InterpolatedSegment::Str(LitStr::new(
+                &s[start..start + open],
+                Span::call_site(),
+            )));
+        }
+        let close = s[start + open..].find('}').ok_or_else(|| {
+            syn::Error::new(
+                Span::call_site(),
+                "Unmatched opening brace in interpolated string",
+            )
+        })?;
+        let expr_str = &s[start + open + 1..start + open + close];
+        let expr: Expr = syn::parse_str(expr_str)?;
+        segments.push(InterpolatedSegment::Expr(expr));
+        start = start + open + close + 1;
+    }
+    if start != s.len() {
+        segments.push(InterpolatedSegment::Str(LitStr::new(
+            &s[start..],
+            Span::call_site(),
+        )));
+    }
+    Ok(segments)
 }
 
 impl Parse for NodeCollection {
@@ -366,6 +408,7 @@ fn generate_attribute(attr: Attribute) -> TokenStream2 {
         Some(AttrValue::Expression(expr)) => {
             quote! { Some(hypersynthetic::escape_attribute(format!("{}", #expr)).to_string()) }
         }
+        Some(AttrValue::Interpolated(segments)) => interpolate_attr_value(segments),
         None => quote! { None },
     };
 
@@ -385,8 +428,29 @@ fn generate_attribute_as_prop(attr: Attribute) -> TokenStream2 {
         Some(AttrValue::Expression(expr)) => {
             quote! { #expr }
         }
+        Some(AttrValue::Interpolated(segments)) => interpolate_attr_value(segments),
         None => {
             quote! {}
         }
     }
+}
+
+fn interpolate_attr_value(segments: &[InterpolatedSegment]) -> TokenStream2 {
+    let interpolated: Vec<TokenStream2> = segments
+        .iter()
+        .map(|segment| match segment {
+            InterpolatedSegment::Str(s) => quote! { #s },
+            InterpolatedSegment::Expr(e) => quote! { format!("{}", #e) },
+            // InterpolatedSegment::Expr(e) => quote! { #e },
+        })
+        .collect();
+    let format_pattern = generate_format_string_pattern(interpolated.len());
+    let format_call = quote! { format!(#format_pattern, #(#interpolated),*) };
+    quote! { Some(hypersynthetic::escape_attribute(#format_call).to_string()) }
+}
+
+fn generate_format_string_pattern(count: usize) -> TokenStream2 {
+    let patterns: Vec<TokenStream2> = (0..count).map(|_| quote! {"{}"}).collect();
+    let pattern_string = quote! { concat!(#(#patterns),*) };
+    pattern_string
 }
