@@ -356,6 +356,19 @@ fn test_escaping_in_attribute_value_literal() {
 }
 
 #[test]
+fn test_quote_scaping_in_attribute_value() {
+    let value = "\"";
+    let result = html! {
+        <input value="{value}" />
+    };
+
+    let string_representation = result.to_html();
+
+    let expected = "<input value=\"&quot;\" />";
+    assert_eq!(string_representation, expected);
+}
+
+#[test]
 fn test_escaping_in_attribute_value_expression() {
     let result = html! {
         <div class={ "<script>alert(1)</script>" }></div>
