@@ -11,10 +11,12 @@ use syn::{
     Expr, Ident, ItemFn, LitStr, Result, Token,
 };
 
+#[derive(Clone)]
 enum NodeCollection {
     Nodes(Vec<Node>),
 }
 
+#[derive(Clone)]
 enum Node {
     Component(Component),
     DocType,
@@ -24,6 +26,7 @@ enum Node {
     Text(LitStr),
 }
 
+#[derive(Clone)]
 struct Tag {
     tag_name: Ident,
     attributes: Vec<Attribute>,
@@ -31,30 +34,109 @@ struct Tag {
     self_closing: bool,
 }
 
+#[derive(Clone)]
 struct Component {
     name: Ident,
     props: Vec<Attribute>,
 }
 
-struct Attribute {
+#[derive(Clone)]
+enum Attribute {
+    RegularAttribute(RegularAttribute),
+    For(ForExpr),
+}
+
+#[derive(Clone)]
+struct RegularAttribute {
     name: AttrName,
     value: Option<AttrValue>,
 }
 
+#[derive(Clone)]
 enum AttrName {
     Literal(LitStr),
     Expression(Expr),
 }
 
+#[derive(Clone)]
 enum AttrValue {
     Literal(LitStr),
     Expression(Expr),
     Interpolated(Vec<InterpolatedSegment>),
 }
 
+#[derive(Clone)]
 enum InterpolatedSegment {
     Str(LitStr),
     Expr(Expr),
+}
+
+#[derive(Clone)]
+struct ForExpr {
+    var_name: Ident,
+    collection: Expr,
+}
+
+impl Tag {
+    fn has_for_attribute(&self) -> bool {
+        self.attributes
+            .iter()
+            .any(|attr| matches!(attr, Attribute::For(_)))
+    }
+
+    fn get_regular_attributes(&self) -> Vec<RegularAttribute> {
+        self.attributes
+            .iter()
+            .filter(|attr| matches!(attr, Attribute::RegularAttribute(_)))
+            .map(|attr| match attr {
+                Attribute::RegularAttribute(attr) => attr.clone(),
+                _ => unreachable!(),
+            })
+            .collect()
+    }
+
+    fn get_for_attribute(&self) -> ForExpr {
+        let attr = self
+            .attributes
+            .iter()
+            .find(|attr| matches!(attr, Attribute::For(_)))
+            .unwrap();
+        match attr {
+            Attribute::For(attr) => attr.clone(),
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl Component {
+    fn has_for_attribute(&self) -> bool {
+        self.props
+            .iter()
+            .any(|attr| matches!(attr, Attribute::For(_)))
+    }
+
+    fn get_regular_attributes(&self) -> Vec<RegularAttribute> {
+        self.props
+            .iter()
+            .filter(|attr| matches!(attr, Attribute::RegularAttribute(_)))
+            .map(|attr| match attr {
+                Attribute::RegularAttribute(attr) => attr.clone(),
+                _ => unreachable!(),
+            })
+            .collect()
+    }
+
+    fn get_for_attribute(&self) -> ForExpr {
+        let attr = self
+            .props
+            .iter()
+            .find(|attr| matches!(attr, Attribute::For(_)))
+            .unwrap();
+        match attr {
+            Attribute::For(attr) => attr.clone(),
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl Parse for Node {
@@ -168,6 +250,15 @@ impl Parse for Node {
 
 impl Parse for Attribute {
     fn parse(input: ParseStream) -> Result<Self> {
+        if input.peek(Token![:]) && input.peek2(Token![for]) {
+            let _: Token![:] = input.parse()?;
+            let _: Token![for] = input.parse()?;
+            let _: Token![=] = input.parse()?;
+
+            let content;
+            braced!(content in input);
+            return Ok(Attribute::For(content.parse()?));
+        }
         let name: AttrName = input.parse()?;
 
         // If the next token is '=', then expect a value. Otherwise, no value.
@@ -178,7 +269,10 @@ impl Parse for Attribute {
             None
         };
 
-        Ok(Attribute { name, value })
+        Ok(Attribute::RegularAttribute(RegularAttribute {
+            name,
+            value,
+        }))
     }
 }
 
@@ -236,6 +330,18 @@ impl Parse for AttrValue {
                 Ok(AttrValue::Literal(lit_str))
             }
         }
+    }
+}
+
+impl Parse for ForExpr {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let var_name: Ident = input.parse()?;
+        let _: Token![in] = input.parse()?;
+        let collection: Expr = input.parse()?;
+        Ok(ForExpr {
+            var_name,
+            collection,
+        })
     }
 }
 
@@ -344,19 +450,40 @@ fn generate_node(tag: Node) -> TokenStream2 {
         Node::Element(element) => {
             let tag_name = element.tag_name.to_string();
             let self_closing = element.self_closing;
-            let children: TokenStream2 = generate_nodes(NodeCollection::Nodes(element.children));
+            let children: TokenStream2 =
+                generate_nodes(NodeCollection::Nodes(element.children.clone()));
             let attributes: Vec<TokenStream2> = element
-                .attributes
+                .get_regular_attributes()
                 .into_iter()
                 .map(generate_attribute)
                 .collect();
-            quote! {
-                vec![hypersynthetic::Node::Element(hypersynthetic::ElementData {
-                    tag_name: #tag_name.to_owned(),
-                    attributes: vec![#(#attributes),*],
-                    children: #children,
-                    self_closing: #self_closing,
-                })]
+            if element.has_for_attribute() {
+                let for_expr = element.get_for_attribute();
+                let var = for_expr.var_name;
+                let collection = for_expr.collection;
+                quote! {
+                    {
+                        let mut for_v = Vec::new();
+                        for #var in #collection {
+                            for_v.push(hypersynthetic::Node::Element(hypersynthetic::ElementData {
+                                tag_name: #tag_name.to_owned(),
+                                attributes: vec![#(#attributes),*],
+                                children: #children,
+                                self_closing: #self_closing,
+                            }));
+                        }
+                        for_v
+                    }
+                }
+            } else {
+                quote! {
+                    vec![hypersynthetic::Node::Element(hypersynthetic::ElementData {
+                        tag_name: #tag_name.to_owned(),
+                        attributes: vec![#(#attributes),*],
+                        children: #children,
+                        self_closing: #self_closing,
+                    })]
+                }
             }
         }
         Node::Text(text) => {
@@ -382,18 +509,33 @@ fn generate_node(tag: Node) -> TokenStream2 {
         Node::Component(component) => {
             let component_name = &component.name;
             let props: Vec<TokenStream2> = component
-                .props
+                .get_regular_attributes()
                 .into_iter()
                 .map(generate_attribute_as_prop)
                 .collect();
-            quote! {
-                #component_name(#(#props),*).get_nodes()
+            if component.has_for_attribute() {
+                let for_expr = component.get_for_attribute();
+                let var = for_expr.var_name;
+                let collection = for_expr.collection;
+                quote! {
+                    {
+                        let mut for_v = Vec::new();
+                        for #var in #collection {
+                            for_v.extend(#component_name(#(#props),*).get_nodes());
+                        }
+                        for_v
+                    }
+                }
+            } else {
+                quote! {
+                    #component_name(#(#props),*).get_nodes()
+                }
             }
         }
     }
 }
 
-fn generate_attribute(attr: Attribute) -> TokenStream2 {
+fn generate_attribute(attr: RegularAttribute) -> TokenStream2 {
     let attr_name = match &attr.name {
         AttrName::Literal(name) => quote! { #name.to_owned() },
         AttrName::Expression(expr) => {
@@ -420,7 +562,7 @@ fn generate_attribute(attr: Attribute) -> TokenStream2 {
     }
 }
 
-fn generate_attribute_as_prop(attr: Attribute) -> TokenStream2 {
+fn generate_attribute_as_prop(attr: RegularAttribute) -> TokenStream2 {
     match &attr.value {
         Some(AttrValue::Literal(value)) => {
             quote! { #value }
