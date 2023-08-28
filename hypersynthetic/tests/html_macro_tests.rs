@@ -485,10 +485,3 @@ fn test_for_on_a_component() {
     let expected = "<div><p>test</p><p>2</p></div><div><p>test</p><p>3</p></div>";
     assert_eq!(string_representation, expected);
 }
-
-// TODO: add option to disable escaping
-// TODO: check attribute names in components and call the function accordingly (i.e. allow both Component val1="test" val2={1} /> and <Component val2={1} val2="test" />)
-// TODO: comments
-// TODO: rest of the keywords in attribute names
-// TODO: keywords in tag names
-// TODO: extend possible attribute names ('-' is not the only valid character that can be used)
