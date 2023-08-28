@@ -296,24 +296,6 @@ fn test_component_as_a_child() {
 
     assert_eq!(string_representation, expected);
 }
-#[test]
-fn test_map() {
-    let numbers = [1, 2, 3];
-    let result = html! {
-        <div>
-            {
-                numbers.iter().map(|x| html! {
-                <p>{ x }</p>
-                })
-            }
-        </div>
-    };
-
-    let string_representation = result.to_html();
-
-    let expected = "<div><p>1</p><p>2</p><p>3</p></div>";
-    assert_eq!(string_representation, expected);
-}
 
 #[test]
 fn test_escaping_in_expression() {

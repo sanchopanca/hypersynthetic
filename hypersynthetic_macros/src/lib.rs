@@ -22,7 +22,6 @@ enum Node {
     DocType,
     Element(Tag),
     Expression(Expr),
-    Iterator(Expr),
     Text(LitStr),
 }
 
@@ -235,12 +234,6 @@ impl Parse for Node {
             let content_brackets;
             braced!(content_brackets in input);
             let content_expr: Expr = content_brackets.parse()?;
-
-            if let Expr::MethodCall(method) = &content_expr {
-                if method.method == "map" {
-                    return Ok(Node::Iterator(content_expr));
-                }
-            }
             Ok(Node::Expression(content_expr))
         } else {
             Err(input.error("Expected a node"))
@@ -494,11 +487,6 @@ fn generate_node(tag: Node) -> TokenStream2 {
         Node::Expression(expr) => {
             quote! {
                 vec![hypersynthetic::Node::Text(hypersynthetic::escape_text(format!("{}", #expr)).to_string())]
-            }
-        }
-        Node::Iterator(expr) => {
-            quote! {
-                #expr.collect::<Vec<_>>().into_iter().flat_map(|collection| collection.get_nodes())
             }
         }
         Node::DocType => {
