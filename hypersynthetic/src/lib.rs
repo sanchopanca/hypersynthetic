@@ -1,6 +1,8 @@
 pub use htmlize::{escape_attribute, escape_text};
 pub use hypersynthetic_macros::{component, html};
 
+use std::fmt;
+
 #[derive(Clone, Debug)]
 pub enum NodeCollection {
     Nodes(Vec<Node>),
@@ -39,7 +41,7 @@ impl NodeCollection {
         }
     }
 
-    pub fn to_html(&self) -> String {
+    fn to_html(&self) -> String {
         match self {
             NodeCollection::Nodes(nodes) => nodes.iter().map(|node| node.to_html()).collect(),
         }
@@ -53,7 +55,7 @@ impl NodeCollection {
 }
 
 impl Node {
-    pub fn to_html(&self) -> String {
+    fn to_html(&self) -> String {
         match self {
             Node::Text(text) => text.clone(),
             Node::Element(element_data) => element_data.to_html(),
@@ -97,8 +99,6 @@ impl ElementData {
             NodeCollection::Nodes(nodes) => nodes.iter().map(|node| node.to_html()).collect(),
         };
 
-        // let children_string: String = self.children.iter().map(|child| child.to_html()).collect();
-
         if self.self_closing {
             format!("<{}{} />", self.tag_name, attributes_string)
         } else {
@@ -107,6 +107,24 @@ impl ElementData {
                 self.tag_name, attributes_string, children_string, self.tag_name
             )
         }
+    }
+}
+
+impl fmt::Display for ElementData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_html())
+    }
+}
+
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_html())
+    }
+}
+
+impl fmt::Display for NodeCollection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_html())
     }
 }
 

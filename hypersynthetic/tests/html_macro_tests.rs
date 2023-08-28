@@ -12,7 +12,7 @@ fn test_tags_and_literal_strings() {
         </body>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<body><div><p>Text</p></div></body>";
     assert_eq!(string_representation, expected);
@@ -28,7 +28,7 @@ fn test_tags_and_attributes() {
         </body>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected =
         "<body id=\"main\" class=\"container\"><div><a href=\"https://example.com\">Link</a></div></body>";
@@ -46,7 +46,7 @@ fn test_several_children() {
         </body>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<body><div><p>Text 1</p><p>Text 2</p></div></body>";
     assert_eq!(string_representation, expected);
@@ -60,7 +60,7 @@ fn test_no_children() {
         </body>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<body><div></div></body>";
     assert_eq!(string_representation, expected);
@@ -76,7 +76,7 @@ fn test_deep_nesting() {
         </body>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<body><div><p><span><em>Text</em></span></p></div></body>";
     assert_eq!(string_representation, expected);
@@ -88,7 +88,7 @@ fn test_one_tag_with_text() {
         <p>"Text"</p>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<p>Text</p>";
     assert_eq!(string_representation, expected);
@@ -108,7 +108,7 @@ fn test_self_closing() {
         </body>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected =
         "<body><div><p>Text 1</p><br /><p>Text 2</p><br class=\"foo\" /><p>Text 3</p></div></body>";
@@ -125,7 +125,7 @@ fn test_mixed_children() {
         </body>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<body><div><p>text1<em>text1</em>text3</p></div></body>";
     assert_eq!(string_representation, expected);
@@ -140,7 +140,7 @@ fn test_expression() {
         </p>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<p>42</p>";
     assert_eq!(string_representation, expected);
@@ -152,7 +152,7 @@ fn test_hyphens_in_attribute_names() {
         <button hx-get="/resources">"Get 'em"</button>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<button hx-get=\"/resources\">Get 'em</button>";
     assert_eq!(string_representation, expected);
@@ -164,7 +164,7 @@ fn test_many_hyphens_in_attribute_names() {
         <br we-can-have-a-lot-of-hyphens="in the name" />
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<br we-can-have-a-lot-of-hyphens=\"in the name\" />";
     assert_eq!(string_representation, expected);
@@ -176,7 +176,7 @@ fn test_attributes_without_values() {
         <input disabled />
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<input disabled />";
     assert_eq!(string_representation, expected);
@@ -188,7 +188,7 @@ fn test_attributes_names_which_are_rust_keywords() {
         <input type="ckeckbox" checked />
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<input type=\"ckeckbox\" checked />";
     assert_eq!(string_representation, expected);
@@ -200,7 +200,7 @@ fn test_attributes_names_which_are_rust_keywords_with_hyphens() {
         <p my-type>"Text"</p>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<p my-type>Text</p>";
     assert_eq!(string_representation, expected);
@@ -213,7 +213,7 @@ fn test_attribute_value_substitution() {
         <p class={format!("y{x}")}>"text"</p>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<p class=\"y3\">text</p>";
     assert_eq!(string_representation, expected);
@@ -226,7 +226,7 @@ fn test_attribute_name_substitution() {
         <button {hx_method}="/resources">"Get 'em"</button>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<button hx-get=\"/resources\">Get 'em</button>";
     assert_eq!(string_representation, expected);
@@ -239,7 +239,7 @@ fn test_several_elemnts_without_a_parent() {
         <body></body>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<head></head><body></body>";
     assert_eq!(string_representation, expected);
@@ -253,7 +253,7 @@ fn test_doctype() {
         <body></body>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<!DOCTYPE html><head></head><body></body>";
     assert_eq!(string_representation, expected);
@@ -275,7 +275,7 @@ fn test_component() {
         <Component val1="Hello" val2={41} />
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<div><p>Hello</p><p>42</p></div>";
 
@@ -290,7 +290,7 @@ fn test_component_as_a_child() {
         </div>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<div><div><p>test</p><p>0</p></div></div>";
 
@@ -305,7 +305,7 @@ fn test_escaping_in_expression() {
         </div>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<div><p>&lt;script&gt;alert(1)&lt;/script&gt;</p></div>";
     assert_eq!(string_representation, expected);
@@ -319,7 +319,7 @@ fn test_escaping_in_literal() {
         </div>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<div><p>&lt;script&gt;alert(1)&lt;/script&gt;</p></div>";
     assert_eq!(string_representation, expected);
@@ -331,7 +331,7 @@ fn test_escaping_in_attribute_value_literal() {
         <div class="<script>alert(1)</script>"></div>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<div class=\"&lt;script&gt;alert(1)&lt;/script&gt;\"></div>";
     assert_eq!(string_representation, expected);
@@ -344,7 +344,7 @@ fn test_quote_scaping_in_attribute_value() {
         <input value="{value}" />
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<input value=\"&quot;\" />";
     assert_eq!(string_representation, expected);
@@ -356,7 +356,7 @@ fn test_escaping_in_attribute_value_expression() {
         <div class={ "<script>alert(1)</script>" }></div>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<div class=\"&lt;script&gt;alert(1)&lt;/script&gt;\"></div>";
     assert_eq!(string_representation, expected);
@@ -368,7 +368,7 @@ fn test_escaping_in_attribute_name() {
         <div { "<script>alert(1)</script>" }="whatever"></div>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<div &lt;script&gt;alert(1)&lt;/script&gt;=\"whatever\"></div>";
     assert_eq!(string_representation, expected);
@@ -386,7 +386,7 @@ fn test_interpolation_in_attr_values() {
         <div id="x{s.a}-{s.b}{s.a}">"Text"</div>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<div id=\"xtest-42test\">Text</div>";
     assert_eq!(string_representation, expected);
@@ -403,7 +403,7 @@ fn test_for() {
         </div>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<div><p>1</p><p>2</p><p>3</p></div>";
     assert_eq!(string_representation, expected);
@@ -419,7 +419,7 @@ fn test_for_deep() {
         </tr>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected =
         "<tr><td>1</td><td>2</td></tr><tr><td>3</td><td>4</td></tr><tr><td>5</td><td>6</td></tr>";
@@ -433,7 +433,7 @@ fn test_for_selfclosing() {
         <input type="text" :for={number in numbers} id="id{number}" />
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<input type=\"text\" id=\"id1\" /><input type=\"text\" id=\"id2\" /><input type=\"text\" id=\"id3\" />";
     assert_eq!(string_representation, expected);
@@ -448,7 +448,7 @@ fn test_for_deep_components() {
         </div>
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected =
         "<div id=\"id1\"><div><p>test</p><p>2</p></div></div><div id=\"id2\"><div><p>test</p><p>3</p></div></div>";
@@ -462,7 +462,7 @@ fn test_for_on_a_component() {
         <Component :for={number in numbers} val1="test" val2={number} />
     };
 
-    let string_representation = result.to_html();
+    let string_representation = result.to_string();
 
     let expected = "<div><p>test</p><p>2</p></div><div><p>test</p><p>3</p></div>";
     assert_eq!(string_representation, expected);
