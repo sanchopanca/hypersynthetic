@@ -1,5 +1,145 @@
 pub use htmlize::{escape_attribute, escape_text};
-pub use hypersynthetic_macros::{component, html};
+
+/// The component macro provides a way to define reusable and self-contained web components.
+/// A component is a function that returns a [NodeCollection]. The easiest way to create one is
+/// [html] macro.
+///
+/// # Basic Usage
+///
+/// ```
+/// # use hypersynthetic::prelude::*;
+/// #[component]
+/// fn MyComponent(prop1: &str, prop2: i32) -> NodeCollection {
+///    html! {
+///        <div>
+///            <p>{prop1}</p>
+///            <p>{prop2}</p>
+///        </div>
+///    }
+/// }
+///
+/// # fn main() {
+///     let html = html! {
+///         <MyComponent prop1="Hello" prop2={42} />
+///     };
+/// # }
+/// ```
+///
+/// A component name must start with an uppercase letter and it must return a [NodeCollection].
+///
+/// # Props
+/// Components accept properties, similar to function arguments.
+/// These properties can be any Rust type, providing a type-safe way to pass data to components.
+/// When calling a component from [html] macro, the properties are passed as html arguments.
+/// Currently, they need to be passed in the same order as they are defined in the component.
+/// See [github issue](https://github.com/sanchopanca/hypersynthetic/issues/8) for more details.
+///
+/// # Slots
+/// [TODO](https://github.com/sanchopanca/hypersynthetic/issues/10)
+pub use hypersynthetic_macros::component;
+
+/// The `html` macro allows to construct html fragments in Rust.
+/// It mostly follows the same syntax as HTML with the following exceptions:
+///
+/// 1. Void tags need to be self-closing. For example `<br>` should be written as `<br />`.
+///
+/// 2. Bare text is not (yet) allowed. Instead you should put a string literal inside an expression
+/// like `<span>{"text"}</span>`. Alternatively, for convenience, you can use the string literal
+/// directly like `<span>"text"</span>`. But the latter syntax is likely to change in the future.
+/// See this [github issue](https://github.com/sanchopanca/hypersynthetic/issues/3) for details.
+///
+/// With gotchas out the way, here are the feautures:
+///
+/// # Dynamic content
+/// An expression that implements Display trait (or just ToString trait) inside curly braces will be substituted
+/// with the resulst of .to_string() call, applying html escaping (opting out from escaping is not yet possible,
+/// see this [github issue](https://github.com/sanchopanca/hypersynthetic/issues/5).
+/// Here are the places where it can be used:
+/// 1. As a child of an element.
+/// ```
+/// # use hypersynthetic::html;
+/// let txt = "Text";
+/// let div = html! {
+///     <div>{txt}</div>
+/// };
+/// assert_eq!(div.to_string(), "<div>Text</div>");
+///
+/// let span = html! {
+///     <span>{txt}{txt}</span>
+/// };
+/// assert_eq!(span.to_string(), "<span>TextText</span>");
+/// ```
+///
+/// 2. In an attribute value or its part.
+/// ```
+/// # use hypersynthetic::html;
+/// let cls = "header";
+/// let div = html! {
+///     <div class={cls}>{"Breaking news"}</div>
+/// };
+/// assert_eq!(div.to_string(), "<div class=\"header\">Breaking news</div>");
+///
+/// let id = 42;
+/// let span = html! {
+///     <span id="header-{id}">{"Breaking news"}</span>
+/// };
+///
+/// assert_eq!(span.to_string(), "<span id=\"header-42\">Breaking news</span>");
+/// ```
+///
+/// 3. In an attribute name.
+/// ```
+/// # use hypersynthetic::html;
+/// let method = "hx-get";
+/// let div = html! {
+///     <button hx-get="/resources">{"Get 'em"}</button>
+/// };
+/// assert_eq!(div.to_string(), "<button hx-get=\"/resources\">Get 'em</button>");
+/// ```
+///
+/// # Iteration
+/// A special pseudo-attribute `:for` is used to iterate over an iterable object and create an element for each item.
+/// ```
+/// # use hypersynthetic::html;
+/// let numbers = [1, 2];
+/// let div = html! {
+///     <div :for={n in numbers}>
+///         <span>{n}</span>
+///     </div>
+/// };
+/// assert_eq!(div.to_string(), "<div><span>1</span></div><div><span>2</span></div>");
+///
+/// let div = html! {
+///     <input :for={n in numbers} type="text" value={n} />
+/// };
+/// assert_eq!(div.to_string(), "<input type=\"text\" value=\"1\" /><input type=\"text\" value=\"2\" />");
+/// ```
+///
+/// # Components
+/// Components can be called as self-closing tags. Here is an example:
+/// ```
+/// # use hypersynthetic::prelude::*;
+/// #[component]
+/// fn MyDiv(text: &str) -> NodeCollection {
+///     html! {
+///         <div>{text}</div>
+///     }
+/// }
+/// fn main() {
+///     let div = html! {
+///         <div>
+///             <MyDiv text="my text" />
+///         </div>
+///     };    
+/// }
+/// ```
+/// See [component] macro for more details.
+pub use hypersynthetic_macros::html;
+
+pub mod prelude {
+    pub use crate::NodeCollection;
+    pub use crate::{component, html};
+}
 
 use std::fmt;
 
