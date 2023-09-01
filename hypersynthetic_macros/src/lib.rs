@@ -8,7 +8,7 @@ use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input,
     token::Brace,
-    Expr, Ident, ItemFn, LitStr, Result, Token,
+    Expr, Ident, ItemFn, LitStr, Pat, Result, Token,
 };
 
 #[derive(Clone)]
@@ -72,7 +72,7 @@ enum InterpolatedSegment {
 
 #[derive(Clone)]
 struct ForExpr {
-    var_name: Ident,
+    pat: Pat,
     collection: Expr,
 }
 
@@ -328,13 +328,10 @@ impl Parse for AttrValue {
 
 impl Parse for ForExpr {
     fn parse(input: ParseStream) -> Result<Self> {
-        let var_name: Ident = input.parse()?;
+        let pat: Pat = Pat::parse_single(input)?;
         let _: Token![in] = input.parse()?;
         let collection: Expr = input.parse()?;
-        Ok(ForExpr {
-            var_name,
-            collection,
-        })
+        Ok(ForExpr { pat, collection })
     }
 }
 
@@ -452,7 +449,7 @@ fn generate_node(tag: Node) -> TokenStream2 {
                 .collect();
             if element.has_for_attribute() {
                 let for_expr = element.get_for_attribute();
-                let var = for_expr.var_name;
+                let var = for_expr.pat;
                 let collection = for_expr.collection;
                 quote! {
                     {
@@ -503,7 +500,7 @@ fn generate_node(tag: Node) -> TokenStream2 {
                 .collect();
             if component.has_for_attribute() {
                 let for_expr = component.get_for_attribute();
-                let var = for_expr.var_name;
+                let var = for_expr.pat;
                 let collection = for_expr.collection;
                 quote! {
                     {

@@ -467,3 +467,19 @@ fn test_for_on_a_component() {
     let expected = "<div><p>test</p><p>2</p></div><div><p>test</p><p>3</p></div>";
     assert_eq!(string_representation, expected);
 }
+
+#[test]
+fn test_for_parentheses() {
+    let numbers = [(1, "one"), (2, "two)")];
+    let result = html! {
+        <div :for={(number, name) in numbers}>
+            <p>{ number }</p>
+            <p>{ name }</p>
+        </div>
+    };
+
+    let string_representation = result.to_string();
+
+    let expected = "<div><p>1</p><p>one</p></div><div><p>2</p><p>two)</p></div>";
+    assert_eq!(string_representation, expected);
+}
