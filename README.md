@@ -2,6 +2,39 @@
 
 An HTML template engine that chose composition over inheritance
 
+# Example
+
+```rust
+use hypersynthetic::prelude::*;
+
+#[component]
+fn TodoItem(text: &str, done: bool) -> NodeCollection {
+    let text_decoration = if done { "line-through" } else { "none" };
+
+    html! {
+        <li style="text-decoration: {text_decoration};">
+            {text}
+        </li>
+    }
+}
+
+fn main() {
+    let todo_list = vec![
+        ("Buy Milk", true),
+        ("Read Rust Book", false),
+        ("Write Web App using html! macro", false),
+    ];
+
+    let rendered_list = html! {
+        <ul>
+            <TodoItem :for={(text, done) in todo_list} text={text} done={done} />
+        </ul>
+    };
+
+    // ... Render `rendered_list` into your application.
+}
+```
+
 ## License
 
 Licensed under either of
