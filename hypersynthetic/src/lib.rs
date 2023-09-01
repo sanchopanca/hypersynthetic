@@ -1,3 +1,51 @@
+//! # About Hypersynthetic
+//!
+//! Hypersynthetic is a library for writing HTML inside Rust.
+//! It is inspired by JSX and HEEx templates, and tries to be different from Tera and Minijinja
+//! in one key aspect: it allows reusing HTML code via composition, instead of inheritance.
+//! It is suitable for building traditional web applications, where backend responds with HTML.
+//!
+//! Here is an example of what hypersynthetic can do:
+//!
+//! ```
+//! use hypersynthetic::prelude::*;
+//!
+//! #[component]
+//! fn TodoItem(text: &str, done: bool) -> NodeCollection {
+//!     let text_decoration = if done { "line-through" } else { "none" };
+//!
+//!     html! {
+//!         <li style="text-decoration: {text_decoration};">
+//!             {text}
+//!         </li>
+//!     }
+//! }
+//!
+//! fn main() {
+//!     let todo_list = vec![
+//!         ("Buy Milk", true),
+//!         ("Read Rust Book", false),
+//!         ("Write Web App using html! macro", false),
+//!     ];
+//!
+//!     let rendered_list = html! {
+//!         <ul>
+//!             <TodoItem :for={(text, done) in todo_list} text={text} done={done} />
+//!         </ul>
+//!     };
+//!
+//!     // ... Render `rendered_list` into your application.
+//! }
+//! ```
+//!
+//! In this example:
+//!
+//! The TodoItem component displays a to-do item, striking it through if it's done.
+//! The main function defines a list of to-dos and uses the :for attribute to loop over them,
+//! rendering each one using the TodoItem component.
+//!
+//! See the [html] macro for the description of the syntax and [component] macro for more details about using components
+
 pub use htmlize::{escape_attribute, escape_text};
 
 /// The component macro provides a way to define reusable and self-contained web components.
