@@ -523,3 +523,17 @@ fn document_that_whitespaces_in_attribute_names_are_ignored() {
 
     assert_eq!(string_representation, expected);
 }
+
+#[test]
+fn test_component_arguments_out_of_order() {
+    let result = html! {
+        <Component val2={41} val1="Hello" />
+    };
+
+    let string_representation = result.to_string();
+
+    let expected = "<div><p>Hello</p><p>42</p></div>";
+    assert_eq!(string_representation, expected);
+}
+
+// TODO: callilng component from a different module

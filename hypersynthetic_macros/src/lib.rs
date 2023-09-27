@@ -2,13 +2,14 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{
     braced,
     parse::{Parse, ParseStream},
-    parse_macro_input,
-    token::Brace,
-    Expr, Ident, ItemFn, LitStr, Pat, Result, Token,
+    parse_macro_input, parse_quote,
+    punctuated::Punctuated,
+    token::{Brace, Comma},
+    Block, Expr, FnArg, Ident, ItemFn, LitStr, Pat, PatType, Result, Token, Type,
 };
 
 #[derive(Clone)]
@@ -55,6 +56,17 @@ struct RegularAttribute {
 enum AttrName {
     Literal(LitStr),
     Expression(Expr),
+    Identifier(Ident),
+}
+
+impl AttrName {
+    pub fn to_indent(&self) -> Ident {
+        match self {
+            AttrName::Literal(s) => panic!("Cannot convert {} to Ident", s.value()),
+            AttrName::Expression(_) => panic!("Connot convert expression to Ident, dynamic attribute names are not supported here"),
+            AttrName::Identifier(i) => i.to_owned(),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -282,6 +294,8 @@ impl Parse for AttrName {
 
         let mut name = String::new();
         let mut saw_word = false;
+        let mut only_saw_ident = true;
+        let mut last_ident = None;
         loop {
             let lookahead = input.lookahead1();
             if lookahead.peek(Ident) {
@@ -291,6 +305,7 @@ impl Parse for AttrName {
                 let ident: Ident = input.parse()?;
                 name.push_str(&ident.to_string());
                 saw_word = true;
+                last_ident = Some(ident);
             } else if lookahead.peek(Token![type]) {
                 if saw_word {
                     break;
@@ -299,23 +314,28 @@ impl Parse for AttrName {
                 let _: Token![type] = input.parse()?;
                 name.push_str("type");
                 saw_word = true;
+                only_saw_ident = false;
             } else if lookahead.peek(Token![-]) {
                 let _: Token![-] = input.parse()?;
                 name.push('-');
                 saw_word = false;
+                only_saw_ident = false;
             } else if lookahead.peek(Token![:]) {
                 let _: Token![:] = input.parse()?;
                 name.push(':');
                 saw_word = false;
+                only_saw_ident = false;
             } else {
                 break;
             }
         }
 
-        if !name.is_empty() {
-            Ok(AttrName::Literal(LitStr::new(&name, span)))
-        } else {
+        if name.is_empty() {
             Err(input.error("Expected a valid attribute name"))
+        } else if only_saw_ident {
+            Ok(AttrName::Identifier(last_ident.unwrap()))
+        } else {
+            Ok(AttrName::Literal(LitStr::new(&name, span)))
         }
     }
 }
@@ -417,13 +437,133 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let allow_attr: syn::Attribute = syn::parse_quote!(#[allow(non_snake_case)]);
     function.attrs.push(allow_attr);
 
-    quote!(#function).into()
+    let companion = create_component_companion(&function);
+
+    quote! {
+        #function
+        #companion
+    }
+    .into()
 }
 
 // This is one lazy implementation that only checks that the first character is uppercase
 fn is_pascal_case(name: &Ident) -> bool {
     let first_char = name.to_string().chars().next();
     matches!(first_char, Some(ch) if ch.is_uppercase())
+}
+
+fn create_component_companion(function: &ItemFn) -> TokenStream2 {
+    // 1. create new struct based on the function signature
+    let struct_name = format_ident!("{}Args", function.sig.ident);
+
+    // Check if any argument is a reference
+    let has_lifetime = function.sig.inputs.iter().any(|arg| {
+        if let FnArg::Typed(PatType { ty, .. }) = arg {
+            matches!(**ty, Type::Reference(_))
+        } else {
+            false
+        }
+    });
+
+    // Generate the struct fields without types
+    let struct_fields: Vec<_> = function
+        .sig
+        .inputs
+        .iter()
+        .map(|arg| {
+            if let FnArg::Typed(PatType { pat, ty, .. }) = arg {
+                let ty = match **ty {
+                    Type::Reference(ref reference_type) => {
+                        let inner_type = &reference_type.elem;
+                        quote! { &'a #inner_type }
+                    }
+                    _ => quote! { #ty },
+                };
+                quote! {
+                    pub #pat: #ty,
+                }
+            } else {
+                panic!("Expected typed arguments!")
+            }
+        })
+        .collect();
+
+    // If there's a lifetime, include it in the struct definition
+    let lifetime_def = if has_lifetime {
+        quote! {<'a>}
+    } else {
+        quote! {}
+    };
+    let strukt = quote! {
+        pub struct #struct_name #lifetime_def {
+            #(#struct_fields)*
+        }
+    };
+
+    let args = function.sig.inputs.clone();
+    let mut function = function.clone();
+    // 2. change the signature to use the struct, unpacking the struct in the signature
+    let destructured_patterns: Vec<_> = args
+        .iter()
+        .map(|arg| {
+            if let FnArg::Typed(pat_type) = arg {
+                let pat = &pat_type.pat;
+                quote! { #pat }
+            } else {
+                panic!("Expected typed arguments!")
+            }
+        })
+        .collect();
+
+    // Construct the function signature with the destructured arguments.
+    let inputs = quote! { #struct_name { #(#destructured_patterns),* }: #struct_name };
+    function.sig.inputs = parse_quote!(#inputs);
+
+    // 3. change the body to call the original function
+
+    // Extract just the variable names from the args.
+    let mut vars: Punctuated<Ident, Comma> = Punctuated::new();
+    for arg in args.iter() {
+        if let FnArg::Typed(pat_type) = arg {
+            if let Pat::Ident(pat_ident) = pat_type.pat.as_ref() {
+                vars.push(pat_ident.ident.clone());
+            }
+        }
+    }
+
+    // Construct a function call using the extracted variable names.
+    let fn_name = &function.sig.ident;
+    let fn_call = quote! {
+        #fn_name(#vars)
+    };
+
+    // Create a new block with just the function call as its body.
+    let new_body: Block = parse_quote! {
+        {
+            #fn_call
+        }
+    };
+
+    // Replace the original function's body with the new body.
+    function.block = Box::new(new_body);
+
+    // let output = quote! { #function };
+    // println!("We changed the body:\n{}", output);
+
+    // 4. change the name of the function
+    function.sig.ident = Ident::new(
+        &format!("{}Companion", function.sig.ident),
+        function.sig.ident.span(),
+    );
+
+    // let output = quote! { #function };
+    // println!("We changed the name:\n{}", output);
+
+    // 5. output the struct and the function
+    quote! {
+        #strukt
+        #function
+    }
 }
 
 fn generate_nodes(NodeCollection::Nodes(nodes): NodeCollection) -> TokenStream2 {
@@ -506,12 +646,28 @@ fn generate_node(tag: Node) -> TokenStream2 {
             }
         }
         Node::Component(component) => {
-            let component_name = &component.name;
-            let props: Vec<TokenStream2> = component
+            let component_name = format_ident!("{}Companion", &component.name);
+
+            let args_struct_name = format_ident!("{}Args", &component.name);
+
+            let props_initializations: Vec<TokenStream2> = component
                 .get_regular_attributes()
                 .into_iter()
-                .map(generate_attribute_as_prop)
+                .map(|attr| {
+                    let attr_name = attr.name.to_indent();
+                    let prop_value = generate_attribute_as_prop(attr);
+                    quote! {
+                        #attr_name: #prop_value
+                    }
+                })
                 .collect();
+
+            let struct_initialization = quote! {
+                #args_struct_name {
+                    #(#props_initializations),*
+                }
+            };
+
             if component.has_for_attribute() {
                 let for_expr = component.get_for_attribute();
                 let var = for_expr.pat;
@@ -520,16 +676,40 @@ fn generate_node(tag: Node) -> TokenStream2 {
                     {
                         let mut for_v = Vec::new();
                         for #var in #collection {
-                            for_v.extend(#component_name(#(#props),*).get_nodes());
+                            for_v.extend(#component_name(#struct_initialization).get_nodes());
                         }
                         for_v
                     }
                 }
             } else {
                 quote! {
-                    #component_name(#(#props),*).get_nodes()
+                    #component_name(#struct_initialization).get_nodes()
                 }
             }
+
+            // let props: Vec<TokenStream2> = component
+            //     .get_regular_attributes()
+            //     .into_iter()
+            //     .map(generate_attribute_as_prop)
+            //     .collect();
+            // if component.has_for_attribute() {
+            //     let for_expr = component.get_for_attribute();
+            //     let var = for_expr.pat;
+            //     let collection = for_expr.collection;
+            //     quote! {
+            //         {
+            //             let mut for_v = Vec::new();
+            //             for #var in #collection {
+            //                 for_v.extend(#component_name(#(#props),*).get_nodes());
+            //             }
+            //             for_v
+            //         }
+            //     }
+            // } else {
+            //     quote! {
+            //         #component_name(#(#props),*).get_nodes()
+            //     }
+            // }
         }
     }
 }
@@ -539,6 +719,10 @@ fn generate_attribute(attr: RegularAttribute) -> TokenStream2 {
         AttrName::Literal(name) => quote! { #name.to_owned() },
         AttrName::Expression(expr) => {
             quote! { hypersynthetic::escape_attribute(format!("{}", #expr)).to_string() }
+        }
+        AttrName::Identifier(ident) => {
+            let name = ident.to_string();
+            quote! { #name.to_owned() }
         }
     };
 
