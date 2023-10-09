@@ -316,6 +316,19 @@ impl fmt::Display for NodeCollection {
     }
 }
 
+#[cfg(feature = "rocket")]
+impl<'r> rocket::response::Responder<'r, 'static> for NodeCollection {
+    fn respond_to(
+        self,
+        req: &'r rocket::request::Request<'_>,
+    ) -> rocket::response::Result<'static> {
+        let content = self.to_string();
+        rocket::response::Response::build_from(content.respond_to(req)?)
+            .header(rocket::http::ContentType::HTML)
+            .ok()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
