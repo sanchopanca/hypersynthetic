@@ -2,6 +2,7 @@
 
 [![](https://badgers.space/badge/crates.io/hypersynthetic)](https://crates.io/crates/hypersynthetic)
 [![](https://badgers.space/github/checks/sanchopanca/hypersynthetic)](https://github.com/sanchopanca/hypersynthetic/actions)
+[![](https://badgers.space/badge/%E2%80%8B/docs.rs/orange?icon=eva-book-open-outline)](https://docs.rs/hypersynthetic/latest/hypersynthetic/index.html)
 
 An HTML template engine that chose composition over inheritance
 
