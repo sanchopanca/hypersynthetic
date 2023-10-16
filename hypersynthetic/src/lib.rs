@@ -11,7 +11,7 @@
 //! use hypersynthetic::prelude::*;
 //!
 //! #[component]
-//! fn TodoItem(text: &str, done: bool) -> NodeCollection {
+//! fn TodoItem(text: &str, done: bool) -> HtmlFragment {
 //!     let text_decoration = if done { "line-through" } else { "none" };
 //!
 //!     html! {
@@ -49,7 +49,7 @@
 pub use htmlize::{escape_attribute, escape_text};
 
 /// The component macro provides a way to define reusable and self-contained web components.
-/// A component is a function that returns a [NodeCollection]. The easiest way to create one is
+/// A component is a function that returns a [HtmlFragment]. The easiest way to create one is
 /// [html] macro.
 ///
 /// # Basic Usage
@@ -57,7 +57,7 @@ pub use htmlize::{escape_attribute, escape_text};
 /// ```
 /// # use hypersynthetic::prelude::*;
 /// #[component]
-/// fn MyComponent(prop1: &str, prop2: i32) -> NodeCollection {
+/// fn MyComponent(prop1: &str, prop2: i32) -> HtmlFragment {
 ///    html! {
 ///        <div>
 ///            <p>{prop1}</p>
@@ -73,7 +73,7 @@ pub use htmlize::{escape_attribute, escape_text};
 /// # }
 /// ```
 ///
-/// A component name must start with an uppercase letter and it must return a [NodeCollection].
+/// A component name must start with an uppercase letter and it must return a [HtmlFragment].
 ///
 /// # Props
 /// Components accept properties, similar to function arguments.
@@ -168,7 +168,7 @@ pub use hypersynthetic_macros::component;
 /// ```
 /// # use hypersynthetic::prelude::*;
 /// #[component]
-/// fn MyDiv(text: &str) -> NodeCollection {
+/// fn MyDiv(text: &str) -> HtmlFragment {
 ///     html! {
 ///         <div>{text}</div>
 ///     }
@@ -185,14 +185,14 @@ pub use hypersynthetic_macros::component;
 pub use hypersynthetic_macros::html;
 
 pub mod prelude {
-    pub use crate::NodeCollection;
+    pub use crate::HtmlFragment;
     pub use crate::{component, html};
 }
 
 use std::fmt;
 
 #[derive(Clone, Debug)]
-pub enum NodeCollection {
+pub enum HtmlFragment {
     Nodes(Vec<Node>),
 }
 
@@ -207,7 +207,7 @@ pub enum Node {
 pub struct ElementData {
     pub tag_name: String,
     pub attributes: Vec<Attribute>,
-    pub children: NodeCollection,
+    pub children: HtmlFragment,
     pub self_closing: bool,
 }
 
@@ -217,27 +217,27 @@ pub struct Attribute {
     pub value: Option<String>,
 }
 
-impl NodeCollection {
+impl HtmlFragment {
     // TODO: consider something else except Vec
     pub fn new(nodes: Vec<Node>) -> Self {
-        NodeCollection::Nodes(nodes)
+        HtmlFragment::Nodes(nodes)
     }
 
     pub fn push(&mut self, node: Node) {
         match self {
-            NodeCollection::Nodes(nodes) => nodes.push(node),
+            HtmlFragment::Nodes(nodes) => nodes.push(node),
         }
     }
 
     fn to_html(&self) -> String {
         match self {
-            NodeCollection::Nodes(nodes) => nodes.iter().map(|node| node.to_html()).collect(),
+            HtmlFragment::Nodes(nodes) => nodes.iter().map(|node| node.to_html()).collect(),
         }
     }
 
     pub fn get_nodes(&self) -> Vec<Node> {
         match self {
-            NodeCollection::Nodes(nodes) => nodes.clone(),
+            HtmlFragment::Nodes(nodes) => nodes.clone(),
         }
     }
 }
@@ -257,7 +257,7 @@ impl ElementData {
         ElementData {
             tag_name,
             attributes: Vec::new(),
-            children: NodeCollection::new(Vec::new()),
+            children: HtmlFragment::new(Vec::new()),
             self_closing: false,
         }
     }
@@ -284,7 +284,7 @@ impl ElementData {
             .collect();
 
         let children_string: String = match &self.children {
-            NodeCollection::Nodes(nodes) => nodes.iter().map(|node| node.to_html()).collect(),
+            HtmlFragment::Nodes(nodes) => nodes.iter().map(|node| node.to_html()).collect(),
         };
 
         if self.self_closing {
@@ -310,14 +310,14 @@ impl fmt::Display for Node {
     }
 }
 
-impl fmt::Display for NodeCollection {
+impl fmt::Display for HtmlFragment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_html())
     }
 }
 
 #[cfg(feature = "rocket")]
-impl<'r> rocket::response::Responder<'r, 'static> for NodeCollection {
+impl<'r> rocket::response::Responder<'r, 'static> for HtmlFragment {
     fn respond_to(
         self,
         req: &'r rocket::request::Request<'_>,

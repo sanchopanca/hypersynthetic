@@ -11,7 +11,7 @@ An HTML template engine that chose composition over inheritance
 use hypersynthetic::prelude::*;
 
 #[component]
-fn TodoItem(text: &str, done: bool) -> NodeCollection {
+fn TodoItem(text: &str, done: bool) -> HtmlFragment {
     let text_decoration = if done { "line-through" } else { "none" };
 
     html! {

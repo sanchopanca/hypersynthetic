@@ -440,7 +440,7 @@ fn generate_nodes(NodeCollection::Nodes(nodes): NodeCollection) -> TokenStream2 
 
     quote! {
         {
-            hypersynthetic::NodeCollection::new({
+            hypersynthetic::HtmlFragment::new({
                 let mut v = vec![];
                 #(#nodes)*
                 v

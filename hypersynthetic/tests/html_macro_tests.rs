@@ -1,4 +1,4 @@
-use hypersynthetic::NodeCollection;
+use hypersynthetic::HtmlFragment;
 use hypersynthetic::{component, html};
 extern crate alloc;
 
@@ -272,7 +272,7 @@ fn test_doctype() {
 }
 
 #[component]
-fn Component(val1: &str, val2: i32) -> NodeCollection {
+fn Component(val1: &str, val2: i32) -> HtmlFragment {
     html! {
         <div>
             <p>{val1}</p>
