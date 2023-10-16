@@ -483,3 +483,18 @@ fn test_for_parentheses() {
     let expected = "<div><p>1</p><p>one</p></div><div><p>2</p><p>two)</p></div>";
     assert_eq!(string_representation, expected);
 }
+
+#[test]
+fn test_colons_in_attr_names() {
+    let result = html! {
+        <form
+            hx-on::after-request="this.reset()"
+        >
+        </form>
+    };
+
+    let string_representation = result.to_string();
+
+    let expected = "<form hx-on::after-request=\"this.reset()\"></form>";
+    assert_eq!(string_representation, expected);
+}

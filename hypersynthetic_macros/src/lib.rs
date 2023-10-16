@@ -293,6 +293,9 @@ impl Parse for AttrName {
             } else if lookahead.peek(Token![-]) {
                 let _: Token![-] = input.parse()?;
                 name.push('-');
+            } else if lookahead.peek(Token![:]) {
+                let _: Token![:] = input.parse()?;
+                name.push(':');
             } else {
                 break;
             }
