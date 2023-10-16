@@ -1,5 +1,8 @@
 # hypersynthetic
 
+[![](https://badgers.space/badge/crates.io/hypersynthetic)](https://crates.io/crates/hypersynthetic)
+[![](https://badgers.space/github/checks/sanchopanca/hypersynthetic)](https://github.com/sanchopanca/hypersynthetic/actions)
+
 An HTML template engine that chose composition over inheritance
 
 # Example
