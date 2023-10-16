@@ -171,7 +171,7 @@ fn test_many_hyphens_in_attribute_names() {
 }
 
 #[test]
-fn test_attributes_without_values() {
+fn test_boolean_attribute() {
     let result = html! {
         <input disabled />
     };
@@ -191,6 +191,18 @@ fn test_attributes_names_which_are_rust_keywords() {
     let string_representation = result.to_string();
 
     let expected = "<input type=\"ckeckbox\" checked />";
+    assert_eq!(string_representation, expected);
+}
+
+#[test]
+fn test_boolean_attribute_between_other_attributes() {
+    let result = html! {
+        <input type="text" required name="text" />
+    };
+
+    let string_representation = result.to_string();
+
+    let expected = "<input type=\"text\" required name=\"text\" />";
     assert_eq!(string_representation, expected);
 }
 
@@ -496,5 +508,18 @@ fn test_colons_in_attr_names() {
     let string_representation = result.to_string();
 
     let expected = "<form hx-on::after-request=\"this.reset()\"></form>";
+    assert_eq!(string_representation, expected);
+}
+
+#[test]
+fn document_that_whitespaces_in_attribute_names_are_ignored() {
+    let result = html! {
+        <div data - test = "1"></div>
+    };
+
+    let string_representation = result.to_string();
+
+    let expected = "<div data-test=\"1\"></div>";
+
     assert_eq!(string_representation, expected);
 }

@@ -281,21 +281,32 @@ impl Parse for AttrName {
         let span = input.span();
 
         let mut name = String::new();
+        let mut saw_word = false;
         loop {
             let lookahead = input.lookahead1();
             if lookahead.peek(Ident) {
+                if saw_word {
+                    break;
+                }
                 let ident: Ident = input.parse()?;
                 name.push_str(&ident.to_string());
+                saw_word = true;
             } else if lookahead.peek(Token![type]) {
+                if saw_word {
+                    break;
+                }
                 // TODO all the rest of keywords
                 let _: Token![type] = input.parse()?;
                 name.push_str("type");
+                saw_word = true;
             } else if lookahead.peek(Token![-]) {
                 let _: Token![-] = input.parse()?;
                 name.push('-');
+                saw_word = false;
             } else if lookahead.peek(Token![:]) {
                 let _: Token![:] = input.parse()?;
                 name.push(':');
+                saw_word = false;
             } else {
                 break;
             }
