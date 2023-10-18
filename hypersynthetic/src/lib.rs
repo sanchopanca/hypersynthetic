@@ -45,6 +45,10 @@
 //! rendering each one using the TodoItem component.
 //!
 //! See the [html] macro for the description of the syntax and [component] macro for more details about using components
+//!
+//! ## Features
+//!
+//! - `rocket`: Enables integration with the Rocket web framework. It allows to return [HtmlFragment] from the route handlers and sets the response content type to `text/html`.
 
 pub use htmlize::{escape_attribute, escape_text};
 

@@ -39,6 +39,11 @@ fn main() {
 }
 ```
 
+## Features
+
+- `rocket`: Enables integration with the Rocket web framework and allows to return `HtmlFragment` from handlers. To use this feature, add `features = ["rocket"]` in your `Cargo.toml` when adding this library as a dependency.
+
+
 ## License
 
 Licensed under either of
