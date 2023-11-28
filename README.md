@@ -4,7 +4,9 @@
 [![](https://badgers.space/github/checks/sanchopanca/hypersynthetic)](https://github.com/sanchopanca/hypersynthetic/actions)
 [![](https://badgers.space/badge/%E2%80%8B/docs.rs/orange?icon=eva-book-open-outline)](https://docs.rs/hypersynthetic/latest/hypersynthetic/index.html)
 
-An HTML template engine that chose composition over inheritance
+Hypersynthetic is a library for writing HTML inside Rust. It is inspired by JSX and HEEx templates, and tries to be different from Tera and Minijinja in one key aspect: it only allows reusing HTML code via composition not via inheritance. It is suitable for building traditional web applications, where backend responds with HTML.
+
+Here is an example of what hypersynthetic can do:
 
 # Example
 
@@ -38,6 +40,10 @@ fn main() {
     // ... Render `rendered_list` into your application.
 }
 ```
+
+In this example:
+
+The `TodoItem` component displays a to-do item, striking it through if it’s done. The main function defines a list of to-dos and uses the `:for` attribute to loop over them, rendering each one using the `TodoItem` component.
 
 ## Features
 
