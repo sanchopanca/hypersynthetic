@@ -1,6 +1,6 @@
 [package]
 name = "hypersynthetic"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Aleksandr Kovalev <aleksandr@kovalev.engineer>"]
 edition = "2021"
 description = "An HTML template engine that chose composition over inheritance"
@@ -17,4 +17,4 @@ rocket = ["dep:rocket"]
 [dependencies]
 hypersynthetic_macros = { path = "../hypersynthetic_macros", version = "0.3.0" }
 htmlize = "1.0.3"
-rocket = { version = "0.5.0-rc.3", optional = true }
+rocket = { version = "0.5.0", optional = true }
