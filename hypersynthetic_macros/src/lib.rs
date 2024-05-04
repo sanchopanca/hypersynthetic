@@ -19,6 +19,7 @@ enum NodeCollection {
 #[derive(Clone)]
 enum Node {
     Component(Component),
+    // ComponentWithSlot(ComponentWithSlot),
     DocType,
     Element(Tag),
     Expression(Expr),
@@ -38,7 +39,15 @@ struct Tag {
 struct Component {
     name: Ident,
     props: Vec<Attribute>,
+    children: Vec<Node>,
 }
+
+// #[derive(Clone)]
+// struct ComponentWithSlot {
+//     name: Ident,
+//     props: Vec<Attribute>,
+//     children: Vec<Node>,
+// }
 
 #[derive(Clone)]
 enum Attribute {
@@ -139,6 +148,37 @@ impl Component {
     }
 }
 
+// impl ComponentWithSlot {
+//     fn has_for_attribute(&self) -> bool {
+//         self.props
+//             .iter()
+//             .any(|attr| matches!(attr, Attribute::For(_)))
+//     }
+
+//     fn get_regular_attributes(&self) -> Vec<RegularAttribute> {
+//         self.props
+//             .iter()
+//             .filter(|attr| matches!(attr, Attribute::RegularAttribute(_)))
+//             .map(|attr| match attr {
+//                 Attribute::RegularAttribute(attr) => attr.clone(),
+//                 _ => unreachable!(),
+//             })
+//             .collect()
+//     }
+
+//     fn get_for_attribute(&self) -> ForExpr {
+//         let attr = self
+//             .props
+//             .iter()
+//             .find(|attr| matches!(attr, Attribute::For(_)))
+//             .unwrap();
+//         match attr {
+//             Attribute::For(attr) => attr.clone(),
+//             _ => unreachable!(),
+//         }
+//     }
+// }
+
 impl Parse for Node {
     fn parse(input: ParseStream) -> Result<Self> {
         if input.peek(Token![<]) && input.peek2(Token![!]) {
@@ -170,22 +210,22 @@ impl Parse for Node {
                 attributes.push(attribute);
             }
 
-            // this is a component
-            if is_pascal_case(&tag_name) {
-                // components are always self-closing
-                let _: Token![/] = input.parse()?;
-                let _: Token![>] = input.parse()?;
-
-                return Ok(Node::Component(Component {
-                    name: tag_name,
-                    props: attributes,
-                }));
-            }
+            let is_component = is_pascal_case(&tag_name);
 
             // self-closing tag
             if input.peek(Token![/]) && input.peek2(Token![>]) {
                 let _: Token![/] = input.parse()?;
                 let _: Token![>] = input.parse()?;
+
+                // self-closing -> no children (slots)
+                if is_component {
+                    return Ok(Node::Component(Component {
+                        name: tag_name,
+                        props: attributes,
+                        children: Vec::new(),
+                    }));
+                }
+
                 return Ok(Node::Element(Tag {
                     tag_name,
                     attributes,
@@ -206,8 +246,8 @@ impl Parse for Node {
 
             let element = Tag {
                 tag_name: tag_name.clone(),
-                attributes,
-                children,
+                attributes: attributes.clone(),
+                children: children.clone(),
                 self_closing: false,
             };
 
@@ -223,6 +263,15 @@ impl Parse for Node {
                     )))
                 } else {
                     let _: Token![>] = input.parse()?;
+
+                    if is_component {
+                        return Ok(Node::Component(Component {
+                            name: tag_name,
+                            props: attributes,
+                            children,
+                        }));
+                    }
+
                     Ok(Node::Element(element))
                 }
             } else {
@@ -529,6 +578,18 @@ fn generate_node(tag: Node) -> TokenStream2 {
                 .into_iter()
                 .map(generate_attribute_as_prop)
                 .collect();
+            let children: TokenStream2 =
+                generate_nodes(NodeCollection::Nodes(component.children.clone()));
+            let has_slots = !component.children.is_empty();
+            let component_call = if has_slots {
+                quote! {
+                    #component_name(#children, #(#props),*)
+                }
+            } else {
+                quote! {
+                    #component_name(#(#props),*)
+                }
+            };
             if component.has_for_attribute() {
                 let for_expr = component.get_for_attribute();
                 let var = for_expr.pat;
@@ -537,14 +598,14 @@ fn generate_node(tag: Node) -> TokenStream2 {
                     {
                         let mut for_v = Vec::new();
                         for #var in #collection {
-                            for_v.extend(#component_name(#(#props),*).get_nodes());
+                            for_v.extend(#component_call.get_nodes());
                         }
                         for_v
                     }
                 }
             } else {
                 quote! {
-                    #component_name(#(#props),*).get_nodes()
+                    #component_call.get_nodes()
                 }
             }
         }
