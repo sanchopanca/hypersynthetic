@@ -512,7 +512,7 @@ fn test_colons_in_attr_names() {
 }
 
 #[test]
-fn document_that_whitespaces_in_attribute_names_are_ignored() {
+fn document_that_whitespace_in_attribute_names_is_ignored() {
     let result = html! {
         <div data - test = "1"></div>
     };
@@ -520,6 +520,21 @@ fn document_that_whitespaces_in_attribute_names_are_ignored() {
     let string_representation = result.to_string();
 
     let expected = "<div data-test=\"1\"></div>";
+
+    assert_eq!(string_representation, expected);
+}
+
+#[test]
+fn test_disable_html_escaping() {
+    let i_know_what_i_am_doing = "<span>I know what I am doing</span>";
+
+    let result = html! {
+        <div>{{i_know_what_i_am_doing}}</div>
+    };
+
+    let string_representation = result.to_string();
+
+    let expected = "<div><span>I know what I am doing</span></div>";
 
     assert_eq!(string_representation, expected);
 }

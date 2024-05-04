@@ -23,6 +23,7 @@ enum Node {
     Element(Tag),
     Expression(Expr),
     Text(LitStr),
+    UnescapedExpression(Expr),
 }
 
 #[derive(Clone)]
@@ -233,8 +234,19 @@ impl Parse for Node {
         } else if input.peek(Brace) {
             let content_brackets;
             braced!(content_brackets in input);
-            let content_expr: Expr = content_brackets.parse()?;
-            Ok(Node::Expression(content_expr))
+
+            // Peek ahead to see if there's another pair of braces
+            if content_brackets.peek(Brace) {
+                // If there's another pair of braces, parse the inner content
+                let inner_brackets;
+                braced!(inner_brackets in content_brackets);
+                let content_expr: Expr = inner_brackets.parse()?;
+                Ok(Node::UnescapedExpression(content_expr))
+            } else {
+                // If there's only one pair of braces, parse the content normally
+                let content_expr: Expr = content_brackets.parse()?;
+                Ok(Node::Expression(content_expr))
+            }
         } else {
             Err(input.error("Expected a node"))
         }
@@ -498,6 +510,11 @@ fn generate_node(tag: Node) -> TokenStream2 {
         Node::Expression(expr) => {
             quote! {
                 vec![hypersynthetic::Node::Text(hypersynthetic::escape_text(format!("{}", #expr)).to_string())]
+            }
+        }
+        Node::UnescapedExpression(expr) => {
+            quote! {
+                vec![hypersynthetic::Node::Text(format!("{}", #expr))]
             }
         }
         Node::DocType => {
