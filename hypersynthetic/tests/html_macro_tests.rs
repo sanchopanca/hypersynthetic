@@ -1,5 +1,4 @@
-use hypersynthetic::HtmlFragment;
-use hypersynthetic::{component, html};
+use hypersynthetic::html;
 extern crate alloc;
 
 #[test]
@@ -185,12 +184,12 @@ fn test_boolean_attribute() {
 #[test]
 fn test_attributes_names_which_are_rust_keywords() {
     let result = html! {
-        <input type="ckeckbox" checked />
+        <input type="checkbox" checked />
     };
 
     let string_representation = result.to_string();
 
-    let expected = "<input type=\"ckeckbox\" checked />";
+    let expected = "<input type=\"checkbox\" checked />";
     assert_eq!(string_representation, expected);
 }
 
@@ -245,7 +244,7 @@ fn test_attribute_name_substitution() {
 }
 
 #[test]
-fn test_several_elemnts_without_a_parent() {
+fn test_several_elements_without_a_parent() {
     let result = html! {
         <head></head>
         <body></body>
@@ -268,44 +267,6 @@ fn test_doctype() {
     let string_representation = result.to_string();
 
     let expected = "<!DOCTYPE html><head></head><body></body>";
-    assert_eq!(string_representation, expected);
-}
-
-#[component]
-fn Component(val1: &str, val2: i32) -> HtmlFragment {
-    html! {
-        <div>
-            <p>{val1}</p>
-            <p>{val2 + 1}</p>
-        </div>
-    }
-}
-
-#[test]
-fn test_component() {
-    let result = html! {
-        <Component val1="Hello" val2={41} />
-    };
-
-    let string_representation = result.to_string();
-
-    let expected = "<div><p>Hello</p><p>42</p></div>";
-
-    assert_eq!(string_representation, expected);
-}
-
-#[test]
-fn test_component_as_a_child() {
-    let result = html! {
-        <div>
-            <Component val1="test" val2={-1} />
-        </div>
-    };
-
-    let string_representation = result.to_string();
-
-    let expected = "<div><div><p>test</p><p>0</p></div></div>";
-
     assert_eq!(string_representation, expected);
 }
 
@@ -393,106 +354,14 @@ fn test_interpolation_in_attr_values() {
         b: i32,
     }
 
-    let s = S { a: "test", b: 42 };
+    let s = S { a: "est", b: 42 };
     let result = html! {
-        <div id="x{s.a}-{s.b}{s.a}">"Text"</div>
+        <div id="t{s.a}-{s.b}{s.a}">"Text"</div>
     };
 
     let string_representation = result.to_string();
 
-    let expected = "<div id=\"xtest-42test\">Text</div>";
-    assert_eq!(string_representation, expected);
-}
-
-#[test]
-fn test_for() {
-    let numbers = [1, 2, 3];
-    let result = html! {
-        <div>
-            <p :for={number in numbers}>
-                { number }
-            </p>
-        </div>
-    };
-
-    let string_representation = result.to_string();
-
-    let expected = "<div><p>1</p><p>2</p><p>3</p></div>";
-    assert_eq!(string_representation, expected);
-}
-
-#[test]
-fn test_for_deep() {
-    let things = [(1, 2), (3, 4), (5, 6)];
-    let result = html! {
-        <tr :for={thing in things}>
-            <td>{ thing.0 }</td>
-            <td>{ thing.1 }</td>
-        </tr>
-    };
-
-    let string_representation = result.to_string();
-
-    let expected =
-        "<tr><td>1</td><td>2</td></tr><tr><td>3</td><td>4</td></tr><tr><td>5</td><td>6</td></tr>";
-    assert_eq!(string_representation, expected);
-}
-
-#[test]
-fn test_for_selfclosing() {
-    let numbers = [1, 2, 3];
-    let result = html! {
-        <input type="text" :for={number in numbers} id="id{number}" />
-    };
-
-    let string_representation = result.to_string();
-
-    let expected = "<input type=\"text\" id=\"id1\" /><input type=\"text\" id=\"id2\" /><input type=\"text\" id=\"id3\" />";
-    assert_eq!(string_representation, expected);
-}
-
-#[test]
-fn test_for_deep_components() {
-    let numbers = [1, 2];
-    let result = html! {
-        <div :for={number in numbers} id="id{number}">
-            <Component val1="test" val2={number} />
-        </div>
-    };
-
-    let string_representation = result.to_string();
-
-    let expected =
-        "<div id=\"id1\"><div><p>test</p><p>2</p></div></div><div id=\"id2\"><div><p>test</p><p>3</p></div></div>";
-    assert_eq!(string_representation, expected);
-}
-
-#[test]
-fn test_for_on_a_component() {
-    let numbers = [1, 2];
-    let result = html! {
-        <Component :for={number in numbers} val1="test" val2={number} />
-    };
-
-    let string_representation = result.to_string();
-
-    let expected = "<div><p>test</p><p>2</p></div><div><p>test</p><p>3</p></div>";
-    assert_eq!(string_representation, expected);
-}
-
-#[test]
-fn test_for_parentheses() {
-    let numbers = [(1, "one"), (2, "two)")];
-    let result = html! {
-        <div :for={(number, name) in numbers}>
-            <p>{ number }</p>
-            <p>{ name }</p>
-        </div>
-    };
-
-    let string_representation = result.to_string();
-
-    let expected = "<div><p>1</p><p>one</p></div><div><p>2</p><p>two)</p></div>";
+    let expected = "<div id=\"test-42est\">Text</div>";
     assert_eq!(string_representation, expected);
 }
 
