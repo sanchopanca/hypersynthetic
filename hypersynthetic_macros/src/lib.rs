@@ -2,13 +2,13 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
-use quote::quote;
+use quote::{quote, ToTokens as _};
 use syn::{
     braced,
     parse::{Parse, ParseStream},
     parse_macro_input,
     token::Brace,
-    Expr, Ident, ItemFn, LitStr, Pat, Result, Token,
+    Expr, Ident, ItemFn, LitStr, Pat, Path, Result, Token,
 };
 
 #[derive(Clone)]
@@ -19,7 +19,6 @@ enum NodeCollection {
 #[derive(Clone)]
 enum Node {
     Component(Component),
-    // ComponentWithSlot(ComponentWithSlot),
     DocType,
     Element(Tag),
     Expression(Expr),
@@ -37,17 +36,10 @@ struct Tag {
 
 #[derive(Clone)]
 struct Component {
-    name: Ident,
+    name: Path,
     props: Vec<Attribute>,
     children: Vec<Node>,
 }
-
-// #[derive(Clone)]
-// struct ComponentWithSlot {
-//     name: Ident,
-//     props: Vec<Attribute>,
-//     children: Vec<Node>,
-// }
 
 #[derive(Clone)]
 enum Attribute {
@@ -148,37 +140,6 @@ impl Component {
     }
 }
 
-// impl ComponentWithSlot {
-//     fn has_for_attribute(&self) -> bool {
-//         self.props
-//             .iter()
-//             .any(|attr| matches!(attr, Attribute::For(_)))
-//     }
-
-//     fn get_regular_attributes(&self) -> Vec<RegularAttribute> {
-//         self.props
-//             .iter()
-//             .filter(|attr| matches!(attr, Attribute::RegularAttribute(_)))
-//             .map(|attr| match attr {
-//                 Attribute::RegularAttribute(attr) => attr.clone(),
-//                 _ => unreachable!(),
-//             })
-//             .collect()
-//     }
-
-//     fn get_for_attribute(&self) -> ForExpr {
-//         let attr = self
-//             .props
-//             .iter()
-//             .find(|attr| matches!(attr, Attribute::For(_)))
-//             .unwrap();
-//         match attr {
-//             Attribute::For(attr) => attr.clone(),
-//             _ => unreachable!(),
-//         }
-//     }
-// }
-
 impl Parse for Node {
     fn parse(input: ParseStream) -> Result<Self> {
         if input.peek(Token![<]) && input.peek2(Token![!]) {
@@ -198,26 +159,26 @@ impl Parse for Node {
             }
         }
 
-        if input.peek(Token![<]) && input.peek2(Ident) {
+        if input.peek(Token![<]) {
             let _: Token![<] = input.parse()?;
-            let tag_name: Ident = input.parse()?;
+            let tag_name: Path = input.parse()?;
 
             let mut attributes = Vec::new();
 
-            // found closing angle bracket
+            // Parse attributes until closing angle bracket is found
             while !input.peek(Token![>]) && !input.peek2(Token![>]) {
                 let attribute: Attribute = input.parse()?;
                 attributes.push(attribute);
             }
 
-            let is_component = is_pascal_case(&tag_name);
+            let is_component = is_path_pascal_case(&tag_name);
 
-            // self-closing tag
+            // Self-closing tag
             if input.peek(Token![/]) && input.peek2(Token![>]) {
                 let _: Token![/] = input.parse()?;
                 let _: Token![>] = input.parse()?;
 
-                // self-closing -> no children (slots)
+                // Self-closing -> no children (slots)
                 if is_component {
                     return Ok(Node::Component(Component {
                         name: tag_name,
@@ -227,12 +188,13 @@ impl Parse for Node {
                 }
 
                 return Ok(Node::Element(Tag {
-                    tag_name,
+                    tag_name: extract_ident_from_path(&tag_name),
                     attributes,
                     children: Vec::new(),
                     self_closing: true,
                 }));
             }
+
             let _: Token![>] = input.parse()?;
 
             let mut children: Vec<Node> = Vec::new();
@@ -245,21 +207,22 @@ impl Parse for Node {
             }
 
             let element = Tag {
-                tag_name: tag_name.clone(),
+                tag_name: extract_ident_from_path(&tag_name),
                 attributes: attributes.clone(),
                 children: children.clone(),
                 self_closing: false,
             };
 
-            // this is a closing tag
+            // Check for the closing tag
             if input.peek(Token![<]) && input.peek2(Token![/]) && input.peek3(Ident) {
                 let _: Token![<] = input.parse()?;
                 let _: Token![/] = input.parse()?;
-                let closing_tag_name: Ident = input.parse()?;
+                let closing_tag_name: Path = input.parse()?;
                 if closing_tag_name != tag_name {
                     Err(input.error(format!(
                         "Expected closing tag {}, found {}",
-                        tag_name, closing_tag_name
+                        path_to_string(&tag_name),
+                        path_to_string(&closing_tag_name)
                     )))
                 } else {
                     let _: Token![>] = input.parse()?;
@@ -300,6 +263,22 @@ impl Parse for Node {
             Err(input.error("Expected a node"))
         }
     }
+}
+
+fn is_path_pascal_case(path: &Path) -> bool {
+    is_pascal_case(&extract_ident_from_path(path))
+}
+
+fn extract_ident_from_path(path: &Path) -> Ident {
+    path.segments.last().unwrap().ident.clone()
+}
+
+fn path_to_string(path: &Path) -> String {
+    path.to_token_stream()
+        .to_string()
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect()
 }
 
 impl Parse for Attribute {
