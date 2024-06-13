@@ -70,10 +70,12 @@ pub use htmlize::{escape_attribute, escape_text};
 ///    }
 /// }
 ///
+/// // ...
+///
 /// # fn main() {
-///     let html = html! {
-///         <MyComponent prop1="Hello" prop2={42} />
-///     };
+/// let html = html! {
+///     <MyComponent prop1="Hello" prop2={42} />
+/// };
 /// # }
 /// ```
 ///
@@ -87,7 +89,47 @@ pub use htmlize::{escape_attribute, escape_text};
 /// See [github issue](https://github.com/sanchopanca/hypersynthetic/issues/8) for more details.
 ///
 /// # Slots
-/// [TODO](https://github.com/sanchopanca/hypersynthetic/issues/10)
+///
+/// Components in this library can accept a slot argument, which allows for flexible and reusable HTML structures.
+/// The slot argument must be an [HtmlFragment] and should be the first argument in the component function.
+///
+/// ## Slot Example
+///
+/// Here is how to create and use a component called `OrangeDiv`
+/// that wraps its content in a styled `<div>` element:
+///
+/// ```
+/// # use hypersynthetic::prelude::*;
+/// #[component]
+/// fn OrangeDiv(inner_block: HtmlFragment) -> HtmlFragment {
+///     html! {
+///         <div class="orange round">
+///             {{ inner_block }}
+///         </div>
+///     }
+/// }
+///
+/// // ...
+///
+/// # fn main() {
+/// let data = "Hello, world!";
+/// let result = html! {
+///     <OrangeDiv>
+///         <p>{ data }</p>
+///     </OrangeDiv>
+/// };
+///
+/// assert_eq!(
+///     result.to_string(),
+///     r#"<div class="orange round"><p>Hello, world!</p></div>"#
+/// );
+/// # }
+/// ```
+///
+/// In the `OrangeDiv` component, `inner_block` represents the slot content
+/// that will be injected into the `<div>` element.
+/// The double curly braces `{{ }}` are used to disable HTML escaping,
+/// which is the desired behavior in most cases to ensure the HTML content is rendered correctly.
 pub use hypersynthetic_macros::component;
 
 /// The `html` macro allows to construct html fragments in Rust.
@@ -100,12 +142,12 @@ pub use hypersynthetic_macros::component;
 /// directly like `<span>"text"</span>`. But the latter syntax is likely to change in the future.
 /// See this [github issue](https://github.com/sanchopanca/hypersynthetic/issues/3) for details.
 ///
-/// With gotchas out the way, here are the feautures:
+/// With gotchas out the way, here are the features:
 ///
 /// # Dynamic content
-/// An expression that implements Display trait (or just ToString trait) inside curly braces will be substituted
-/// with the resulst of .to_string() call, applying html escaping (opting out from escaping is not yet possible,
-/// see this [github issue](https://github.com/sanchopanca/hypersynthetic/issues/5).
+/// An expression that implements Display trait (or just ToString trait) inside curly braces (`{expression}`)
+/// will be substituted with the result of .to_string() call, applying html escaping.
+/// To avoid escaping, wrap the expression in double curly braces: `{{expression}}` (see an example below).
 /// Here are the places where it can be used:
 /// 1. As a child of an element.
 /// ```
@@ -129,14 +171,14 @@ pub use hypersynthetic_macros::component;
 /// let div = html! {
 ///     <div class={cls}>{"Breaking news"}</div>
 /// };
-/// assert_eq!(div.to_string(), "<div class=\"header\">Breaking news</div>");
+/// assert_eq!(div.to_string(), r#"<div class="header">Breaking news</div>"#);
 ///
 /// let id = 42;
 /// let span = html! {
 ///     <span id="header-{id}">{"Breaking news"}</span>
 /// };
 ///
-/// assert_eq!(span.to_string(), "<span id=\"header-42\">Breaking news</span>");
+/// assert_eq!(span.to_string(), r#"<span id="header-42">Breaking news</span>"#);
 /// ```
 ///
 /// 3. In an attribute name.
@@ -144,9 +186,20 @@ pub use hypersynthetic_macros::component;
 /// # use hypersynthetic::html;
 /// let method = "hx-get";
 /// let div = html! {
-///     <button hx-get="/resources">{"Get 'em"}</button>
+///     <button {method}="/resources">{"Get 'em"}</button>
 /// };
-/// assert_eq!(div.to_string(), "<button hx-get=\"/resources\">Get 'em</button>");
+/// assert_eq!(div.to_string(), r#"<button hx-get="/resources">Get 'em</button>"#);
+/// ```
+///
+/// ## Disabling escaping
+/// To disable escaping, use double curly braces: `{{expression}}`.
+/// ```
+/// # use hypersynthetic::html;
+/// let txt = "<span>I know what I'm doing</span>";
+/// let div = html! {
+///     <div>{{txt}}</div>
+/// };
+/// assert_eq!(div.to_string(), "<div><span>I know what I'm doing</span></div>");
 /// ```
 ///
 /// # Iteration
@@ -164,11 +217,11 @@ pub use hypersynthetic_macros::component;
 /// let div = html! {
 ///     <input :for={n in numbers} type="text" value={n} />
 /// };
-/// assert_eq!(div.to_string(), "<input type=\"text\" value=\"1\" /><input type=\"text\" value=\"2\" />");
+/// assert_eq!(div.to_string(), r#"<input type="text" value="1" /><input type="text" value="2" />"#);
 /// ```
 ///
 /// # Components
-/// Components can be called as self-closing tags. Here is an example:
+/// Components can be called as tags. Here is an example:
 /// ```
 /// # use hypersynthetic::prelude::*;
 /// #[component]
