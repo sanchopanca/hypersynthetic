@@ -1,6 +1,6 @@
 [package]
 name = "hypersynthetic_macros"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Aleksandr Kovalev <aleksandr@kovalev.engineer>"]
 edition = "2021"
 description = "Macros for hypersynthetic"
