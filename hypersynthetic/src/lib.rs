@@ -247,6 +247,8 @@ pub mod prelude {
 }
 
 use std::fmt;
+use std::slice::Iter;
+use std::slice::IterMut;
 
 #[derive(Clone, Debug)]
 pub enum HtmlFragment {
@@ -297,6 +299,46 @@ impl HtmlFragment {
             HtmlFragment::Nodes(nodes) => nodes.clone(),
         }
     }
+
+    pub fn iter(&self) -> Iter<Node> {
+        match self {
+            HtmlFragment::Nodes(ref nodes) => nodes.iter(),
+        }
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<Node> {
+        match self {
+            HtmlFragment::Nodes(ref mut nodes) => nodes.iter_mut(),
+        }
+    }
+
+    pub fn iter_elements(&self) -> ElementDataIter {
+        ElementDataIter { iter: self.iter() }
+    }
+
+    pub fn iter_elements_mut(&mut self) -> ElementDataIterMut {
+        ElementDataIterMut {
+            iter: self.iter_mut(),
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a HtmlFragment {
+    type Item = &'a Node;
+    type IntoIter = Iter<'a, Node>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut HtmlFragment {
+    type Item = &'a mut Node;
+    type IntoIter = IterMut<'a, Node>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
 }
 
 impl Node {
@@ -330,6 +372,17 @@ impl ElementData {
         });
     }
 
+    pub fn remove_attribute(&mut self, name: &str) {
+        self.attributes.retain(|attr| attr.name != name);
+    }
+
+    pub fn get_attribute(&self, name: &str) -> Option<String> {
+        self.attributes
+            .iter()
+            .find(|attr| attr.name == name)
+            .map(|attr| attr.value.clone().unwrap())
+    }
+
     fn to_html(&self) -> String {
         let attributes_string: String = self
             .attributes
@@ -352,6 +405,40 @@ impl ElementData {
                 self.tag_name, attributes_string, children_string, self.tag_name
             )
         }
+    }
+}
+
+pub struct ElementDataIter<'a> {
+    iter: Iter<'a, Node>,
+}
+
+impl<'a> Iterator for ElementDataIter<'a> {
+    type Item = &'a ElementData;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for node in self.iter.by_ref() {
+            if let Node::Element(ref element_data) = node {
+                return Some(element_data);
+            }
+        }
+        None
+    }
+}
+
+pub struct ElementDataIterMut<'a> {
+    iter: IterMut<'a, Node>,
+}
+
+impl<'a> Iterator for ElementDataIterMut<'a> {
+    type Item = &'a mut ElementData;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for node in self.iter.by_ref() {
+            if let Node::Element(ref mut element_data) = node {
+                return Some(element_data);
+            }
+        }
+        None
     }
 }
 
