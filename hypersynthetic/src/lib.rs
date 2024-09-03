@@ -138,9 +138,9 @@ pub use hypersynthetic_macros::component;
 /// 1. Void tags need to be self-closing. For example `<br>` should be written as `<br />`.
 ///
 /// 2. Bare text is not (yet) allowed. Instead you should put a string literal inside an expression
-/// like `<span>{"text"}</span>`. Alternatively, for convenience, you can use the string literal
-/// directly like `<span>"text"</span>`. But the latter syntax is likely to change in the future.
-/// See this [github issue](https://github.com/sanchopanca/hypersynthetic/issues/3) for details.
+///    like `<span>{"text"}</span>`. Alternatively, for convenience, you can use the string literal
+///    directly like `<span>"text"</span>`. But the latter syntax is likely to change in the future.
+///    See this [github issue](https://github.com/sanchopanca/hypersynthetic/issues/3) for details.
 ///
 /// With gotchas out the way, here are the features:
 ///
