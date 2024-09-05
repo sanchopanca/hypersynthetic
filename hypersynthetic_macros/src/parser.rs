@@ -37,10 +37,18 @@ impl Parse for Node {
 
             let mut attributes = Vec::new();
 
-            // Parse attributes until closing angle bracket is found
-            while !input.peek(Token![>]) && !input.peek2(Token![>]) {
+            let mut end_of_regular_tag = input.peek(Token![>]);
+            let mut end_of_self_closing_tag = input.peek(Token![/]) && input.peek2(Token![>]);
+            let mut end_of_tag = end_of_regular_tag || end_of_self_closing_tag;
+
+            // Parse attributes until end of tag
+            while !end_of_tag {
                 let attribute: Attribute = input.parse()?;
                 attributes.push(attribute);
+
+                end_of_regular_tag = input.peek(Token![>]);
+                end_of_self_closing_tag = input.peek(Token![/]) && input.peek2(Token![>]);
+                end_of_tag = end_of_regular_tag || end_of_self_closing_tag;
             }
 
             let is_component = is_path_pascal_case(&tag_name);
