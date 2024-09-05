@@ -3,7 +3,7 @@ use syn::{
     braced,
     parse::{Parse, ParseStream},
     token::Brace,
-    Expr, Ident, LitStr, Pat, Path, Result, Token,
+    Expr, Ident, LitBool, LitStr, Pat, Path, Result, Token,
 };
 
 use crate::{
@@ -165,6 +165,28 @@ impl Parse for Attribute {
     }
 }
 
+macro_rules! match_keyword {
+    ($input:expr, $keyword:ident, $name:expr, $saw_word:expr) => {
+        if $input.peek(Token![$keyword]) {
+            if $saw_word {
+                break;
+            }
+            let _: Token![$keyword] = $input.parse()?;
+            $name.push_str(stringify!($keyword));
+            $saw_word = true;
+            continue;
+        }
+    };
+}
+
+macro_rules! match_keywords {
+    ($input:expr, $name:expr, $saw_word:expr, [$($keyword:ident),*]) => {
+        $(
+            match_keyword!($input, $keyword, $name, $saw_word);
+        )*
+    };
+}
+
 impl Parse for AttrName {
     fn parse(input: ParseStream) -> Result<Self> {
         if input.peek(Brace) {
@@ -187,14 +209,6 @@ impl Parse for AttrName {
                 let ident: Ident = input.parse()?;
                 name.push_str(&ident.to_string());
                 saw_word = true;
-            } else if lookahead.peek(Token![type]) {
-                if saw_word {
-                    break;
-                }
-                // TODO all the rest of keywords
-                let _: Token![type] = input.parse()?;
-                name.push_str("type");
-                saw_word = true;
             } else if lookahead.peek(Token![-]) {
                 let _: Token![-] = input.parse()?;
                 name.push('-');
@@ -203,7 +217,71 @@ impl Parse for AttrName {
                 let _: Token![:] = input.parse()?;
                 name.push(':');
                 saw_word = false;
+            // true and false literals
+            } else if lookahead.peek(LitBool) {
+                let token: LitBool = input.parse()?;
+                name.push_str(&token.value.to_string());
+                saw_word = true;
+            // rest of the keywords
             } else {
+                match_keywords!(input, name, saw_word, [
+                    // Strict Keywords
+                    as,
+                    break,
+                    const,
+                    continue,
+                    crate,
+                    else,
+                    enum,
+                    extern,
+                    fn,
+                    for,
+                    if,
+                    impl,
+                    in,
+                    let,
+                    loop,
+                    match,
+                    mod,
+                    move,
+                    mut,
+                    pub,
+                    ref,
+                    return,
+                    self,
+                    Self,
+                    static,
+                    struct,
+                    super,
+                    trait,
+                    type,
+                    unsafe,
+                    use,
+                    where,
+                    while,
+                    // Strict Keywords 2018 Edition
+                    async,
+                    await,
+                    dyn,
+                    // Reserved Keywords
+                    abstract,
+                    become,
+                    box,
+                    do,
+                    final,
+                    macro,
+                    override,
+                    priv,
+                    typeof,
+                    unsized,
+                    virtual,
+                    yield,
+                    // Reserved Keywords 2018 Edition
+                    try,
+                    // Weak Keywords
+                    union
+                ]);
+
                 break;
             }
         }
