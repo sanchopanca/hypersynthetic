@@ -212,7 +212,7 @@ pub use hypersynthetic_macros::component;
 /// };
 /// assert_eq!(div.to_string(), "<div><span>I know what I'm doing</span></div>");
 /// ```
-/// ### Escaping doesn't work in string literals
+/// ### Disabling escaping doesn't work in string literals
 /// Under the hood, hypersynthetic uses Rust built-in `format!` function which uses {{ and }} to escape { and }.
 /// So this is what happens if you use double curly braces in a string literal:
 /// ```

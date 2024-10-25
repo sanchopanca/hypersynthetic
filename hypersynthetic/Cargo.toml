@@ -1,6 +1,6 @@
 [package]
 name = "hypersynthetic"
-version = "0.6.0"
+version = "0.6.1"
 authors = ["Aleksandr Kovalev <aleksandr@kovalev.engineer>"]
 edition = "2021"
 description = "An HTML template engine that chose composition over inheritance"
