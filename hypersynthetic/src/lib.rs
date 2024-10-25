@@ -387,7 +387,11 @@ impl ElementData {
         self.children.push(child);
     }
 
-    pub fn add_attribute(&mut self, name: String, value: String) {
+    pub fn has_attribute(&self, name: &str) -> bool {
+        self.attributes.iter().any(|attr| attr.name == name)
+    }
+
+    pub fn set_attribute(&mut self, name: String, value: String) {
         self.attributes.push(Attribute {
             name,
             value: Some(value),
@@ -402,7 +406,7 @@ impl ElementData {
         self.attributes
             .iter()
             .find(|attr| attr.name == name)
-            .map(|attr| attr.value.clone().unwrap())
+            .map(|attr| attr.value.clone().unwrap_or("".to_owned()))
     }
 
     fn to_html(&self) -> String {
@@ -507,7 +511,7 @@ mod tests {
         body.add_child(text);
 
         let mut div = ElementData::new("div".to_string());
-        div.add_attribute("class".to_string(), "container".to_string());
+        div.set_attribute("class".to_string(), "container".to_string());
 
         let inner_text = Node::Text("This is inside a div.".to_string());
         div.add_child(inner_text);
