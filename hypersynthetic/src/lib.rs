@@ -147,7 +147,8 @@ pub use hypersynthetic_macros::component;
 /// # Dynamic content
 /// An expression that implements Display trait (or just ToString trait) inside curly braces (`{expression}`)
 /// will be substituted with the result of .to_string() call, applying html escaping.
-/// To avoid escaping, wrap the expression in double curly braces: `{{expression}}` (see an example below).
+/// To avoid escaping, wrap the expression in double curly braces: `{{expression}}` (not available in string literals,
+/// see an example below).
 /// Here are the places where it can be used:
 /// 1. As a child of an element.
 /// ```
@@ -190,6 +191,16 @@ pub use hypersynthetic_macros::component;
 /// };
 /// assert_eq!(div.to_string(), r#"<button hx-get="/resources">Get 'em</button>"#);
 /// ```
+///  
+/// 4. In a string literal.
+/// ```
+/// # use hypersynthetic::html;
+/// let txt = "Hello";
+/// let div = html! {
+///     <div>"{txt} World"</div>
+/// };
+/// assert_eq!(div.to_string(), "<div>Hello World</div>");
+/// ```
 ///
 /// ## Disabling escaping
 /// To disable escaping, use double curly braces: `{{expression}}`.
@@ -200,6 +211,17 @@ pub use hypersynthetic_macros::component;
 ///     <div>{{txt}}</div>
 /// };
 /// assert_eq!(div.to_string(), "<div><span>I know what I'm doing</span></div>");
+/// ```
+/// ### Escaping doesn't work in string literals
+/// Under the hood, hypersynthetic uses Rust built-in `format!` function which uses {{ and }} to escape { and }.
+/// So this is what happens if you use double curly braces in a string literal:
+/// ```
+/// # use hypersynthetic::html;
+/// let txt = "Hello";
+/// let div = html! {
+///     <div>"{{txt}} World"</div>
+/// };
+/// assert_eq!(div.to_string(), "<div>{txt} World</div>");
 /// ```
 ///
 /// # Iteration

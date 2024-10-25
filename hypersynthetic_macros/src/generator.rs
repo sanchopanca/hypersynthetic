@@ -72,7 +72,7 @@ fn generate_node(tag: Node) -> TokenStream2 {
         }
         Node::Text(text) => {
             quote! {
-                vec![hypersynthetic::Node::Text(hypersynthetic::escape_text(#text).to_string())]
+                vec![hypersynthetic::Node::Text(hypersynthetic::escape_text(format!(#text)).to_string())]
             }
         }
         Node::Expression(expr) => {
