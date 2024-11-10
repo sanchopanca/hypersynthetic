@@ -2,7 +2,8 @@
 //!
 //! Hypersynthetic is a library for writing HTML inside Rust.
 //! It is inspired by JSX and HEEx templates, and tries to be different from Tera and Minijinja
-//! in one key aspect: it only allows reusing HTML code via composition not via inheritance.
+//! by enabling [Locality of Behavior (LoB)](https://htmx.org/essays/locality-of-behaviour/)
+//! and only allowing reusing HTML code via composition and not via inheritance.
 //! It is suitable for building traditional web applications, where backend responds with HTML.
 //!
 //! Here is an example of what hypersynthetic can do:
