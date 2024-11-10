@@ -33,13 +33,14 @@ fn main() {
         ("Write Web App using html! macro", false),
     ];
 
-    let rendered_list = html! {
+    let html_list = html! {
         <ul>
             <TodoItem :for={(text, done) in todo_list} text={text} done={done} />
         </ul>
     };
 
-    // ... Render `rendered_list` into your application.
+    // ... Render `html_list` into your application.
+    html_list.to_string();
 }
 ```
 
@@ -52,9 +53,10 @@ See the [html](https://docs.rs/hypersynthetic/latest/hypersynthetic/macro.html.h
 and [component](https://docs.rs/hypersynthetic/latest/hypersynthetic/attr.component.html) macro for more details about using components
 
 ## Features
+The following features enable integration with popular web frameworks. See [the Cargo Book](https://doc.rust-lang.org/cargo/reference/features.html#dependency-features) to learn more about enabling features.
 
 - `rocket`: Enables integration with the Rocket web framework and allows to return `HtmlFragment` from handlers.
-To use this feature, add `features = ["rocket"]` in your `Cargo.toml` when adding this library as a dependency.
+- `axum`: Enables integration with the Axum web framework and allows to return `HtmlFragment` from handlers.
 
 
 ## License

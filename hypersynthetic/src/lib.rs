@@ -28,13 +28,20 @@
 //!         ("Write Web App using html! macro", false),
 //!     ];
 //!
-//!     let rendered_list = html! {
+//!     let html_list = html! {
 //!         <ul>
 //!             <TodoItem :for={(text, done) in todo_list} text={text} done={done} />
 //!         </ul>
 //!     };
 //!
-//!     // ... Render `rendered_list` into your application.
+//!     // ... Render `html_list` into your application.
+//!     assert_eq!(html_list.to_string(),  "\
+//!         <ul>\
+//!             <li style=\"text-decoration: line-through;\">Buy Milk</li>\
+//!             <li style=\"text-decoration: none;\">Read Rust Book</li>\
+//!             <li style=\"text-decoration: none;\">Write Web App using html! macro</li>\
+//!         </ul>"
+//!     );
 //! }
 //! ```
 //!
@@ -49,6 +56,7 @@
 //! ## Features
 //!
 //! - `rocket`: Enables integration with the Rocket web framework. It allows to return [HtmlFragment] from the route handlers and sets the response content type to `text/html`.
+//! - `axum`: Enables integration with the Axum web framework. It allows to return [HtmlFragment] from the route handlers and sets the response content type to `text/html`.
 
 pub use htmlize::{escape_attribute, escape_text};
 
@@ -496,6 +504,13 @@ impl<'r> rocket::response::Responder<'r, 'static> for HtmlFragment {
         rocket::response::Response::build_from(content.respond_to(req)?)
             .header(rocket::http::ContentType::HTML)
             .ok()
+    }
+}
+
+#[cfg(feature = "axum")]
+impl axum::response::IntoResponse for HtmlFragment {
+    fn into_response(self) -> axum::response::Response {
+        axum::response::Html(self.to_string()).into_response()
     }
 }
 

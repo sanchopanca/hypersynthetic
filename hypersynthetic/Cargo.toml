@@ -17,4 +17,9 @@ rocket = ["dep:rocket"]
 [dependencies]
 hypersynthetic_macros = { path = "../hypersynthetic_macros", version = "0.6.0" }
 htmlize = "1.0.5"
+axum = { version = "0.7", optional = true }
 rocket = { version = "0.5", optional = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+axum-test = "16"
