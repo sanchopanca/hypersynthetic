@@ -39,6 +39,12 @@ impl Tag {
             .any(|attr| matches!(attr, Attribute::For(_)))
     }
 
+    pub fn has_if_attribute(&self) -> bool {
+        self.attributes
+            .iter()
+            .any(|attr| matches!(attr, Attribute::If(_)))
+    }
+
     pub fn get_regular_attributes(&self) -> Vec<RegularAttribute> {
         self.attributes
             .iter()
@@ -61,6 +67,18 @@ impl Tag {
             _ => unreachable!(),
         }
     }
+
+    pub fn get_if_attribute(&self) -> Expr {
+        let attr = self
+            .attributes
+            .iter()
+            .find(|attr| matches!(attr, Attribute::If(_)))
+            .unwrap();
+        match attr {
+            Attribute::If(attr) => attr.clone(),
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl Component {
@@ -68,6 +86,12 @@ impl Component {
         self.props
             .iter()
             .any(|attr| matches!(attr, Attribute::For(_)))
+    }
+
+    pub fn has_if_attribute(&self) -> bool {
+        self.props
+            .iter()
+            .any(|attr| matches!(attr, Attribute::If(_)))
     }
 
     pub fn get_regular_attributes(&self) -> Vec<RegularAttribute> {
@@ -89,6 +113,18 @@ impl Component {
             .unwrap();
         match attr {
             Attribute::For(attr) => attr.clone(),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn get_if_attribute(&self) -> Expr {
+        let attr = self
+            .props
+            .iter()
+            .find(|attr| matches!(attr, Attribute::If(_)))
+            .unwrap();
+        match attr {
+            Attribute::If(attr) => attr.clone(),
             _ => unreachable!(),
         }
     }

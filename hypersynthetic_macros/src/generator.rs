@@ -41,7 +41,7 @@ fn generate_node(tag: Node) -> TokenStream2 {
                 .into_iter()
                 .map(generate_attribute)
                 .collect();
-            if element.has_for_attribute() {
+            let tokens = if element.has_for_attribute() {
                 let for_expr = element.get_for_attribute();
                 let var = for_expr.pat;
                 let collection = for_expr.collection;
@@ -68,6 +68,19 @@ fn generate_node(tag: Node) -> TokenStream2 {
                         self_closing: #self_closing,
                     })]
                 }
+            };
+
+            if element.has_if_attribute() {
+                let if_expr = element.get_if_attribute();
+                quote! {
+                    if #if_expr {
+                        #tokens
+                    } else {
+                        vec![]
+                    }
+                }
+            } else {
+                tokens
             }
         }
         Node::Text(text) => {
@@ -109,7 +122,7 @@ fn generate_node(tag: Node) -> TokenStream2 {
                     #component_name(#(#props),*)
                 }
             };
-            if component.has_for_attribute() {
+            let tokens = if component.has_for_attribute() {
                 let for_expr = component.get_for_attribute();
                 let var = for_expr.pat;
                 let collection = for_expr.collection;
@@ -126,6 +139,19 @@ fn generate_node(tag: Node) -> TokenStream2 {
                 quote! {
                     #component_call.get_nodes()
                 }
+            };
+
+            if component.has_if_attribute() {
+                let if_expr = component.get_if_attribute();
+                quote! {
+                    if #if_expr {
+                        #tokens
+                    } else {
+                        vec![]
+                    }
+                }
+            } else {
+                tokens
             }
         }
     }

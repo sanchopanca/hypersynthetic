@@ -233,6 +233,42 @@ pub use hypersynthetic_macros::component;
 /// assert_eq!(div.to_string(), "<div>{txt} World</div>");
 /// ```
 ///
+/// # Conditionals
+/// A special pseudo-attribute `:if` is used to conditionally render an element.
+/// ```
+/// # use hypersynthetic::html;
+/// let notify_user = true;
+/// let div = html! {
+///     <div :if={notify_user}>
+///         <span>"You have been warned"</span>
+///     </div>
+/// };
+/// assert_eq!(div.to_string(), "<div><span>You have been warned</span></div>");
+///
+/// let notify_user = false;
+/// let div = html! {
+///     <div :if={notify_user}>
+///         <span>"You have been warned"</span>
+///     </div>
+/// };
+/// assert_eq!(div.to_string(), "");
+/// ```
+///
+/// To emulate `else` branch, reverse the condition:
+/// ```
+/// # use hypersynthetic::html;
+/// let notify_user = false;
+/// let div = html! {
+///     <div :if={notify_user}>
+///         <span>"Be careful"</span>
+///     </div>
+///     <div :if={!notify_user}>
+///         <span>"You are safe"</span>
+///     </div>
+/// };
+/// assert_eq!(div.to_string(), "<div><span>You are safe</span></div>");
+/// ```
+///
 /// # Iteration
 /// A special pseudo-attribute `:for` is used to iterate over an iterable object and create an element for each item.
 /// ```

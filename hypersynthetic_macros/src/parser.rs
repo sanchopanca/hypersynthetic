@@ -147,14 +147,24 @@ impl Parse for Node {
 
 impl Parse for Attribute {
     fn parse(input: ParseStream) -> Result<Self> {
-        if input.peek(Token![:]) && input.peek2(Token![for]) {
-            let _: Token![:] = input.parse()?;
-            let _: Token![for] = input.parse()?;
-            let _: Token![=] = input.parse()?;
+        if input.peek(Token![:]) {
+            if input.peek2(Token![for]) {
+                let _: Token![:] = input.parse()?;
+                let _: Token![for] = input.parse()?;
+                let _: Token![=] = input.parse()?;
 
-            let content;
-            braced!(content in input);
-            return Ok(Attribute::For(content.parse()?));
+                let content;
+                braced!(content in input);
+                return Ok(Attribute::For(content.parse()?));
+            } else if input.peek2(Token![if]) {
+                let _: Token![:] = input.parse()?;
+                let _: Token![if] = input.parse()?;
+                let _: Token![=] = input.parse()?;
+
+                let content;
+                braced!(content in input);
+                return Ok(Attribute::If(content.parse()?));
+            }
         }
         let name: AttrName = input.parse()?;
 

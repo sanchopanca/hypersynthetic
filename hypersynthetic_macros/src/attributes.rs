@@ -2,8 +2,10 @@ use syn::{Expr, LitStr, Pat};
 
 #[derive(Clone)]
 pub enum Attribute {
+    #[allow(clippy::enum_variant_names)]
     RegularAttribute(RegularAttribute),
     For(ForExpr),
+    If(Expr),
 }
 
 #[derive(Clone)]
