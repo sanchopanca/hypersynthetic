@@ -60,6 +60,10 @@
 //! - `axum`: Enables integration with the Axum web framework. It allows to return [HtmlFragment] from the route handlers and sets the response content type to `text/html`.
 
 pub use htmlize::{escape_attribute, escape_text};
+pub use typed_builder;
+pub use typed_builder_macro;
+
+pub mod component;
 
 /// The component macro provides a way to define reusable and self-contained web components.
 /// A component is a function that returns a [HtmlFragment]. The easiest way to create one is
@@ -309,6 +313,8 @@ pub use hypersynthetic_macros::component;
 pub use hypersynthetic_macros::html;
 
 pub mod prelude {
+    pub use crate::component::{component_props_builder, component_view, Component, Props};
+    pub use crate::typed_builder;
     pub use crate::HtmlFragment;
     pub use crate::{component, html};
 }

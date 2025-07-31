@@ -105,23 +105,73 @@ fn generate_node(tag: Node) -> TokenStream2 {
         }
         Node::Component(component) => {
             let component_name = &component.name;
-            let props: Vec<TokenStream2> = component
-                .get_regular_attributes()
-                .into_iter()
-                .map(generate_attribute_as_prop)
+            let attributes = component.get_regular_attributes();
+
+            // Generate builder method calls
+            let builder_calls: Vec<TokenStream2> = attributes
+                .iter()
+                .map(|attr| {
+                    // Extract the attribute name
+                    let attr_name = match &attr.name {
+                        AttrName::Literal(name) => {
+                            let name_str = name.value();
+                            quote::format_ident!("{}", name_str)
+                        }
+                        AttrName::Expression(_) => {
+                            // This shouldn't happen for component props
+                            panic!("Component props must have literal names")
+                        }
+                    };
+
+                    // Extract the attribute value
+                    let attr_value = match &attr.value {
+                        Some(AttrValue::Literal(value)) => quote! { #value },
+                        Some(AttrValue::Expression(expr)) => quote! { #expr },
+                        Some(AttrValue::Interpolated(segments)) => {
+                            // For interpolated values, we need to generate the interpolation
+                            let interpolated: Vec<TokenStream2> = segments
+                                .iter()
+                                .map(|segment| match segment {
+                                    InterpolatedSegment::Str(s) => quote! { #s },
+                                    InterpolatedSegment::Expr(e) => quote! { format!("{}", #e) },
+                                })
+                                .collect();
+                            let format_pattern = generate_format_string_pattern(interpolated.len());
+                            quote! { format!(#format_pattern, #(#interpolated),*) }
+                        }
+                        None => quote! {},
+                    };
+
+                    quote! { .#attr_name(#attr_value) }
+                })
                 .collect();
+
             let children: TokenStream2 =
                 generate_nodes(NodeCollection::Nodes(component.children.clone()));
             let has_slots = !component.children.is_empty();
-            let component_call = if has_slots {
+
+            // For slots, we use the ComponentWithSlots system
+            let final_call = if has_slots {
                 quote! {
-                    #component_name(#children, #(#props),*)
+                    hypersynthetic::component::component_with_slots_view(
+                        &#component_name,
+                        #children,
+                        hypersynthetic::component::component_with_slots_props_builder(&#component_name)
+                            #(#builder_calls)*
+                            .build()
+                    )
                 }
             } else {
                 quote! {
-                    #component_name(#(#props),*)
+                    hypersynthetic::component::component_view(
+                        &#component_name,
+                        hypersynthetic::component::component_props_builder(&#component_name)
+                            #(#builder_calls)*
+                            .build()
+                    )
                 }
             };
+
             let tokens = if component.has_for_attribute() {
                 let for_expr = component.get_for_attribute();
                 let var = for_expr.pat;
@@ -130,14 +180,14 @@ fn generate_node(tag: Node) -> TokenStream2 {
                     {
                         let mut for_v = Vec::new();
                         for #var in #collection {
-                            for_v.extend(#component_call.get_nodes());
+                            for_v.extend(#final_call.get_nodes());
                         }
                         for_v
                     }
                 }
             } else {
                 quote! {
-                    #component_call.get_nodes()
+                    #final_call.get_nodes()
                 }
             };
 
@@ -180,21 +230,6 @@ fn generate_attribute(attr: RegularAttribute) -> TokenStream2 {
         hypersynthetic::Attribute {
             name: #attr_name,
             value: #attr_value,
-        }
-    }
-}
-
-fn generate_attribute_as_prop(attr: RegularAttribute) -> TokenStream2 {
-    match &attr.value {
-        Some(AttrValue::Literal(value)) => {
-            quote! { #value }
-        }
-        Some(AttrValue::Expression(expr)) => {
-            quote! { #expr }
-        }
-        Some(AttrValue::Interpolated(segments)) => interpolate_attr_value(segments),
-        None => {
-            quote! {}
         }
     }
 }
