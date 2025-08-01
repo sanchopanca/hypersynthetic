@@ -98,8 +98,7 @@ pub mod component;
 /// Components accept properties, similar to function arguments.
 /// These properties can be any Rust type, providing a type-safe way to pass data to components.
 /// When calling a component from [html] macro, the properties are passed as html arguments.
-/// Currently, they need to be passed in the same order as they are defined in the component.
-/// See [github issue](https://github.com/sanchopanca/hypersynthetic/issues/8) for more details.
+/// The arguments can be in any order, it's not necessary for them to be in the same order as defined in the component function.
 ///
 /// # Slots
 ///
