@@ -1,7 +1,7 @@
 #[cfg(feature = "axum")]
 #[tokio::test]
 async fn test_axum_response() {
-    use axum::{http::StatusCode, routing::get, Router};
+    use axum::{Router, http::StatusCode, routing::get};
     use axum_test::{TestServer, TestServerConfig};
     use hypersynthetic::prelude::*;
 
@@ -23,13 +23,15 @@ async fn test_axum_response() {
     assert_eq!(response.status_code(), StatusCode::OK);
 
     // Assert content type
-    assert!(response
-        .headers()
-        .get("content-type")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .starts_with("text/html"),);
+    assert!(
+        response
+            .headers()
+            .get("content-type")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .starts_with("text/html"),
+    );
 
     // Assert body
     let body = response.text();

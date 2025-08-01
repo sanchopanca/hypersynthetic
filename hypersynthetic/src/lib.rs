@@ -312,9 +312,9 @@ pub use hypersynthetic_macros::component;
 pub use hypersynthetic_macros::html;
 
 pub mod prelude {
-    pub use crate::component::{component_props_builder, component_view, Component, Props};
-    pub use crate::typed_builder;
     pub use crate::HtmlFragment;
+    pub use crate::component::{Component, Props, component_props_builder, component_view};
+    pub use crate::typed_builder;
     pub use crate::{component, html};
 }
 

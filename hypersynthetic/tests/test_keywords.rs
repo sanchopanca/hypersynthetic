@@ -9,8 +9,10 @@ fn test_for_attribute() {
         </form>
     };
 
-    assert_eq!(result.to_string(),
-        "<form hx-post=\"/users\"><label for=\"email\">Email</label><input type=\"email\" id=\"email\" name=\"email\" required /></form>");
+    assert_eq!(
+        result.to_string(),
+        "<form hx-post=\"/users\"><label for=\"email\">Email</label><input type=\"email\" id=\"email\" name=\"email\" required /></form>"
+    );
 }
 
 #[test]

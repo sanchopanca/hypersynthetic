@@ -29,8 +29,7 @@ fn test_tags_and_attributes() {
 
     let string_representation = result.to_string();
 
-    let expected =
-        "<body id=\"main\" class=\"container\"><div><a href=\"https://example.com\">Link</a></div></body>";
+    let expected = "<body id=\"main\" class=\"container\"><div><a href=\"https://example.com\">Link</a></div></body>";
     assert_eq!(string_representation, expected);
 }
 

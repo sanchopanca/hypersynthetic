@@ -68,8 +68,7 @@ fn test_for_deep_components() {
 
     let string_representation = result.to_string();
 
-    let expected =
-        "<div id=\"id1\"><div><p>test</p><p>2</p></div></div><div id=\"id2\"><div><p>test</p><p>3</p></div></div>";
+    let expected = "<div id=\"id1\"><div><p>test</p><p>2</p></div></div><div id=\"id2\"><div><p>test</p><p>3</p></div></div>";
     assert_eq!(string_representation, expected);
 }
 

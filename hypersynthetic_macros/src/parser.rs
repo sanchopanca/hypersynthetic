@@ -1,9 +1,8 @@
 use proc_macro2::Span;
 use syn::{
-    braced,
+    Expr, Ident, LitBool, LitStr, Pat, Path, Result, Token, braced,
     parse::{Parse, ParseStream},
     token::Brace,
-    Expr, Ident, LitBool, LitStr, Pat, Path, Result, Token,
 };
 
 use crate::{
