@@ -2,7 +2,7 @@
 name = "hypersynthetic_macros"
 version = "0.8.0"
 authors = ["Aleksandr Kovalev <aleksandr@kovalev.engineer>"]
-edition = "2021"
+edition = "2024"
 description = "Macros for hypersynthetic"
 readme = "README.md"
 homepage = "https://github.com/sanchopanca/hypersynthetic"

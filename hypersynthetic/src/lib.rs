@@ -375,13 +375,13 @@ impl HtmlFragment {
 
     pub fn iter(&self) -> Iter<Node> {
         match self {
-            HtmlFragment::Nodes(ref nodes) => nodes.iter(),
+            HtmlFragment::Nodes(nodes) => nodes.iter(),
         }
     }
 
     pub fn iter_mut(&mut self) -> IterMut<Node> {
         match self {
-            HtmlFragment::Nodes(ref mut nodes) => nodes.iter_mut(),
+            HtmlFragment::Nodes(nodes) => nodes.iter_mut(),
         }
     }
 
@@ -494,7 +494,7 @@ impl<'a> Iterator for ElementDataIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         for node in self.iter.by_ref() {
-            if let Node::Element(ref element_data) = node {
+            if let Node::Element(element_data) = node {
                 return Some(element_data);
             }
         }
@@ -511,7 +511,7 @@ impl<'a> Iterator for ElementDataIterMut<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         for node in self.iter.by_ref() {
-            if let Node::Element(ref mut element_data) = node {
+            if let Node::Element(element_data) = node {
                 return Some(element_data);
             }
         }
