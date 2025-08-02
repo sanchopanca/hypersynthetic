@@ -39,12 +39,74 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Extract visibility
     let vis = &function.vis;
 
+    // Helper function to check if a type contains any references
+    fn type_contains_refs(ty: &syn::Type) -> bool {
+        match ty {
+            syn::Type::Reference(_) => true,
+            syn::Type::Path(type_path) => {
+                // Check generic arguments
+                type_path.path.segments.iter().any(|segment| {
+                    if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
+                        args.args.iter().any(|arg| {
+                            if let syn::GenericArgument::Type(inner_ty) = arg {
+                                type_contains_refs(inner_ty)
+                            } else {
+                                false
+                            }
+                        })
+                    } else {
+                        false
+                    }
+                })
+            }
+            syn::Type::Tuple(type_tuple) => type_tuple.elems.iter().any(type_contains_refs),
+            syn::Type::Array(type_array) => type_contains_refs(&type_array.elem),
+            syn::Type::Slice(type_slice) => type_contains_refs(&type_slice.elem),
+            syn::Type::Paren(type_paren) => type_contains_refs(&type_paren.elem),
+            syn::Type::Group(type_group) => type_contains_refs(&type_group.elem),
+            _ => false,
+        }
+    }
+
+    // Helper function to add lifetime to references in a type
+    fn add_lifetime_to_refs(ty: &mut syn::Type, lifetime: &syn::Lifetime) {
+        match ty {
+            syn::Type::Reference(type_ref) => {
+                if type_ref.lifetime.is_none() {
+                    type_ref.lifetime = Some(lifetime.clone());
+                }
+            }
+            syn::Type::Path(type_path) => {
+                // Add lifetime to generic arguments
+                for segment in &mut type_path.path.segments {
+                    if let syn::PathArguments::AngleBracketed(args) = &mut segment.arguments {
+                        for arg in &mut args.args {
+                            if let syn::GenericArgument::Type(inner_ty) = arg {
+                                add_lifetime_to_refs(inner_ty, lifetime);
+                            }
+                        }
+                    }
+                }
+            }
+            syn::Type::Tuple(type_tuple) => {
+                for elem in &mut type_tuple.elems {
+                    add_lifetime_to_refs(elem, lifetime);
+                }
+            }
+            syn::Type::Array(type_array) => add_lifetime_to_refs(&mut type_array.elem, lifetime),
+            syn::Type::Slice(type_slice) => add_lifetime_to_refs(&mut type_slice.elem, lifetime),
+            syn::Type::Paren(type_paren) => add_lifetime_to_refs(&mut type_paren.elem, lifetime),
+            syn::Type::Group(type_group) => add_lifetime_to_refs(&mut type_group.elem, lifetime),
+            _ => {}
+        }
+    }
+
     // Add lifetime annotations to the original function if needed
     if function.sig.generics.lifetimes().count() == 0 {
         // Check if any parameter has a reference
         let has_refs = function.sig.inputs.iter().any(|arg| {
             if let syn::FnArg::Typed(pat_type) = arg {
-                matches!(&*pat_type.ty, syn::Type::Reference(_))
+                type_contains_refs(&pat_type.ty)
             } else {
                 false
             }
@@ -64,11 +126,7 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
             // Update reference types to use the lifetime
             for input in &mut function.sig.inputs {
                 if let syn::FnArg::Typed(pat_type) = input {
-                    if let syn::Type::Reference(type_ref) = &mut *pat_type.ty {
-                        if type_ref.lifetime.is_none() {
-                            type_ref.lifetime = Some(lifetime.clone());
-                        }
-                    }
+                    add_lifetime_to_refs(&mut pat_type.ty, &lifetime);
                 }
             }
         }
@@ -172,7 +230,7 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Generate the final output
     let output = quote! {
         #[derive(::hypersynthetic::typed_builder_macro::TypedBuilder)]
-        #vis struct #props_name #generics #where_clause {
+        #vis struct #props_name #impl_generics #where_clause {
             #(#struct_fields,)*
         }
 
