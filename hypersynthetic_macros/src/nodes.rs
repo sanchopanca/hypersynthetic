@@ -14,6 +14,7 @@ pub enum Node {
     Element(Tag),
     Expression(Expr),
     Text(LitStr),
+    BareText(String),
     UnescapedExpression(Expr),
 }
 

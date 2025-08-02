@@ -88,6 +88,12 @@ fn generate_node(tag: Node) -> TokenStream2 {
                 vec![hypersynthetic::Node::Text(hypersynthetic::escape_text(format!(#text)).to_string())]
             }
         }
+        Node::BareText(text) => {
+            let text_literal = proc_macro2::Literal::string(&text);
+            quote! {
+                vec![hypersynthetic::Node::Text(hypersynthetic::escape_text(#text_literal).to_string())]
+            }
+        }
         Node::Expression(expr) => {
             quote! {
                 vec![hypersynthetic::Node::Text(hypersynthetic::escape_text(format!("{}", #expr)).to_string())]

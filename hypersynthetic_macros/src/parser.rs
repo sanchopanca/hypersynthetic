@@ -1,4 +1,4 @@
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenTree};
 use syn::{
     Expr, Ident, LitBool, LitStr, Pat, Path, Result, Token, braced,
     parse::{Parse, ParseStream},
@@ -10,6 +10,68 @@ use crate::{
     nodes::{Component, Node, NodeCollection, Tag},
     utils::{extract_ident_from_path, is_path_pascal_case, path_to_string},
 };
+
+fn parse_bare_text(input: ParseStream, closing_tag_name: &Path) -> Result<String> {
+    let mut text = String::new();
+    let mut last_span: Option<Span> = None;
+    
+    while !input.is_empty() {
+        // Check if we've reached the closing tag
+        if input.peek(Token![<]) && input.peek2(Token![/]) {
+            // Peek ahead to check if this is our closing tag
+            let fork = input.fork();
+            let _ = fork.parse::<Token![<]>();
+            let _ = fork.parse::<Token![/]>();
+            if let Ok(tag_path) = fork.parse::<Path>() {
+                if tag_path == *closing_tag_name {
+                    break;
+                }
+            }
+        }
+        
+        // Check for opening of a new tag or expression
+        if input.peek(Token![<]) && !input.peek2(Token![/]) {
+            break;
+        }
+        if input.peek(Brace) {
+            break;
+        }
+        
+        // Parse the next token
+        let token: TokenTree = input.parse()?;
+        let current_span = token.span();
+        let token_str = token.to_string();
+        
+        // Add space before token if needed
+        if let Some(prev_span) = last_span {
+            let prev_end = prev_span.end();
+            let current_start = current_span.start();
+            
+            let spans_on_different_lines = prev_end.line != current_start.line;
+            
+            // Check if current token is punctuation that shouldn't have space before it
+            let is_punctuation_no_space_before = matches!(token_str.as_str(), 
+                "," | "." | "!" | "?" | ";" | ":" | ")" | "]" | "}" | "\"");
+            
+            let needs_space = if spans_on_different_lines {
+                !is_punctuation_no_space_before
+            } else {
+                // Add space between separate tokens unless it's punctuation
+                !is_punctuation_no_space_before
+            };
+            
+            if needs_space {
+                text.push(' ');
+            }
+        }
+        
+        // Add the token's text
+        text.push_str(&token_str);
+        last_span = Some(current_span);
+    }
+    
+    Ok(text)
+}
 
 impl Parse for Node {
     fn parse(input: ParseStream) -> Result<Self> {
@@ -77,12 +139,33 @@ impl Parse for Node {
             let _: Token![>] = input.parse()?;
 
             let mut children: Vec<Node> = Vec::new();
-            while input.peek(Token![<]) && input.peek2(Ident)
-                || input.peek(LitStr)
-                || input.peek(Brace)
-            {
-                let child: Node = input.parse()?;
-                children.push(child);
+            
+            // Parse all children - prioritize bare text parsing
+            while !input.is_empty() {
+                // Check for closing tag
+                if input.peek(Token![<]) && input.peek2(Token![/]) {
+                    break;
+                }
+                
+                // Try to parse regular children first
+                if (input.peek(Token![<]) && input.peek2(Ident))
+                    || input.peek(LitStr)
+                    || input.peek(Brace)
+                {
+                    let child: Node = input.parse()?;
+                    children.push(child);
+                } else if !input.is_empty() {
+                    // Fall back to bare text parsing
+                    let bare_text = parse_bare_text(input, &tag_name)?;
+                    if !bare_text.is_empty() {
+                        children.push(Node::BareText(bare_text));
+                    } else {
+                        // If we can't parse anything, break to avoid infinite loop
+                        break;
+                    }
+                } else {
+                    break;
+                }
             }
 
             let element = Tag {
