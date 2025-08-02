@@ -198,7 +198,10 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Generate the parameter unpacking
     let param_names: Vec<_> = params.iter().map(|param| &param.pat).collect();
 
-    // Generate the wrapper function
+    // Check if this is a no-parameter component (excluding slots)
+    let is_no_params = params.is_empty();
+
+    // Generate wrapper functions
     let wrapper_fn = if has_slot {
         // Extract slot parameter name
         let slot_param = &function.sig.inputs[0];
@@ -212,11 +215,47 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
             panic!("Slot parameter must be a typed parameter")
         };
 
+        if is_no_params {
+            // For slot components with no parameters, generate both functions
+            let props_fn_name = quote::format_ident!("__{}_with_props", fn_name);
+            quote! {
+                // Direct callable function for slots (takes just the HtmlFragment)
+                #[allow(non_snake_case)]
+                #vis fn #fn_name #impl_generics(#slot_param) -> hypersynthetic::HtmlFragment #where_clause {
+                    #internal_fn_name(#slot_param_name)
+                }
+
+                // Props-based function for JSX usage (with different name)
+                #[allow(non_snake_case)]
+                #vis fn #props_fn_name #impl_generics(#slot_param, props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
+                    let #props_name { #(#param_names),* } = props;
+                    #internal_fn_name(#slot_param_name, #(#param_names),*)
+                }
+            }
+        } else {
+            quote! {
+                #[allow(non_snake_case)]
+                #vis fn #fn_name #impl_generics(#slot_param, props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
+                    let #props_name { #(#param_names),* } = props;
+                    #internal_fn_name(#slot_param_name, #(#param_names),*)
+                }
+            }
+        }
+    } else if is_no_params {
+        // For no-parameter components, generate both functions
+        let props_fn_name = quote::format_ident!("__{}_with_props", fn_name);
         quote! {
+            // Direct callable function (no arguments)
             #[allow(non_snake_case)]
-            #vis fn #fn_name #impl_generics(#slot_param, props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
+            #vis fn #fn_name #impl_generics() -> hypersynthetic::HtmlFragment #where_clause {
+                #internal_fn_name()
+            }
+
+            // Props-based function for JSX usage (with different name)
+            #[allow(non_snake_case)]
+            #vis fn #props_fn_name #impl_generics(props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
                 let #props_name { #(#param_names),* } = props;
-                #internal_fn_name(#slot_param_name, #(#param_names),*)
+                #internal_fn_name(#(#param_names),*)
             }
         }
     } else {
@@ -229,7 +268,7 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     };
 
-    // Generate the final output
+    // Generate the final output - always generate Props struct
     let output = quote! {
         #[derive(::hypersynthetic::typed_builder_macro::TypedBuilder)]
         #vis struct #props_name #impl_generics #where_clause {

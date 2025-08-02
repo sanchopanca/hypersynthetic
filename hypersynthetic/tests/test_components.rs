@@ -82,3 +82,34 @@ fn test_inner_component_with_slot_argument() {
 
     assert_eq!(string_representation, expected);
 }
+
+#[component]
+fn NoArgsComponent() -> HtmlFragment {
+    html! {
+        <div></div>
+    }
+}
+
+#[test]
+fn test_no_args_component() {
+    let result = html! {
+        <NoArgsComponent />
+    };
+
+    let string_representation = result.to_string();
+
+    let expected = "<div></div>";
+
+    assert_eq!(string_representation, expected);
+}
+
+#[test]
+fn test_no_args_component_called_as_a_function() {
+    let result = NoArgsComponent();
+
+    let string_representation = result.to_string();
+
+    let expected = "<div></div>";
+
+    assert_eq!(string_representation, expected);
+}
