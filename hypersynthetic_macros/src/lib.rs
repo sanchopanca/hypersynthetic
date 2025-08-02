@@ -75,6 +75,8 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 if type_ref.lifetime.is_none() {
                     type_ref.lifetime = Some(lifetime.clone());
                 }
+                // Also process the inner type to handle nested references
+                add_lifetime_to_refs(&mut type_ref.elem, lifetime);
             }
             syn::Type::Path(type_path) => {
                 // Add lifetime to generic arguments
