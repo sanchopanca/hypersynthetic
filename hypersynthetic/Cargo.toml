@@ -20,10 +20,10 @@ hypersynthetic_macros = { path = "../hypersynthetic_macros", version = "0.8.0" }
 htmlize = "1.0.5"
 axum = { version = "0.8", optional = true }
 rocket = { version = "0.5", optional = true }
-typed-builder = "0.21.0"
-typed-builder-macro = "0.21.0"
+typed-builder = "0.22.0"
+typed-builder-macro = "0.22.0"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
-axum-test = "17"
+axum-test = "18"
 test_component_lib = { path = "../test_component_lib" }
