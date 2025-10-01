@@ -150,30 +150,13 @@ fn generate_node(tag: Node) -> TokenStream2 {
                 generate_nodes(NodeCollection::Nodes(component.children.clone()));
             let has_slots = !component.children.is_empty();
 
-            // Check if this is a no-parameter component
-            let is_no_params = attributes.is_empty();
-
-            // Use the appropriate function name for no-parameter components
-            let actual_component_name = if is_no_params {
-                // Create a new path with the modified last segment
-                let mut new_path = component_name.clone();
-                if let Some(last_segment) = new_path.segments.last_mut() {
-                    let old_ident = &last_segment.ident;
-                    let new_ident = quote::format_ident!("__{}_with_props", old_ident);
-                    last_segment.ident = new_ident;
-                }
-                new_path
-            } else {
-                component_name.clone()
-            };
-
             // For slots, we use the ComponentWithSlots system
             let final_call = if has_slots {
                 quote! {
                     hypersynthetic::component::component_with_slots_view(
-                        &#actual_component_name,
+                        &#component_name,
                         #children,
-                        hypersynthetic::component::component_with_slots_props_builder(&#actual_component_name)
+                        hypersynthetic::component::component_with_slots_props_builder(&#component_name)
                             #(#builder_calls)*
                             .build()
                     )
@@ -181,8 +164,8 @@ fn generate_node(tag: Node) -> TokenStream2 {
             } else {
                 quote! {
                     hypersynthetic::component::component_view(
-                        &#actual_component_name,
-                        hypersynthetic::component::component_props_builder(&#actual_component_name)
+                        &#component_name,
+                        hypersynthetic::component::component_props_builder(&#component_name)
                             #(#builder_calls)*
                             .build()
                     )

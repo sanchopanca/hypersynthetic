@@ -215,50 +215,34 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
             panic!("Slot parameter must be a typed parameter")
         };
 
-        if is_no_params {
-            // For slot components with no parameters, generate both functions
-            let props_fn_name = quote::format_ident!("__{}_with_props", fn_name);
-            quote! {
-                // Direct callable function for slots (takes just the HtmlFragment)
-                #[allow(non_snake_case)]
-                #vis fn #fn_name #impl_generics(#slot_param) -> hypersynthetic::HtmlFragment #where_clause {
-                    #internal_fn_name(#slot_param_name)
-                }
-
-                // Props-based function for JSX usage (with different name)
-                #[allow(non_snake_case)]
-                #vis fn #props_fn_name #impl_generics(#slot_param, props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
-                    let #props_name { #(#param_names),* } = props;
-                    #internal_fn_name(#slot_param_name, #(#param_names),*)
-                }
-            }
-        } else {
-            quote! {
-                #[allow(non_snake_case)]
-                #vis fn #fn_name #impl_generics(#slot_param, props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
-                    let #props_name { #(#param_names),* } = props;
-                    #internal_fn_name(#slot_param_name, #(#param_names),*)
-                }
+        // For all slot components (with or without params), use the same signature
+        quote! {
+            #[allow(non_snake_case)]
+            #vis fn #fn_name #impl_generics(#slot_param, props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
+                let #props_name { #(#param_names),* } = props;
+                #internal_fn_name(#slot_param_name, #(#param_names),*)
             }
         }
     } else if is_no_params {
-        // For no-parameter components, generate both functions
-        let props_fn_name = quote::format_ident!("__{}_with_props", fn_name);
+        // For no-parameter components, generate both a direct callable and props-based function
+        let direct_fn_name = quote::format_ident!("__{}__direct", fn_name);
         quote! {
-            // Direct callable function (no arguments)
+            // Props-based function (main interface for html! macro)
             #[allow(non_snake_case)]
-            #vis fn #fn_name #impl_generics() -> hypersynthetic::HtmlFragment #where_clause {
-                #internal_fn_name()
-            }
-
-            // Props-based function for JSX usage (with different name)
-            #[allow(non_snake_case)]
-            #vis fn #props_fn_name #impl_generics(props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
+            #vis fn #fn_name #impl_generics(props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
                 let #props_name { #(#param_names),* } = props;
                 #internal_fn_name(#(#param_names),*)
             }
+
+            // Direct callable function (for backwards compatibility)
+            #[allow(non_snake_case)]
+            #[doc(hidden)]
+            #vis fn #direct_fn_name #impl_generics() -> hypersynthetic::HtmlFragment #where_clause {
+                #internal_fn_name()
+            }
         }
     } else {
+        // For components with params, single props-based function
         quote! {
             #[allow(non_snake_case)]
             #vis fn #fn_name #impl_generics(props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {

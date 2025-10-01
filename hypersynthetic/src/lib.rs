@@ -94,6 +94,10 @@ pub mod component;
 ///
 /// A component name must start with an uppercase letter and it must return a [HtmlFragment].
 ///
+/// **Note:** Components are designed to be used exclusively within the [html] macro using
+/// the `<Component />` syntax. Direct function calls (e.g., `MyComponent(...)`) are not
+/// supported and may not work as expected, especially for components without parameters.
+///
 /// # Props
 /// Components accept properties, similar to function arguments.
 /// These properties can be any Rust type, providing a type-safe way to pass data to components.

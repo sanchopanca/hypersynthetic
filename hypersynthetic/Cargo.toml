@@ -26,3 +26,4 @@ typed-builder-macro = "0.21.0"
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
 axum-test = "17"
+test_component_lib = { path = "../test_component_lib" }
