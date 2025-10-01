@@ -376,23 +376,23 @@ impl HtmlFragment {
         }
     }
 
-    pub fn iter(&self) -> Iter<Node> {
+    pub fn iter(&self) -> Iter<'_, Node> {
         match self {
             HtmlFragment::Nodes(nodes) => nodes.iter(),
         }
     }
 
-    pub fn iter_mut(&mut self) -> IterMut<Node> {
+    pub fn iter_mut(&mut self) -> IterMut<'_, Node> {
         match self {
             HtmlFragment::Nodes(nodes) => nodes.iter_mut(),
         }
     }
 
-    pub fn iter_elements(&self) -> ElementDataIter {
+    pub fn iter_elements(&self) -> ElementDataIter<'_> {
         ElementDataIter { iter: self.iter() }
     }
 
-    pub fn iter_elements_mut(&mut self) -> ElementDataIterMut {
+    pub fn iter_elements_mut(&mut self) -> ElementDataIterMut<'_> {
         ElementDataIterMut {
             iter: self.iter_mut(),
         }
