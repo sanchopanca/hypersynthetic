@@ -1,4 +1,3 @@
-use proc_macro2::Span;
 use syn::{
     Expr, Ident, LitBool, LitStr, Pat, Path, Result, Token, braced,
     parse::{Parse, ParseStream},
@@ -354,12 +353,11 @@ impl Parse for AttrValue {
             Ok(AttrValue::Expression(content_expr))
         } else {
             let lit_str: LitStr = input.parse()?;
-            if lit_str.value().contains('{') && lit_str.value().contains('}') {
-                // Contains interpolation
-                let segments = parse_interpolated_string(&lit_str.value())?;
-                Ok(AttrValue::Interpolated(segments))
-            } else {
-                Ok(AttrValue::Literal(lit_str))
+            let segments = parse_interpolated_string(&lit_str)?;
+            match segments.as_slice() {
+                [] => Ok(AttrValue::Literal(LitStr::new("", lit_str.span()))),
+                [InterpolatedSegment::Str(text)] => Ok(AttrValue::Literal(text.clone())),
+                _ => Ok(AttrValue::Interpolated(segments)),
             }
         }
     }
@@ -384,32 +382,55 @@ impl Parse for NodeCollection {
     }
 }
 
-fn parse_interpolated_string(s: &str) -> Result<Vec<InterpolatedSegment>> {
+/// Splits an attribute value into literal text and `{expression}`s.
+/// `{{` and `}}` are literal braces, as in text nodes and `format!` strings.
+fn parse_interpolated_string(lit: &LitStr) -> Result<Vec<InterpolatedSegment>> {
+    let value = lit.value();
+    let error = |message: String| syn::Error::new(lit.span(), message);
+
     let mut segments = Vec::new();
-    let mut start = 0;
-    while let Some(open) = s[start..].find('{') {
-        if start != open {
-            segments.push(InterpolatedSegment::Str(LitStr::new(
-                &s[start..start + open],
-                Span::call_site(),
-            )));
+    let mut text = String::new();
+    let mut chars = value.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '{' if chars.next_if_eq(&'{').is_some() => text.push('{'),
+            '}' if chars.next_if_eq(&'}').is_some() => text.push('}'),
+            '{' => {
+                let mut expr_str = String::new();
+                loop {
+                    match chars.next() {
+                        Some('}') => break,
+                        Some(c) => expr_str.push(c),
+                        None => {
+                            return Err(error(
+                                "unmatched `{` in attribute value; use `{{` for a literal brace"
+                                    .to_owned(),
+                            ));
+                        }
+                    }
+                }
+                let expr: Expr = syn::parse_str(&expr_str).map_err(|_| {
+                    error(format!(
+                        "invalid expression `{{{expr_str}}}` in attribute value; \
+                         use `{{{{` and `}}}}` for literal braces"
+                    ))
+                })?;
+                if !text.is_empty() {
+                    let text = std::mem::take(&mut text);
+                    segments.push(InterpolatedSegment::Str(LitStr::new(&text, lit.span())));
+                }
+                segments.push(InterpolatedSegment::Expr(expr));
+            }
+            '}' => {
+                return Err(error(
+                    "unmatched `}` in attribute value; use `}}` for a literal brace".to_owned(),
+                ));
+            }
+            c => text.push(c),
         }
-        let close = s[start + open..].find('}').ok_or_else(|| {
-            syn::Error::new(
-                Span::call_site(),
-                "Unmatched opening brace in interpolated string",
-            )
-        })?;
-        let expr_str = &s[start + open + 1..start + open + close];
-        let expr: Expr = syn::parse_str(expr_str)?;
-        segments.push(InterpolatedSegment::Expr(expr));
-        start = start + open + close + 1;
     }
-    if start != s.len() {
-        segments.push(InterpolatedSegment::Str(LitStr::new(
-            &s[start..],
-            Span::call_site(),
-        )));
+    if !text.is_empty() {
+        segments.push(InterpolatedSegment::Str(LitStr::new(&text, lit.span())));
     }
     Ok(segments)
 }

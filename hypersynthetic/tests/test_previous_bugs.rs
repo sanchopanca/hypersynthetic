@@ -53,3 +53,14 @@ fn test_user_variable_named_for_v_in_component_loop() {
 
     assert_eq!(result.to_string(), "<li>a</li><li>b</li>");
 }
+
+#[test]
+fn test_literal_text_between_interpolations_in_attr_value() {
+    let a = 1;
+    let b = 2;
+    let result = html! {
+        <div id="{a}xyz{b}"></div>
+    };
+
+    assert_eq!(result.to_string(), "<div id=\"1xyz2\"></div>");
+}

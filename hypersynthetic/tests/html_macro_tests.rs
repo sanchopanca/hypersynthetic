@@ -450,6 +450,37 @@ fn test_interpolation_in_attr_values() {
 }
 
 #[test]
+fn test_escaped_braces_in_attr_value() {
+    let result = html! {
+        <div x-data="{{ open: false }}" hx-vals="{{\"a\": 1}}"></div>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<div x-data=\"{ open: false }\" hx-vals=\"{&quot;a&quot;: 1}\"></div>"
+    );
+}
+
+#[test]
+fn test_escaped_braces_and_interpolation_in_attr_value() {
+    let count = 5;
+    let result = html! {
+        <div x-data="{{ count: {count} }}"></div>
+    };
+
+    assert_eq!(result.to_string(), "<div x-data=\"{ count: 5 }\"></div>");
+}
+
+#[test]
+fn test_escaped_braces_are_consistent_between_text_and_attr_value() {
+    let result = html! {
+        <p title="{{x}}">"{{x}}"</p>
+    };
+
+    assert_eq!(result.to_string(), "<p title=\"{x}\">{x}</p>");
+}
+
+#[test]
 fn test_colons_in_attr_names() {
     let result = html! {
         <form

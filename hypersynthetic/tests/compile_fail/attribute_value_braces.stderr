@@ -1,0 +1,17 @@
+error: unmatched `{` in attribute value; use `{{` for a literal brace
+ --> tests/compile_fail/attribute_value_braces.rs:4:32
+  |
+4 |     let _ = html! { <div title="{oops"></div> };
+  |                                ^^^^^^^
+
+error: unmatched `}` in attribute value; use `}}` for a literal brace
+ --> tests/compile_fail/attribute_value_braces.rs:5:32
+  |
+5 |     let _ = html! { <div title="oops}"></div> };
+  |                                ^^^^^^^
+
+error: invalid expression `{ open: false }` in attribute value; use `{{` and `}}` for literal braces
+ --> tests/compile_fail/attribute_value_braces.rs:6:33
+  |
+6 |     let _ = html! { <div x-data="{ open: false }"></div> };
+  |                                 ^^^^^^^^^^^^^^^^^

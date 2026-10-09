@@ -251,6 +251,17 @@ pub use hypersynthetic_macros::component;
 /// assert_eq!(div.to_string(), "<div>{txt} World</div>");
 /// ```
 ///
+/// The same rule applies in attribute values, which is how to write literal braces
+/// there, e.g. for Alpine.js or htmx:
+/// ```
+/// # use hypersynthetic::html;
+/// let count = 5;
+/// let div = html! {
+///     <div x-data="{{ open: false, count: {count} }}"></div>
+/// };
+/// assert_eq!(div.to_string(), r#"<div x-data="{ open: false, count: 5 }"></div>"#);
+/// ```
+///
 /// # Conditionals
 /// A special pseudo-attribute `:if` is used to conditionally render an element.
 /// ```
