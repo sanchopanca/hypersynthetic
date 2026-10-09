@@ -170,14 +170,14 @@ fn generate_node(tag: Node) -> TokenStream2 {
                     {
                         let mut #for_v = Vec::new();
                         for #var in #collection {
-                            #for_v.extend(#final_call.get_nodes());
+                            #for_v.extend(#final_call.into_nodes());
                         }
                         #for_v
                     }
                 }
             } else {
                 quote! {
-                    #final_call.get_nodes()
+                    #final_call.into_nodes()
                 }
             };
 

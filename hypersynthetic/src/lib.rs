@@ -580,9 +580,15 @@ impl HtmlFragment {
         self.0.is_empty()
     }
 
-    /// A copy of the top-level nodes.
+    /// A copy of the top-level nodes. Use [HtmlFragment::into_nodes] to take them
+    /// without copying when the fragment isn't needed anymore.
     pub fn get_nodes(&self) -> Vec<Node> {
         self.0.clone()
+    }
+
+    /// The top-level nodes, taken out of the fragment.
+    pub fn into_nodes(self) -> Vec<Node> {
+        self.0
     }
 
     /// Iterates over the top-level nodes.
@@ -631,16 +637,22 @@ impl FromIterator<Node> for HtmlFragment {
 /// Concatenates fragments: `items.iter().map(|item| html! { ... }).collect()`.
 impl FromIterator<HtmlFragment> for HtmlFragment {
     fn from_iter<I: IntoIterator<Item = HtmlFragment>>(fragments: I) -> Self {
-        fragments
-            .into_iter()
-            .flat_map(|HtmlFragment(nodes)| nodes)
-            .collect()
+        fragments.into_iter().flatten().collect()
     }
 }
 
 impl Extend<Node> for HtmlFragment {
     fn extend<I: IntoIterator<Item = Node>>(&mut self, nodes: I) {
         self.0.extend(nodes);
+    }
+}
+
+impl IntoIterator for HtmlFragment {
+    type Item = Node;
+    type IntoIter = std::vec::IntoIter<Node>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 

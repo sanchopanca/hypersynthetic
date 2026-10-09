@@ -285,3 +285,29 @@ fn test_collect_fragments() {
     let none: HtmlFragment = std::iter::empty::<HtmlFragment>().collect();
     assert!(none.is_empty());
 }
+
+#[test]
+fn test_into_nodes() {
+    let fragment = html! { <p>"a"</p> "b" };
+
+    let nodes = fragment.into_nodes();
+
+    assert_eq!(nodes.len(), 2);
+    assert_eq!(nodes[1], Node::Text("b".to_owned()));
+}
+
+#[test]
+fn test_fragment_into_iterator() {
+    let fragment = html! { <p>"a"</p> "b" <hr /> };
+
+    let mut kinds = Vec::new();
+    for node in fragment {
+        kinds.push(match node {
+            Node::Element(element) => element.tag_name,
+            Node::Text(text) => text,
+            Node::DocType => "doctype".to_owned(),
+        });
+    }
+
+    assert_eq!(kinds, ["p", "b", "hr"]);
+}
