@@ -824,10 +824,7 @@ impl<'r> rocket::response::Responder<'r, 'static> for HtmlFragment {
         self,
         req: &'r rocket::request::Request<'_>,
     ) -> rocket::response::Result<'static> {
-        let content = self.to_string();
-        rocket::response::Response::build_from(content.respond_to(req)?)
-            .header(rocket::http::ContentType::HTML)
-            .ok()
+        rocket::response::content::RawHtml(self.to_string()).respond_to(req)
     }
 }
 
