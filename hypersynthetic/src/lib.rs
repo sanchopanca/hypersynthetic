@@ -328,6 +328,35 @@ pub use hypersynthetic_macros::component;
 /// assert_eq!(div.to_string(), r#"<input type="text" value="1" /><input type="text" value="2" />"#);
 /// ```
 ///
+/// ## `:if` together with `:for`
+/// When an element has both, `:if` is checked once, before the loop: it decides
+/// whether the loop runs at all.
+/// ```
+/// # use hypersynthetic::html;
+/// let show_list = false;
+/// let items = html! {
+///     <li :if={show_list} :for={n in [1, 2]}>{n}</li>
+/// };
+/// assert_eq!(items.to_string(), "");
+/// ```
+///
+/// So the condition can't use the loop variable:
+/// ```compile_fail
+/// # use hypersynthetic::html;
+/// let items = html! {
+///     <li :for={n in [1, 2, 3, 4]} :if={n % 2 == 0}>{n}</li> // error: cannot find value `n`
+/// };
+/// ```
+///
+/// To skip some items, filter the iterator instead:
+/// ```
+/// # use hypersynthetic::html;
+/// let items = html! {
+///     <li :for={n in [1, 2, 3, 4].into_iter().filter(|n| n % 2 == 0)}>{n}</li>
+/// };
+/// assert_eq!(items.to_string(), "<li>2</li><li>4</li>");
+/// ```
+///
 /// # Components
 /// Components can be called as tags. Here is an example:
 /// ```
