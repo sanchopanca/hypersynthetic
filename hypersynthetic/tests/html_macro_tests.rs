@@ -1,4 +1,4 @@
-use hypersynthetic::html;
+use hypersynthetic::{ElementData, HtmlFragment, Node, html};
 extern crate alloc;
 
 #[test]
@@ -111,6 +111,38 @@ fn test_self_closing() {
     let expected =
         "<body><div><p>Text 1</p><br /><p>Text 2</p><br class=\"foo\" /><p>Text 3</p></div></body>";
     assert_eq!(string_representation, expected);
+}
+
+#[test]
+fn test_self_closing_non_void_element() {
+    let result = html! {
+        <div class="a" />
+        <p>"Text"</p>
+    };
+
+    let expected = "<div class=\"a\"></div><p>Text</p>";
+    assert_eq!(result.to_string(), expected);
+}
+
+#[test]
+fn test_self_closing_void_elements() {
+    let result = html! {
+        <area /><base /><br /><col /><embed /><hr /><img /><input />
+        <link /><meta /><source /><track /><wbr />
+    };
+
+    let expected = "<area /><base /><br /><col /><embed /><hr /><img /><input />\
+                    <link /><meta /><source /><track /><wbr />";
+    assert_eq!(result.to_string(), expected);
+}
+
+#[test]
+fn test_self_closing_non_void_element_built_manually() {
+    let mut element = ElementData::new("span".to_owned());
+    element.self_closing = true;
+    let fragment = HtmlFragment::new(vec![Node::Element(element)]);
+
+    assert_eq!(fragment.to_string(), "<span></span>");
 }
 
 #[test]

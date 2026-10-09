@@ -477,7 +477,9 @@ impl ElementData {
             HtmlFragment::Nodes(nodes) => nodes.iter().map(|node| node.to_html()).collect(),
         };
 
-        if self.self_closing {
+        // `/>` is only meaningful on void elements: browsers ignore it on
+        // other tags and treat `<div />` as an unclosed `<div>`.
+        if self.self_closing && is_void_element(&self.tag_name) {
             format!("<{}{} />", self.tag_name, attributes_string)
         } else {
             format!(
@@ -486,6 +488,18 @@ impl ElementData {
             )
         }
     }
+}
+
+/// Elements that can't have children, so they have no end tag.
+/// See <https://html.spec.whatwg.org/multipage/syntax.html#void-elements>.
+fn is_void_element(tag_name: &str) -> bool {
+    const VOID_ELEMENTS: [&str; 13] = [
+        "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source",
+        "track", "wbr",
+    ];
+    VOID_ELEMENTS
+        .iter()
+        .any(|void| void.eq_ignore_ascii_case(tag_name))
 }
 
 pub struct ElementDataIter<'a> {
