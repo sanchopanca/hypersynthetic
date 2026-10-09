@@ -51,6 +51,9 @@ impl Parse for Node {
             }
 
             let is_component = is_path_pascal_case(&tag_name);
+            if is_component {
+                validate_prop_names(&attributes)?;
+            }
 
             // Self-closing tag
             if input.peek(Token![/]) && input.peek2(Token![>]) {
@@ -142,6 +145,30 @@ impl Parse for Node {
             Err(input.error("Expected a node"))
         }
     }
+}
+
+/// Props become builder method calls (`.data_id(…)`), so their names must be
+/// Rust identifiers, unlike HTML attribute names which can contain `-` and `:`.
+fn validate_prop_names(props: &[Attribute]) -> Result<()> {
+    for prop in props {
+        if let Attribute::RegularAttribute(RegularAttribute {
+            name: AttrName::Literal(name),
+            ..
+        }) = prop
+        {
+            let name_str = name.value();
+            if name_str.contains(['-', ':']) {
+                let suggestion = name_str.replace(['-', ':'], "_");
+                return Err(syn::Error::new(
+                    name.span(),
+                    format!(
+                        "invalid prop name `{name_str}`: component props are Rust identifiers, try `{suggestion}`"
+                    ),
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 impl Parse for Attribute {

@@ -1,0 +1,5 @@
+error: invalid prop name `data-id`: component props are Rust identifiers, try `data_id`
+ --> tests/compile_fail/hyphenated_prop_name.rs:9:27
+  |
+9 |     let _ = html! { <Card data-id="1" /> };
+  |                           ^^^^
