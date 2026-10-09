@@ -127,7 +127,7 @@ fn generate_node(tag: Node) -> TokenStream2 {
                     let attr_name = match &attr.name {
                         AttrName::Literal(name) => {
                             let name_str = name.value();
-                            quote::format_ident!("{}", name_str)
+                            quote::format_ident!("{}", name_str, span = name.span())
                         }
                         AttrName::Expression(_) => {
                             unreachable!("rejected by the parser in validate_prop_names")
@@ -139,7 +139,8 @@ fn generate_node(tag: Node) -> TokenStream2 {
                         Some(AttrValue::Literal(value)) => quote! { #value },
                         Some(AttrValue::Expression(expr)) => quote! { #expr },
                         Some(AttrValue::Interpolated(string)) => generate_format(string),
-                        None => quote! {},
+                        // `<C disabled />` is short for `<C disabled={true} />`
+                        None => quote::quote_spanned! { attr_name.span()=> true },
                     };
 
                     quote! { .#attr_name(#attr_value) }

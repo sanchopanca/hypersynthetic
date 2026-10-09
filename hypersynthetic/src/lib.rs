@@ -131,6 +131,25 @@ pub mod component;
 /// # }
 /// ```
 ///
+/// ## Boolean props
+/// Like boolean attributes in HTML, a prop written without a value is `true`:
+/// `<Button disabled />` is short for `<Button disabled={true} />`.
+/// ```
+/// # use hypersynthetic::prelude::*;
+/// #[component]
+/// fn Button(text: &str, #[builder(default)] disabled: bool) -> HtmlFragment {
+///     html! { <button :if={!disabled}>{text}</button> }
+/// }
+///
+/// # fn main() {
+/// let html = html! {
+///     <Button text="Save" />
+///     <Button text="Delete" disabled />
+/// };
+/// assert_eq!(html.to_string(), "<button>Save</button>");
+/// # }
+/// ```
+///
 /// # Slots
 ///
 /// Components in this library can accept a slot argument, which allows for flexible and reusable HTML structures.

@@ -180,3 +180,22 @@ fn test_builder_attributes_on_props() {
 
     assert_eq!(result.to_string(), "<p>item: 0</p><p>apple: 3</p>");
 }
+
+#[component]
+fn SubmitButton(disabled: bool, #[builder(default)] primary: bool) -> HtmlFragment {
+    html! { <button disabled={disabled} data-primary={primary}></button> }
+}
+
+#[test]
+fn test_boolean_prop_shorthand() {
+    let result = html! {
+        <SubmitButton disabled />
+        <SubmitButton disabled={false} primary />
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<button disabled=\"true\" data-primary=\"false\"></button>\
+         <button disabled=\"false\" data-primary=\"true\"></button>"
+    );
+}
