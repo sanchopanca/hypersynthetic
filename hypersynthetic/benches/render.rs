@@ -39,6 +39,28 @@ fn rows(count: usize) -> Vec<(usize, String, String)> {
         .collect()
 }
 
+#[component]
+fn Article(title: &str) -> HtmlFragment {
+    html! {
+        <article>
+            <h2>{title}</h2>
+            <p>"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor."</p>
+            <p>"Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip."</p>
+            <p>"Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore."</p>
+            <footer>"Posted in " <a href="/blog">"the blog"</a>"."</footer>
+        </article>
+    }
+}
+
+/// Mostly literal text, like a static page.
+fn articles(titles: &[String]) -> HtmlFragment {
+    html! {
+        <main>
+            <Article :for={title in titles} title={title} />
+        </main>
+    }
+}
+
 /// Deep nesting: the worst case for copying text once per level.
 fn nested(depth: usize) -> HtmlFragment {
     let mut fragment = html! { <span>"A leaf with some text that has to reach the top"</span> };
@@ -81,6 +103,9 @@ fn build(c: &mut Criterion) {
     let data = rows(100);
     group.bench_function("table_100", |b| b.iter(|| table(black_box(&data))));
     group.bench_function("nested_100", |b| b.iter(|| nested(black_box(100))));
+
+    let titles: Vec<String> = (0..100).map(|i| format!("Article {i}")).collect();
+    group.bench_function("articles_100", |b| b.iter(|| articles(black_box(&titles))));
 
     group.finish();
 }

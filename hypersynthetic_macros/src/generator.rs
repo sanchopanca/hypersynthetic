@@ -64,7 +64,7 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
         Node::Text(text) => {
             let text = generate_format(&text);
             quote! {
-                #target.push(::hypersynthetic::Node::Text(::hypersynthetic::escape_text(#text).to_string()));
+                #target.push(::hypersynthetic::Node::Text(::hypersynthetic::escape_text(#text).into_owned()));
             }
         }
         // See `hypersynthetic::__private` for how fragments and other values are told apart
