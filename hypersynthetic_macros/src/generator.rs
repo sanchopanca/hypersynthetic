@@ -3,7 +3,9 @@ use quote::quote;
 use syn::{LitStr, spanned::Spanned};
 
 use crate::{
-    attributes::{AttrName, AttrValue, InterpolatedSegment, InterpolatedString, RegularAttribute},
+    attributes::{
+        AttrName, AttrValue, ForExpr, InterpolatedSegment, InterpolatedString, RegularAttribute,
+    },
     nodes::{Node, NodeCollection},
 };
 
@@ -16,31 +18,21 @@ fn internal_ident(name: &str) -> Ident {
 }
 
 pub fn generate_nodes(NodeCollection::Nodes(nodes): NodeCollection) -> TokenStream2 {
-    let v = internal_ident("__hs_nodes");
-    let nodes: Vec<TokenStream2> = nodes.into_iter().map(generate_node).collect();
-
-    let nodes: Vec<TokenStream2> = nodes
-        .into_iter()
-        .map(|node| {
-            quote! {
-                #v.extend(#node);
-            }
-        })
-        .collect();
+    let target = internal_ident("__hs_nodes");
+    let statements = nodes.into_iter().map(|node| generate_node(node, &target));
 
     quote! {
         {
-            ::hypersynthetic::HtmlFragment::new({
-                let mut #v = vec![];
-                #(#nodes)*
-                #v
-            })
+            let mut #target = ::std::vec::Vec::new();
+            #(#statements)*
+            ::hypersynthetic::HtmlFragment::new(#target)
         }
     }
 }
 
-fn generate_node(tag: Node) -> TokenStream2 {
-    match tag {
+/// Statements that add the node to the `target` vector.
+fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
+    match node {
         Node::Element(element) => {
             let tag_name = element.tag_name.to_string();
             let self_closing = element.self_closing;
@@ -51,61 +43,36 @@ fn generate_node(tag: Node) -> TokenStream2 {
                 .into_iter()
                 .map(generate_attribute)
                 .collect();
-            let tokens = if element.has_for_attribute() {
-                let for_expr = element.get_for_attribute();
-                let var = for_expr.pat;
-                let collection = for_expr.collection;
-                let for_v = internal_ident("__hs_for_nodes");
-                quote! {
-                    {
-                        let mut #for_v = Vec::new();
-                        for #var in #collection {
-                            #for_v.push(::hypersynthetic::Node::Element(::hypersynthetic::ElementData {
-                                tag_name: #tag_name.to_owned(),
-                                attributes: vec![#(#attributes),*],
-                                children: #children,
-                                self_closing: #self_closing,
-                            }));
-                        }
-                        #for_v
-                    }
-                }
-            } else {
-                quote! {
-                    vec![::hypersynthetic::Node::Element(::hypersynthetic::ElementData {
-                        tag_name: #tag_name.to_owned(),
-                        attributes: vec![#(#attributes),*],
-                        children: #children,
-                        self_closing: #self_closing,
-                    })]
-                }
+            let push = quote! {
+                #target.push(::hypersynthetic::Node::Element(::hypersynthetic::ElementData {
+                    tag_name: #tag_name.to_owned(),
+                    attributes: vec![#(#attributes),*],
+                    children: #children,
+                    self_closing: #self_closing,
+                }));
             };
-
-            if element.has_if_attribute() {
-                let if_expr = element.get_if_attribute();
-                quote! {
-                    if #if_expr {
-                        #tokens
-                    } else {
-                        vec![]
-                    }
-                }
-            } else {
-                tokens
-            }
+            wrap_in_for_and_if(
+                push,
+                element
+                    .has_for_attribute()
+                    .then(|| element.get_for_attribute()),
+                element
+                    .has_if_attribute()
+                    .then(|| element.get_if_attribute()),
+            )
         }
         Node::Text(text) => {
             let text = generate_format(&text);
             quote! {
-                vec![::hypersynthetic::Node::Text(::hypersynthetic::escape_text(#text).to_string())]
+                #target.push(::hypersynthetic::Node::Text(::hypersynthetic::escape_text(#text).to_string()));
             }
         }
         // See `hypersynthetic::__private` for how fragments and other values are told apart
-        Node::Expression(expr) => render_expression(&expr, true),
-        Node::UnescapedExpression(expr) => render_expression(&expr, false),
+        Node::Expression(expr) => render_expression(&expr, true, target),
+        Node::UnescapedExpression(expr) => render_expression(&expr, false, target),
         Node::DocType => {
             quote! {
-                vec![::hypersynthetic::Node::DocType]
+                #target.push(::hypersynthetic::Node::DocType);
             }
         }
         Node::Component(component) => {
@@ -151,49 +118,53 @@ fn generate_node(tag: Node) -> TokenStream2 {
                 quote! { .#setter(#children) }
             };
 
-            let final_call = quote! {
-                ::hypersynthetic::component::component_view(
-                    &#component_name,
-                    ::hypersynthetic::component::component_props_builder(&#component_name)
-                        #(#builder_calls)*
-                        #children_call
-                        .build()
-                )
+            let extend = quote! {
+                #target.extend(
+                    ::hypersynthetic::component::component_view(
+                        &#component_name,
+                        ::hypersynthetic::component::component_props_builder(&#component_name)
+                            #(#builder_calls)*
+                            #children_call
+                            .build()
+                    )
+                    .into_nodes()
+                );
             };
-
-            let tokens = if component.has_for_attribute() {
-                let for_expr = component.get_for_attribute();
-                let var = for_expr.pat;
-                let collection = for_expr.collection;
-                let for_v = internal_ident("__hs_for_nodes");
-                quote! {
-                    {
-                        let mut #for_v = Vec::new();
-                        for #var in #collection {
-                            #for_v.extend(#final_call.into_nodes());
-                        }
-                        #for_v
-                    }
-                }
-            } else {
-                quote! {
-                    #final_call.into_nodes()
-                }
-            };
-
-            if component.has_if_attribute() {
-                let if_expr = component.get_if_attribute();
-                quote! {
-                    if #if_expr {
-                        #tokens
-                    } else {
-                        vec![]
-                    }
-                }
-            } else {
-                tokens
-            }
+            wrap_in_for_and_if(
+                extend,
+                component
+                    .has_for_attribute()
+                    .then(|| component.get_for_attribute()),
+                component
+                    .has_if_attribute()
+                    .then(|| component.get_if_attribute()),
+            )
         }
+    }
+}
+
+/// Puts the statements in the `:for` loop, and that in the `:if` condition, so the
+/// condition is checked once, before the loop.
+fn wrap_in_for_and_if(
+    statements: TokenStream2,
+    for_attribute: Option<ForExpr>,
+    if_attribute: Option<syn::Expr>,
+) -> TokenStream2 {
+    let statements = match for_attribute {
+        Some(ForExpr { pat, collection }) => quote! {
+            for #pat in #collection {
+                #statements
+            }
+        },
+        None => statements,
+    };
+    match if_attribute {
+        Some(condition) => quote! {
+            if #condition {
+                #statements
+            }
+        },
+        None => statements,
     }
 }
 
@@ -223,7 +194,7 @@ fn generate_attribute(attr: RegularAttribute) -> TokenStream2 {
     }
 }
 
-fn render_expression(expr: &syn::Expr, escape: bool) -> TokenStream2 {
+fn render_expression(expr: &syn::Expr, escape: bool, target: &Ident) -> TokenStream2 {
     // Errors about the method (e.g. the value isn't Display) are reported at its
     // name, so give it the expression's span
     let render = Ident::new("render", expr.span());
@@ -233,7 +204,7 @@ fn render_expression(expr: &syn::Expr, escape: bool) -> TokenStream2 {
             use ::hypersynthetic::__private::{
                 RenderDisplay as _, RenderFragment as _, RenderOption as _,
             };
-            (&::hypersynthetic::__private::Render(&(#expr))).#render(#escape)
+            (&::hypersynthetic::__private::Render(&(#expr))).#render(#escape, &mut #target);
         }
     }
 }
