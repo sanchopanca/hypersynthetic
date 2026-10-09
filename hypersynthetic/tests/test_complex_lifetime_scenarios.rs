@@ -156,3 +156,87 @@ fn test_nested_option_result() {
     };
     assert_eq!(result3.to_string(), "<div>No data</div>");
 }
+
+#[component]
+fn ExplicitlyElided(text: &'_ str, cow: std::borrow::Cow<'_, str>) -> HtmlFragment {
+    html! {
+        <p>{text}{cow}</p>
+    }
+}
+
+#[test]
+fn test_explicitly_elided_lifetimes() {
+    let result = html! {
+        <ExplicitlyElided text="a" cow={std::borrow::Cow::Borrowed("b")} />
+    };
+    assert_eq!(result.to_string(), "<p>ab</p>");
+}
+
+#[component]
+fn ElidedTraitObjectBound(value: Box<dyn Display + '_>) -> HtmlFragment {
+    html! {
+        <p>{value}</p>
+    }
+}
+
+#[test]
+fn test_elided_trait_object_bound() {
+    let number = 42;
+    let result = html! {
+        <ElidedTraitObjectBound value={Box::new(&number)} />
+    };
+    assert_eq!(result.to_string(), "<p>42</p>");
+}
+
+#[component]
+fn NamedAndElided<'b>(named: &'b str, elided: &str) -> HtmlFragment {
+    html! {
+        <p>{named}{elided}</p>
+    }
+}
+
+#[component]
+fn NamedAAndElided<'a>(named: &'a str, elided: &str) -> HtmlFragment {
+    html! {
+        <p>{named}{elided}</p>
+    }
+}
+
+#[test]
+fn test_declared_lifetime_and_elided_reference() {
+    let result = html! {
+        <NamedAndElided named="a" elided="b" />
+        <NamedAAndElided named="c" elided="d" />
+    };
+    assert_eq!(result.to_string(), "<p>ab</p><p>cd</p>");
+}
+
+#[component]
+fn GenericWithRef<T: Display>(value: &T) -> HtmlFragment {
+    html! {
+        <p>{value}</p>
+    }
+}
+
+#[test]
+fn test_generic_component_with_reference() {
+    let result = html! {
+        <GenericWithRef value={&42} />
+    };
+    assert_eq!(result.to_string(), "<p>42</p>");
+}
+
+#[component]
+fn BoxedClosure(transform: Box<dyn Fn(&str) -> String>) -> HtmlFragment {
+    html! {
+        <p>{transform("hello")}</p>
+    }
+}
+
+#[test]
+fn test_closure_with_reference_argument() {
+    let result = html! {
+        <BoxedClosure transform={Box::new(|s: &str| s.to_uppercase())} />
+    };
+    assert_eq!(result.to_string(), "<p>HELLO</p>");
+}

@@ -10,7 +10,7 @@ use generator::generate_nodes;
 use nodes::NodeCollection;
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{ItemFn, parse_macro_input};
+use syn::{ItemFn, parse_macro_input, visit_mut::VisitMut};
 use utils::is_pascal_case;
 
 #[proc_macro]
@@ -23,6 +23,9 @@ pub fn html(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut function = parse_macro_input!(item as ItemFn);
+
+    // Props struct fields can't have elided lifetimes
+    name_elided_lifetimes(&mut function.sig);
 
     // Check if the function's identifier is PascalCase
     let fn_name = &function.sig.ident;
@@ -37,101 +40,6 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     // Extract visibility
     let vis = &function.vis;
-
-    // Helper function to check if a type contains any references
-    fn type_contains_refs(ty: &syn::Type) -> bool {
-        match ty {
-            syn::Type::Reference(_) => true,
-            syn::Type::Path(type_path) => {
-                // Check generic arguments
-                type_path.path.segments.iter().any(|segment| {
-                    if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
-                        args.args.iter().any(|arg| {
-                            if let syn::GenericArgument::Type(inner_ty) = arg {
-                                type_contains_refs(inner_ty)
-                            } else {
-                                false
-                            }
-                        })
-                    } else {
-                        false
-                    }
-                })
-            }
-            syn::Type::Tuple(type_tuple) => type_tuple.elems.iter().any(type_contains_refs),
-            syn::Type::Array(type_array) => type_contains_refs(&type_array.elem),
-            syn::Type::Slice(type_slice) => type_contains_refs(&type_slice.elem),
-            syn::Type::Paren(type_paren) => type_contains_refs(&type_paren.elem),
-            syn::Type::Group(type_group) => type_contains_refs(&type_group.elem),
-            _ => false,
-        }
-    }
-
-    // Helper function to add lifetime to references in a type
-    fn add_lifetime_to_refs(ty: &mut syn::Type, lifetime: &syn::Lifetime) {
-        match ty {
-            syn::Type::Reference(type_ref) => {
-                if type_ref.lifetime.is_none() {
-                    type_ref.lifetime = Some(lifetime.clone());
-                }
-                // Also process the inner type to handle nested references
-                add_lifetime_to_refs(&mut type_ref.elem, lifetime);
-            }
-            syn::Type::Path(type_path) => {
-                // Add lifetime to generic arguments
-                for segment in &mut type_path.path.segments {
-                    if let syn::PathArguments::AngleBracketed(args) = &mut segment.arguments {
-                        for arg in &mut args.args {
-                            if let syn::GenericArgument::Type(inner_ty) = arg {
-                                add_lifetime_to_refs(inner_ty, lifetime);
-                            }
-                        }
-                    }
-                }
-            }
-            syn::Type::Tuple(type_tuple) => {
-                for elem in &mut type_tuple.elems {
-                    add_lifetime_to_refs(elem, lifetime);
-                }
-            }
-            syn::Type::Array(type_array) => add_lifetime_to_refs(&mut type_array.elem, lifetime),
-            syn::Type::Slice(type_slice) => add_lifetime_to_refs(&mut type_slice.elem, lifetime),
-            syn::Type::Paren(type_paren) => add_lifetime_to_refs(&mut type_paren.elem, lifetime),
-            syn::Type::Group(type_group) => add_lifetime_to_refs(&mut type_group.elem, lifetime),
-            _ => {}
-        }
-    }
-
-    // Add lifetime annotations to the original function if needed
-    if function.sig.generics.lifetimes().count() == 0 {
-        // Check if any parameter has a reference
-        let has_refs = function.sig.inputs.iter().any(|arg| {
-            if let syn::FnArg::Typed(pat_type) = arg {
-                type_contains_refs(&pat_type.ty)
-            } else {
-                false
-            }
-        });
-
-        if has_refs {
-            // Add a lifetime parameter to the original function
-            let lifetime: syn::Lifetime = syn::parse_quote!('a);
-            let lifetime_param = syn::GenericParam::Lifetime(syn::LifetimeParam {
-                attrs: vec![],
-                lifetime: lifetime.clone(),
-                colon_token: None,
-                bounds: syn::punctuated::Punctuated::new(),
-            });
-            function.sig.generics.params.push(lifetime_param);
-
-            // Update reference types to use the lifetime
-            for input in &mut function.sig.inputs {
-                if let syn::FnArg::Typed(pat_type) = input {
-                    add_lifetime_to_refs(&mut pat_type.ty, &lifetime);
-                }
-            }
-        }
-    }
 
     // Generate Props struct name
     let props_name = quote::format_ident!("{}Props", fn_name);
@@ -298,5 +206,74 @@ fn prop_name(pat: &syn::Pat) -> syn::Result<&syn::Ident> {
             pat,
             "component props need a name: use `name: Type` and destructure it in the function body",
         )),
+    }
+}
+
+/// Names the lifetimes elided in the parameters (`&T`, `&mut T`, `'_`), declaring
+/// the name on the function, so the parameter types can be Props struct fields.
+fn name_elided_lifetimes(sig: &mut syn::Signature) {
+    let mut namer = ElidedLifetimeNamer {
+        lifetime: fresh_lifetime(&sig.generics),
+        found: false,
+    };
+    for input in &mut sig.inputs {
+        if let syn::FnArg::Typed(pat_type) = input {
+            namer.visit_type_mut(&mut pat_type.ty);
+        }
+    }
+    if namer.found {
+        // Lifetimes go before type and const parameters. syn reorders them when
+        // printing anyway, but the syntax tree shouldn't depend on that.
+        let param = syn::LifetimeParam::new(namer.lifetime);
+        sig.generics
+            .params
+            .insert(0, syn::GenericParam::Lifetime(param));
+    }
+}
+
+/// `'a`, or `'a1`, `'a2`, ... if the function already declares it.
+fn fresh_lifetime(generics: &syn::Generics) -> syn::Lifetime {
+    let taken: Vec<String> = generics
+        .lifetimes()
+        .map(|param| param.lifetime.to_string())
+        .collect();
+    let mut name = "'a".to_owned();
+    let mut suffix = 0;
+    while taken.contains(&name) {
+        suffix += 1;
+        name = format!("'a{suffix}");
+    }
+    syn::Lifetime::new(&name, proc_macro2::Span::call_site())
+}
+
+struct ElidedLifetimeNamer {
+    lifetime: syn::Lifetime,
+    found: bool,
+}
+
+impl VisitMut for ElidedLifetimeNamer {
+    fn visit_type_reference_mut(&mut self, reference: &mut syn::TypeReference) {
+        if reference.lifetime.is_none() {
+            reference.lifetime = Some(self.lifetime.clone());
+            self.found = true;
+        }
+        syn::visit_mut::visit_type_reference_mut(self, reference);
+    }
+
+    fn visit_lifetime_mut(&mut self, lifetime: &mut syn::Lifetime) {
+        if lifetime.ident == "_" {
+            *lifetime = self.lifetime.clone();
+            self.found = true;
+        }
+    }
+
+    // `fn(&T)` and `Fn(&T)` have their own elision scope: those references
+    // borrow from the call's arguments, not from the props.
+    fn visit_type_bare_fn_mut(&mut self, _: &mut syn::TypeBareFn) {}
+
+    fn visit_parenthesized_generic_arguments_mut(
+        &mut self,
+        _: &mut syn::ParenthesizedGenericArguments,
+    ) {
     }
 }
