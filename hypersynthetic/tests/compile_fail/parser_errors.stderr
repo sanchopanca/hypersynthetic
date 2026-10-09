@@ -1,0 +1,35 @@
+error: expected `<!DOCTYPE html>`
+ --> tests/compile_fail/parser_errors.rs:4:23
+  |
+4 |     let _ = html! { <!DOCTYP html> };
+  |                       ^^^^^^
+
+error: expected `<!DOCTYPE html>`
+ --> tests/compile_fail/parser_errors.rs:5:31
+  |
+5 |     let _ = html! { <!DOCTYPE htm> };
+  |                               ^^^
+
+error: unclosed `<div>`
+ --> tests/compile_fail/parser_errors.rs:6:22
+  |
+6 |     let _ = html! { <div> "text" };
+  |                      ^^^
+
+error: expected a string, `{expression}`, a tag, or `</div>`
+ --> tests/compile_fail/parser_errors.rs:7:27
+  |
+7 |     let _ = html! { <div> 5 </div> };
+  |                           ^
+
+error: duplicate `:if`; combine the conditions with `&&`
+ --> tests/compile_fail/parser_errors.rs:8:35
+  |
+8 |     let _ = html! { <p :if={true} :if={false}></p> };
+  |                                   ^
+
+error: duplicate `:for`; wrap the element in another one to nest loops
+ --> tests/compile_fail/parser_errors.rs:9:41
+  |
+9 |     let _ = html! { <p :for={i in 0..1} :for={j in 0..1}></p> };
+  |                                         ^

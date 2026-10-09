@@ -20,22 +20,17 @@ impl Parse for Node {
         if input.peek(Token![<]) && input.peek2(Token![!]) {
             let _: Token![<] = input.parse()?;
             let _: Token![!] = input.parse()?;
-
-            let lookahead = input.lookahead1();
-            if lookahead.peek(Ident) {
-                let ident: Ident = input.parse()?;
-                if ident.to_string().to_lowercase() == "doctype" {
-                    let html_ident: Ident = input.parse()?;
-                    if html_ident.to_string().to_lowercase() == "html" {
-                        let _: Token![>] = input.parse()?;
-                        return Ok(Node::DocType);
-                    }
-                }
-            }
+            expect_word(input, "DOCTYPE")?;
+            expect_word(input, "html")?;
+            input
+                .parse::<Token![>]>()
+                .map_err(|err| syn::Error::new(err.span(), DOCTYPE_ERROR))?;
+            return Ok(Node::DocType);
         }
 
         if input.peek(Token![<]) {
             let _: Token![<] = input.parse()?;
+            let tag_name_span = input.span();
             let tag_name: TagName = input.parse()?;
 
             let mut attributes = Vec::new();
@@ -45,8 +40,28 @@ impl Parse for Node {
             let mut end_of_tag = end_of_regular_tag || end_of_self_closing_tag;
 
             // Parse attributes until end of tag
+            let mut seen_if = false;
+            let mut seen_for = false;
             while !end_of_tag {
+                let attribute_span = input.span();
                 let attribute: Attribute = input.parse()?;
+                match attribute {
+                    Attribute::If(_) if seen_if => {
+                        return Err(syn::Error::new(
+                            attribute_span,
+                            "duplicate `:if`; combine the conditions with `&&`",
+                        ));
+                    }
+                    Attribute::For(_) if seen_for => {
+                        return Err(syn::Error::new(
+                            attribute_span,
+                            "duplicate `:for`; wrap the element in another one to nest loops",
+                        ));
+                    }
+                    Attribute::If(_) => seen_if = true,
+                    Attribute::For(_) => seen_for = true,
+                    Attribute::RegularAttribute(_) => {}
+                }
                 attributes.push(attribute);
 
                 end_of_regular_tag = input.peek(Token![>]);
@@ -118,8 +133,15 @@ impl Parse for Node {
                         }),
                     })
                 }
+            } else if input.is_empty() {
+                Err(syn::Error::new(
+                    tag_name_span,
+                    format!("unclosed `<{tag_name}>`"),
+                ))
             } else {
-                Ok(Node::Text(input.parse()?))
+                Err(input.error(format!(
+                    "expected a string, `{{expression}}`, a tag, or `</{tag_name}>`"
+                )))
             }
         } else if input.peek(LitStr) {
             Ok(Node::Text(input.parse()?))
@@ -142,6 +164,20 @@ impl Parse for Node {
         } else {
             Err(input.error("Expected a node"))
         }
+    }
+}
+
+const DOCTYPE_ERROR: &str = "expected `<!DOCTYPE html>`";
+
+/// Parses `word` (case-insensitively), as part of `<!DOCTYPE html>`.
+fn expect_word(input: ParseStream, word: &str) -> Result<()> {
+    let ident = input
+        .call(Ident::parse_any)
+        .map_err(|err| syn::Error::new(err.span(), DOCTYPE_ERROR))?;
+    if ident.to_string().eq_ignore_ascii_case(word) {
+        Ok(())
+    } else {
+        Err(syn::Error::new(ident.span(), DOCTYPE_ERROR))
     }
 }
 
