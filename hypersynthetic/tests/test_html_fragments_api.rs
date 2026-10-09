@@ -131,3 +131,37 @@ fn test_remove_attribute() {
 
     assert_eq!(div.to_string(), r#"<div><p></p></div>"#);
 }
+
+#[test]
+fn test_set_attribute_replaces_the_value() {
+    let mut link = html! { <a href="/1"></a> };
+    let element = link.iter_elements_mut().next().unwrap();
+
+    element.set_attribute("href".to_owned(), "/2".to_owned());
+    element.set_attribute("href".to_owned(), "/3".to_owned());
+
+    assert_eq!(link.to_string(), r#"<a href="/3"></a>"#);
+}
+
+#[test]
+fn test_set_attribute_keeps_the_position() {
+    let mut input = html! { <input class="x" disabled id="y" /> };
+    let element = input.iter_elements_mut().next().unwrap();
+
+    element.set_attribute("disabled".to_owned(), "disabled".to_owned());
+
+    assert_eq!(
+        input.to_string(),
+        r#"<input class="x" disabled="disabled" id="y" />"#
+    );
+}
+
+#[test]
+fn test_set_attribute_removes_duplicates() {
+    let mut link = html! { <a href="/1" title="t" href="/2"></a> };
+    let element = link.iter_elements_mut().next().unwrap();
+
+    element.set_attribute("href".to_owned(), "/3".to_owned());
+
+    assert_eq!(link.to_string(), r#"<a href="/3" title="t"></a>"#);
+}

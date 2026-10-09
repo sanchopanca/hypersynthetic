@@ -621,11 +621,30 @@ impl ElementData {
         self.attributes.iter().any(|attr| attr.name == name)
     }
 
+    /// Sets the attribute's value, adding the attribute if it doesn't exist.
+    /// Like the DOM's `setAttribute`, an existing attribute keeps its position.
+    /// Duplicates of it are removed, since browsers only use the first one.
     pub fn set_attribute(&mut self, name: String, value: String) {
-        self.attributes.push(Attribute {
-            name,
-            value: Some(value),
+        // Moved into the first matching attribute; still `Some` afterwards if there was none
+        let mut value = Some(value);
+        self.attributes.retain_mut(|attr| {
+            if attr.name != name {
+                return true;
+            }
+            match value.take() {
+                Some(value) => {
+                    attr.value = Some(value);
+                    true
+                }
+                None => false,
+            }
         });
+        if let Some(value) = value {
+            self.attributes.push(Attribute {
+                name,
+                value: Some(value),
+            });
+        }
     }
 
     pub fn remove_attribute(&mut self, name: &str) {
