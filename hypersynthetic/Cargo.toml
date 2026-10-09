@@ -21,7 +21,6 @@ htmlize = "1.0.5"
 axum = { version = "0.8", optional = true }
 rocket = { version = "0.5", optional = true }
 typed-builder = "0.22.0"
-typed-builder-macro = "0.22.0"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }

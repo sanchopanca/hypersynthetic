@@ -63,7 +63,6 @@
 
 pub use htmlize::{escape_attribute, escape_text};
 pub use typed_builder;
-pub use typed_builder_macro;
 
 pub mod component;
 

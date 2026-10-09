@@ -176,7 +176,7 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Generate the final output - always generate Props struct
     let output = quote! {
         #[doc = #props_doc]
-        #[derive(::hypersynthetic::typed_builder_macro::TypedBuilder)]
+        #[derive(::hypersynthetic::typed_builder::TypedBuilder)]
         // The generated builder code refers to typed_builder, which users don't
         // depend on directly
         #[builder(crate_module_path = ::hypersynthetic::typed_builder)]
