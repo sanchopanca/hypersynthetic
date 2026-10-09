@@ -1,0 +1,11 @@
+error: invalid prop name `@click`: component props are Rust identifiers, try `click`
+ --> tests/compile_fail/symbol_in_prop_name.rs:9:27
+  |
+9 |     let _ = html! { <Card @click="go()" /> };
+  |                           ^
+
+error: invalid prop name `x-on:click.prevent`: component props are Rust identifiers, try `x_on_click_prevent`
+  --> tests/compile_fail/symbol_in_prop_name.rs:10:27
+   |
+10 |     let _ = html! { <Card x-on:click.prevent="go()" /> };
+   |                           ^

@@ -554,3 +554,29 @@ fn test_keyword_tag_names() {
         "<svg><use href=\"#icon\"></use><use href=\"#other\"></use></svg><x-type></x-type>"
     );
 }
+
+#[test]
+fn test_alpine_attribute_names() {
+    let result = html! {
+        <form
+            @click="open = !open"
+            @click.outside="open = false"
+            x-on:submit.prevent="save()"
+            x-on:input.debounce.500ms="search()"
+            :class="{{ active: open }}"
+            data-2="two"
+        ></form>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<form \
+         @click=\"open = !open\" \
+         @click.outside=\"open = false\" \
+         x-on:submit.prevent=\"save()\" \
+         x-on:input.debounce.500ms=\"search()\" \
+         :class=\"{ active: open }\" \
+         data-2=\"two\"\
+         ></form>"
+    );
+}

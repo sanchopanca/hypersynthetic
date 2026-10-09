@@ -1,6 +1,6 @@
 use proc_macro2::{Group, Span, TokenStream as TokenStream2, TokenTree};
 use syn::{
-    Expr, Ident, LitBool, LitStr, Pat, Path, Result, Token, braced,
+    Expr, Ident, LitBool, LitInt, LitStr, Pat, Path, Result, Token, braced,
     ext::IdentExt,
     parse::{Parse, ParseStream},
     token::Brace,
@@ -172,7 +172,8 @@ impl Parse for TagName {
 }
 
 /// Props become builder method calls (`.data_id(…)`), so their names must be
-/// Rust identifiers, unlike HTML attribute names which can contain `-` and `:`.
+/// Rust identifiers, unlike HTML attribute names which can contain `-`, `:`, `@`
+/// and `.`.
 fn validate_prop_names(props: &[Attribute]) -> Result<()> {
     for prop in props {
         let Attribute::RegularAttribute(RegularAttribute { name, .. }) = prop else {
@@ -187,8 +188,13 @@ fn validate_prop_names(props: &[Attribute]) -> Result<()> {
             }
             AttrName::Literal(name) => {
                 let name_str = name.value();
-                if name_str.contains(['-', ':']) {
-                    let suggestion = name_str.replace(['-', ':'], "_");
+                let is_word = |c: char| c.is_alphanumeric() || c == '_';
+                if !name_str.chars().all(is_word) {
+                    let words: Vec<&str> = name_str
+                        .split(|c| !is_word(c))
+                        .filter(|word| !word.is_empty())
+                        .collect();
+                    let suggestion = words.join("_");
                     return Err(syn::Error::new(
                         name.span(),
                         format!(
@@ -292,6 +298,23 @@ impl Parse for AttrName {
                 let _: Token![:] = input.parse()?;
                 name.push(':');
                 saw_word = false;
+            // Alpine.js: `@click`, `x-on:submit.prevent`
+            } else if lookahead.peek(Token![@]) {
+                let _: Token![@] = input.parse()?;
+                name.push('@');
+                saw_word = false;
+            } else if lookahead.peek(Token![.]) {
+                let _: Token![.] = input.parse()?;
+                name.push('.');
+                saw_word = false;
+            // Numbers, with suffixes: `data-2`, `.debounce.500ms`
+            } else if lookahead.peek(LitInt) {
+                if saw_word {
+                    break;
+                }
+                let token: LitInt = input.parse()?;
+                name.push_str(&token.to_string());
+                saw_word = true;
             // true and false literals
             } else if lookahead.peek(LitBool) {
                 let token: LitBool = input.parse()?;
