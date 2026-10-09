@@ -101,7 +101,7 @@ pub mod __private;
 ///
 /// **Note:** Components are designed to be used exclusively within the [html] macro using
 /// the `<Component />` syntax. Direct function calls (e.g., `MyComponent(...)`) are not
-/// supported and may not work as expected, especially for components without parameters.
+/// supported.
 ///
 /// # Props
 /// Components accept properties, similar to function arguments.

@@ -173,20 +173,6 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     };
 
-    // Direct callable function for no-parameter components (for backwards compatibility)
-    let direct_fn = if slot_param.is_none() && params.is_empty() {
-        let direct_fn_name = quote::format_ident!("__{}__direct", fn_name);
-        quote! {
-            #[allow(non_snake_case)]
-            #[doc(hidden)]
-            #vis fn #direct_fn_name #impl_generics() -> ::hypersynthetic::HtmlFragment #where_clause {
-                #internal_fn_name()
-            }
-        }
-    } else {
-        quote! {}
-    };
-
     // Generate the final output - always generate Props struct
     let output = quote! {
         #[doc = #props_doc]
@@ -210,8 +196,6 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
         #internal_function
 
         #wrapper_fn
-
-        #direct_fn
     };
 
     output.into()
