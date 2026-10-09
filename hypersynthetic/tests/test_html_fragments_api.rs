@@ -271,3 +271,17 @@ fn test_extend_fragment() {
         "<p>first</p><p>second</p><p>third</p>"
     );
 }
+
+#[test]
+fn test_collect_fragments() {
+    let items = ["a", "b"];
+    let list: HtmlFragment = items.iter().map(|item| html! { <li>{item}</li> }).collect();
+
+    assert_eq!(
+        html! { <ul>{list}</ul> }.to_string(),
+        "<ul><li>a</li><li>b</li></ul>"
+    );
+
+    let none: HtmlFragment = std::iter::empty::<HtmlFragment>().collect();
+    assert!(none.is_empty());
+}

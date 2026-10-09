@@ -441,6 +441,15 @@ pub use hypersynthetic_macros::component;
 /// assert_eq!(div.to_string(), r#"<input type="text" value="1" /><input type="text" value="2" />"#);
 /// ```
 ///
+/// Fragments can also be built in Rust code and collected into one:
+/// ```
+/// # use hypersynthetic::prelude::*;
+/// let items = ["a", "b"];
+/// let list: HtmlFragment = items.iter().map(|item| html! { <li>{item}</li> }).collect();
+/// let ul = html! { <ul>{list}</ul> };
+/// assert_eq!(ul.to_string(), "<ul><li>a</li><li>b</li></ul>");
+/// ```
+///
 /// ## `:if` together with `:for`
 /// When an element has both, `:if` is checked once, before the loop: it decides
 /// whether the loop runs at all.
@@ -605,6 +614,16 @@ impl From<Vec<Node>> for HtmlFragment {
 impl FromIterator<Node> for HtmlFragment {
     fn from_iter<I: IntoIterator<Item = Node>>(nodes: I) -> Self {
         HtmlFragment::new(nodes.into_iter().collect())
+    }
+}
+
+/// Concatenates fragments: `items.iter().map(|item| html! { ... }).collect()`.
+impl FromIterator<HtmlFragment> for HtmlFragment {
+    fn from_iter<I: IntoIterator<Item = HtmlFragment>>(fragments: I) -> Self {
+        fragments
+            .into_iter()
+            .flat_map(|HtmlFragment::Nodes(nodes)| nodes)
+            .collect()
     }
 }
 
