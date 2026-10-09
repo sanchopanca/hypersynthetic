@@ -54,100 +54,26 @@ pub struct Component {
     pub children: Vec<Node>,
 }
 
-impl Tag {
-    pub fn has_for_attribute(&self) -> bool {
-        self.attributes
-            .iter()
-            .any(|attr| matches!(attr, Attribute::For(_)))
-    }
-
-    pub fn has_if_attribute(&self) -> bool {
-        self.attributes
-            .iter()
-            .any(|attr| matches!(attr, Attribute::If(_)))
-    }
-
-    pub fn get_regular_attributes(&self) -> Vec<RegularAttribute> {
-        self.attributes
-            .iter()
-            .filter(|attr| matches!(attr, Attribute::RegularAttribute(_)))
-            .map(|attr| match attr {
-                Attribute::RegularAttribute(attr) => attr.clone(),
-                _ => unreachable!(),
-            })
-            .collect()
-    }
-
-    pub fn get_for_attribute(&self) -> ForExpr {
-        let attr = self
-            .attributes
-            .iter()
-            .find(|attr| matches!(attr, Attribute::For(_)))
-            .unwrap();
-        match attr {
-            Attribute::For(attr) => attr.clone(),
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn get_if_attribute(&self) -> Expr {
-        let attr = self
-            .attributes
-            .iter()
-            .find(|attr| matches!(attr, Attribute::If(_)))
-            .unwrap();
-        match attr {
-            Attribute::If(attr) => attr.clone(),
-            _ => unreachable!(),
-        }
-    }
+/// The `:for` pseudo-attribute, if there is one. The parser rejects duplicates.
+pub fn for_attribute(attributes: &[Attribute]) -> Option<&ForExpr> {
+    attributes.iter().find_map(|attr| match attr {
+        Attribute::For(for_expr) => Some(for_expr),
+        _ => None,
+    })
 }
 
-impl Component {
-    pub fn has_for_attribute(&self) -> bool {
-        self.props
-            .iter()
-            .any(|attr| matches!(attr, Attribute::For(_)))
-    }
+/// The `:if` pseudo-attribute's condition, if there is one. The parser rejects duplicates.
+pub fn if_attribute(attributes: &[Attribute]) -> Option<&Expr> {
+    attributes.iter().find_map(|attr| match attr {
+        Attribute::If(condition) => Some(condition),
+        _ => None,
+    })
+}
 
-    pub fn has_if_attribute(&self) -> bool {
-        self.props
-            .iter()
-            .any(|attr| matches!(attr, Attribute::If(_)))
-    }
-
-    pub fn get_regular_attributes(&self) -> Vec<RegularAttribute> {
-        self.props
-            .iter()
-            .filter(|attr| matches!(attr, Attribute::RegularAttribute(_)))
-            .map(|attr| match attr {
-                Attribute::RegularAttribute(attr) => attr.clone(),
-                _ => unreachable!(),
-            })
-            .collect()
-    }
-
-    pub fn get_for_attribute(&self) -> ForExpr {
-        let attr = self
-            .props
-            .iter()
-            .find(|attr| matches!(attr, Attribute::For(_)))
-            .unwrap();
-        match attr {
-            Attribute::For(attr) => attr.clone(),
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn get_if_attribute(&self) -> Expr {
-        let attr = self
-            .props
-            .iter()
-            .find(|attr| matches!(attr, Attribute::If(_)))
-            .unwrap();
-        match attr {
-            Attribute::If(attr) => attr.clone(),
-            _ => unreachable!(),
-        }
-    }
+/// The attributes that aren't `:for` or `:if`.
+pub fn regular_attributes(attributes: &[Attribute]) -> impl Iterator<Item = &RegularAttribute> {
+    attributes.iter().filter_map(|attr| match attr {
+        Attribute::RegularAttribute(attr) => Some(attr),
+        _ => None,
+    })
 }

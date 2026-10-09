@@ -6,7 +6,7 @@ use crate::{
     attributes::{
         AttrName, AttrValue, ForExpr, InterpolatedSegment, InterpolatedString, RegularAttribute,
     },
-    nodes::{Node, NodeCollection},
+    nodes::{Node, NodeCollection, for_attribute, if_attribute, regular_attributes},
 };
 
 /// Identifier for a variable declared by the generated code.
@@ -38,9 +38,7 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
             let self_closing = element.self_closing;
             let children: TokenStream2 =
                 generate_nodes(NodeCollection::Nodes(element.children.clone()));
-            let attributes: Vec<TokenStream2> = element
-                .get_regular_attributes()
-                .into_iter()
+            let attributes: Vec<TokenStream2> = regular_attributes(&element.attributes)
                 .map(generate_attribute)
                 .collect();
             let push = quote! {
@@ -53,12 +51,8 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
             };
             wrap_in_for_and_if(
                 push,
-                element
-                    .has_for_attribute()
-                    .then(|| element.get_for_attribute()),
-                element
-                    .has_if_attribute()
-                    .then(|| element.get_if_attribute()),
+                for_attribute(&element.attributes),
+                if_attribute(&element.attributes),
             )
         }
         Node::Text(text) => {
@@ -77,11 +71,8 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
         }
         Node::Component(component) => {
             let component_name = &component.name;
-            let attributes = component.get_regular_attributes();
-
             // Generate builder method calls
-            let builder_calls: Vec<TokenStream2> = attributes
-                .iter()
+            let builder_calls: Vec<TokenStream2> = regular_attributes(&component.props)
                 .map(|attr| {
                     // Extract the attribute name
                     let attr_name = match &attr.name {
@@ -132,12 +123,8 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
             };
             wrap_in_for_and_if(
                 extend,
-                component
-                    .has_for_attribute()
-                    .then(|| component.get_for_attribute()),
-                component
-                    .has_if_attribute()
-                    .then(|| component.get_if_attribute()),
+                for_attribute(&component.props),
+                if_attribute(&component.props),
             )
         }
     }
@@ -147,8 +134,8 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
 /// condition is checked once, before the loop.
 fn wrap_in_for_and_if(
     statements: TokenStream2,
-    for_attribute: Option<ForExpr>,
-    if_attribute: Option<syn::Expr>,
+    for_attribute: Option<&ForExpr>,
+    if_attribute: Option<&syn::Expr>,
 ) -> TokenStream2 {
     let statements = match for_attribute {
         Some(ForExpr { pat, collection }) => quote! {
@@ -168,7 +155,7 @@ fn wrap_in_for_and_if(
     }
 }
 
-fn generate_attribute(attr: RegularAttribute) -> TokenStream2 {
+fn generate_attribute(attr: &RegularAttribute) -> TokenStream2 {
     let attr_name = match &attr.name {
         AttrName::Literal(name) => quote! { #name.to_owned() },
         // Not escaped: names are validated when rendering instead.
