@@ -522,3 +522,19 @@ fn test_disable_html_escaping() {
 
     assert_eq!(string_representation, expected);
 }
+
+#[test]
+fn test_custom_elements() {
+    let result = html! {
+        <my-widget some-attr="x">
+            <x-child-element />
+            <sl-button-group :for={i in 0..2}>{i}</sl-button-group>
+        </my-widget>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<my-widget some-attr=\"x\"><x-child-element></x-child-element>\
+         <sl-button-group>0</sl-button-group><sl-button-group>1</sl-button-group></my-widget>"
+    );
+}

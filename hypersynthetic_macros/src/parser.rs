@@ -10,8 +10,8 @@ use crate::{
         AttrName, AttrValue, Attribute, ForExpr, InterpolatedSegment, InterpolatedString,
         RegularAttribute,
     },
-    nodes::{Component, Node, NodeCollection, Tag},
-    utils::{extract_ident_from_path, is_path_pascal_case, path_to_string},
+    nodes::{Component, Node, NodeCollection, Tag, TagName},
+    utils::{extract_ident_from_path, is_path_pascal_case},
 };
 
 impl Parse for Node {
@@ -35,7 +35,7 @@ impl Parse for Node {
 
         if input.peek(Token![<]) {
             let _: Token![<] = input.parse()?;
-            let tag_name: Path = input.parse()?;
+            let tag_name: TagName = input.parse()?;
 
             let mut attributes = Vec::new();
 
@@ -53,8 +53,7 @@ impl Parse for Node {
                 end_of_tag = end_of_regular_tag || end_of_self_closing_tag;
             }
 
-            let is_component = is_path_pascal_case(&tag_name);
-            if is_component {
+            if matches!(tag_name, TagName::Component(_)) {
                 validate_prop_names(&attributes)?;
             }
 
@@ -64,20 +63,19 @@ impl Parse for Node {
                 let _: Token![>] = input.parse()?;
 
                 // Self-closing -> no children (slots)
-                if is_component {
-                    return Ok(Node::Component(Component {
-                        name: tag_name,
+                return Ok(match tag_name {
+                    TagName::Component(name) => Node::Component(Component {
+                        name,
                         props: attributes,
                         children: Vec::new(),
-                    }));
-                }
-
-                return Ok(Node::Element(Tag {
-                    tag_name: extract_ident_from_path(&tag_name),
-                    attributes,
-                    children: Vec::new(),
-                    self_closing: true,
-                }));
+                    }),
+                    TagName::Element(tag_name) => Node::Element(Tag {
+                        tag_name,
+                        attributes,
+                        children: Vec::new(),
+                        self_closing: true,
+                    }),
+                });
             }
 
             let _: Token![>] = input.parse()?;
@@ -91,36 +89,33 @@ impl Parse for Node {
                 children.push(child);
             }
 
-            let element = Tag {
-                tag_name: extract_ident_from_path(&tag_name),
-                attributes: attributes.clone(),
-                children: children.clone(),
-                self_closing: false,
-            };
-
             // Check for the closing tag
             if input.peek(Token![<]) && input.peek2(Token![/]) && input.peek3(Ident) {
                 let _: Token![<] = input.parse()?;
                 let _: Token![/] = input.parse()?;
-                let closing_tag_name: Path = input.parse()?;
+                let closing_span = input.span();
+                let closing_tag_name: TagName = input.parse()?;
                 if closing_tag_name != tag_name {
-                    Err(input.error(format!(
-                        "Expected closing tag {}, found {}",
-                        path_to_string(&tag_name),
-                        path_to_string(&closing_tag_name)
-                    )))
+                    Err(syn::Error::new(
+                        closing_span,
+                        format!("expected closing tag `{tag_name}`, found `{closing_tag_name}`"),
+                    ))
                 } else {
                     let _: Token![>] = input.parse()?;
 
-                    if is_component {
-                        return Ok(Node::Component(Component {
-                            name: tag_name,
+                    Ok(match tag_name {
+                        TagName::Component(name) => Node::Component(Component {
+                            name,
                             props: attributes,
                             children,
-                        }));
-                    }
-
-                    Ok(Node::Element(element))
+                        }),
+                        TagName::Element(tag_name) => Node::Element(Tag {
+                            tag_name,
+                            attributes,
+                            children,
+                            self_closing: false,
+                        }),
+                    })
                 }
             } else {
                 Ok(Node::Text(input.parse()?))
@@ -146,6 +141,25 @@ impl Parse for Node {
         } else {
             Err(input.error("Expected a node"))
         }
+    }
+}
+
+impl Parse for TagName {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let path: Path = input.parse()?;
+        if is_path_pascal_case(&path) {
+            return Ok(TagName::Component(path));
+        }
+
+        // Custom elements have hyphens in their names: `<my-widget>`
+        let mut name = extract_ident_from_path(&path).to_string();
+        while input.peek(Token![-]) {
+            let _: Token![-] = input.parse()?;
+            let part: Ident = input.parse()?;
+            name.push('-');
+            name.push_str(&part.to_string());
+        }
+        Ok(TagName::Element(name))
     }
 }
 

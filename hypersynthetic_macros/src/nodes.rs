@@ -1,6 +1,11 @@
-use syn::{Expr, Ident, Path};
+use std::fmt;
 
-use crate::attributes::{Attribute, ForExpr, InterpolatedString, RegularAttribute};
+use syn::{Expr, Path};
+
+use crate::{
+    attributes::{Attribute, ForExpr, InterpolatedString, RegularAttribute},
+    utils::path_to_string,
+};
 
 #[derive(Clone)]
 pub enum NodeCollection {
@@ -17,9 +22,26 @@ pub enum Node {
     UnescapedExpression(Expr),
 }
 
+/// The name in `<name ...>`: a component path (`Card`, `ui::Card`) or an HTML
+/// element name, which can contain hyphens (`div`, `my-widget`).
+#[derive(PartialEq)]
+pub enum TagName {
+    Component(Path),
+    Element(String),
+}
+
+impl fmt::Display for TagName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TagName::Component(path) => f.write_str(&path_to_string(path)),
+            TagName::Element(name) => f.write_str(name),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Tag {
-    pub tag_name: Ident,
+    pub tag_name: String,
     pub attributes: Vec<Attribute>,
     pub children: Vec<Node>,
     pub self_closing: bool,

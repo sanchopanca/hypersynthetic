@@ -1,0 +1,5 @@
+error: expected closing tag `my-widget`, found `my-other`
+ --> tests/compile_fail/mismatched_custom_element.rs:4:34
+  |
+4 |     let _ = html! { <my-widget></my-other> };
+  |                                  ^^
