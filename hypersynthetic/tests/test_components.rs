@@ -162,3 +162,21 @@ fn test_component_paths_starting_with_keywords() {
 
     assert_eq!(result.to_string(), "<span>a</span><span>b</span>");
 }
+
+#[component]
+fn Counter(
+    #[builder(default)] count: i32,
+    #[builder(default = "item".to_owned(), setter(into))] label: String,
+) -> HtmlFragment {
+    html! { <p>{label}": "{count}</p> }
+}
+
+#[test]
+fn test_builder_attributes_on_props() {
+    let result = html! {
+        <Counter />
+        <Counter count={3} label="apple" />
+    };
+
+    assert_eq!(result.to_string(), "<p>item: 0</p><p>apple: 3</p>");
+}

@@ -89,10 +89,13 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
         Err(err) => return err.to_compile_error().into(),
     };
 
-    // Generate struct fields
+    // Generate struct fields, with the parameter's `#[builder(...)]` attributes
+    // (`default`, `setter(into)`, ...) for the TypedBuilder derive
     let struct_fields = params.iter().zip(&param_names).map(|(param, name)| {
         let ty = &param.ty;
+        let builder_attrs = param.attrs.iter().filter(|attr| is_builder_attr(attr));
         quote! {
+            #(#builder_attrs)*
             #name: #ty
         }
     });
@@ -104,6 +107,13 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut internal_function = function.clone();
     internal_function.sig.ident = internal_fn_name.clone();
     internal_function.vis = syn::Visibility::Inherited;
+
+    // `#[builder]` is only valid inside the derive, so it can't stay on the parameters
+    for input in &mut internal_function.sig.inputs {
+        if let syn::FnArg::Typed(pat_type) = input {
+            pat_type.attrs.retain(|attr| !is_builder_attr(attr));
+        }
+    }
 
     // Docs and deprecation describe the public component, so they move to the
     // wrapper. The rest (`#[allow]`, `#[inline]`, ...) is about the body and stays.
@@ -276,4 +286,8 @@ impl VisitMut for ElidedLifetimeNamer {
         _: &mut syn::ParenthesizedGenericArguments,
     ) {
     }
+}
+
+fn is_builder_attr(attr: &syn::Attribute) -> bool {
+    attr.path().is_ident("builder")
 }
