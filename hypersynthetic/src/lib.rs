@@ -52,12 +52,14 @@
 //! The main function defines a list of to-dos and uses the :for attribute to loop over them,
 //! rendering each one using the TodoItem component.
 //!
-//! See the [html] macro for the description of the syntax and [component] macro for more details about using components
+//! See the [html] macro for the description of the syntax and [component](macro@component) macro for more details about using components
 //!
 //! ## Features
 //!
 //! - `rocket`: Enables integration with the Rocket web framework. It allows to return [HtmlFragment] from the route handlers and sets the response content type to `text/html`.
 //! - `axum`: Enables integration with the Axum web framework. It allows to return [HtmlFragment] from the route handlers and sets the response content type to `text/html`.
+
+#![warn(missing_docs)]
 
 pub use htmlize::{escape_attribute, escape_text};
 pub use typed_builder;
@@ -497,9 +499,10 @@ pub use hypersynthetic_macros::component;
 ///     };    
 /// }
 /// ```
-/// See [component] macro for more details.
+/// See [component](macro@component) macro for more details.
 pub use hypersynthetic_macros::html;
 
+/// Everything needed to write templates and components: `use hypersynthetic::prelude::*;`
 pub mod prelude {
     pub use crate::HtmlFragment;
     pub use crate::component::{Component, Props, component_props_builder, component_view};
@@ -519,18 +522,30 @@ use std::slice::IterMut;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HtmlFragment(Vec<Node>);
 
+/// A node in an [HtmlFragment].
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Node {
+    /// An element with its attributes and children, like `<p class="x">...</p>`.
     Element(ElementData),
+    /// Text that is written to the output as is. [html!] escapes text before storing it
+    /// here; when creating a `Text` node yourself, escape untrusted input with
+    /// [escape_text].
     Text(String),
+    /// `<!DOCTYPE html>`.
     DocType,
 }
 
+/// An HTML element: `<tag_name attributes...>children</tag_name>`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ElementData {
+    /// The element's name, like `div` or `my-widget`.
     pub tag_name: String,
+    /// The attributes, in the order they are rendered.
     pub attributes: Vec<Attribute>,
+    /// The nodes between the opening and the closing tag.
     pub children: HtmlFragment,
+    /// Written as `<tag />`. Only void elements (`br`, `img`, `input`, ...) are rendered
+    /// that way; other elements get a closing tag, since browsers ignore `/>` on them.
     pub self_closing: bool,
 }
 
@@ -538,16 +553,19 @@ pub struct ElementData {
 /// the element is rendered.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Attribute {
+    /// The attribute's name. A name that isn't valid HTML is left out when rendering.
     pub name: String,
     /// `None` for an attribute without a value, like `disabled`.
     pub value: Option<String>,
 }
 
 impl HtmlFragment {
+    /// A fragment containing `nodes`.
     pub fn new(nodes: Vec<Node>) -> Self {
         HtmlFragment(nodes)
     }
 
+    /// Appends a node at the end.
     pub fn push(&mut self, node: Node) {
         self.0.push(node);
     }
@@ -557,6 +575,7 @@ impl HtmlFragment {
         self.0.len()
     }
 
+    /// Whether the fragment has no nodes.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -565,22 +584,28 @@ impl HtmlFragment {
         self.0.iter().map(|node| node.to_html()).collect()
     }
 
+    /// A copy of the top-level nodes.
     pub fn get_nodes(&self) -> Vec<Node> {
         self.0.clone()
     }
 
+    /// Iterates over the top-level nodes.
     pub fn iter(&self) -> Iter<'_, Node> {
         self.0.iter()
     }
 
+    /// Iterates over the top-level nodes, mutably.
     pub fn iter_mut(&mut self) -> IterMut<'_, Node> {
         self.0.iter_mut()
     }
 
+    /// Iterates over the top-level elements, skipping text and doctype nodes. It doesn't
+    /// descend into children; use [ElementData::children] for that.
     pub fn iter_elements(&self) -> ElementDataIter<'_> {
         ElementDataIter { iter: self.iter() }
     }
 
+    /// Like [HtmlFragment::iter_elements], but mutable, e.g. to change attributes.
     pub fn iter_elements_mut(&mut self) -> ElementDataIterMut<'_> {
         ElementDataIterMut {
             iter: self.iter_mut(),
@@ -652,6 +677,7 @@ impl Node {
 }
 
 impl ElementData {
+    /// An element without attributes or children.
     pub fn new(tag_name: String) -> Self {
         ElementData {
             tag_name,
@@ -661,10 +687,12 @@ impl ElementData {
         }
     }
 
+    /// Appends a node to the children.
     pub fn add_child(&mut self, child: Node) {
         self.children.push(child);
     }
 
+    /// Whether the element has an attribute with this name.
     pub fn has_attribute(&self, name: &str) -> bool {
         self.attributes.iter().any(|attr| attr.name == name)
     }
@@ -696,6 +724,7 @@ impl ElementData {
         }
     }
 
+    /// Removes all attributes with this name.
     pub fn remove_attribute(&mut self, name: &str) {
         self.attributes.retain(|attr| attr.name != name);
     }
@@ -766,6 +795,7 @@ fn is_void_element(tag_name: &str) -> bool {
         .any(|void| void.eq_ignore_ascii_case(tag_name))
 }
 
+/// Iterator returned by [HtmlFragment::iter_elements].
 pub struct ElementDataIter<'a> {
     iter: Iter<'a, Node>,
 }
@@ -783,6 +813,7 @@ impl<'a> Iterator for ElementDataIter<'a> {
     }
 }
 
+/// Iterator returned by [HtmlFragment::iter_elements_mut].
 pub struct ElementDataIterMut<'a> {
     iter: IterMut<'a, Node>,
 }
