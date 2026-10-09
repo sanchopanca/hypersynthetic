@@ -151,20 +151,27 @@ impl Parse for Node {
 /// Rust identifiers, unlike HTML attribute names which can contain `-` and `:`.
 fn validate_prop_names(props: &[Attribute]) -> Result<()> {
     for prop in props {
-        if let Attribute::RegularAttribute(RegularAttribute {
-            name: AttrName::Literal(name),
-            ..
-        }) = prop
-        {
-            let name_str = name.value();
-            if name_str.contains(['-', ':']) {
-                let suggestion = name_str.replace(['-', ':'], "_");
-                return Err(syn::Error::new(
-                    name.span(),
-                    format!(
-                        "invalid prop name `{name_str}`: component props are Rust identifiers, try `{suggestion}`"
-                    ),
+        let Attribute::RegularAttribute(RegularAttribute { name, .. }) = prop else {
+            continue;
+        };
+        match name {
+            AttrName::Expression(expr) => {
+                return Err(syn::Error::new_spanned(
+                    expr,
+                    "component prop names can't be expressions, write the prop name literally",
                 ));
+            }
+            AttrName::Literal(name) => {
+                let name_str = name.value();
+                if name_str.contains(['-', ':']) {
+                    let suggestion = name_str.replace(['-', ':'], "_");
+                    return Err(syn::Error::new(
+                        name.span(),
+                        format!(
+                            "invalid prop name `{name_str}`: component props are Rust identifiers, try `{suggestion}`"
+                        ),
+                    ));
+                }
             }
         }
     }

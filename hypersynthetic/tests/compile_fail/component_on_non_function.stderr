@@ -1,0 +1,5 @@
+error: expected `fn`
+ --> tests/compile_fail/component_on_non_function.rs:4:1
+  |
+4 | struct Card;
+  | ^^^^^^

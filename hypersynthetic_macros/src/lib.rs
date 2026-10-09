@@ -22,8 +22,7 @@ pub fn html(input: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    // Parse the input TokenStream into a syn::ItemFn
-    let mut function: ItemFn = syn::parse(item.clone()).unwrap();
+    let mut function = parse_macro_input!(item as ItemFn);
 
     // Check if the function's identifier is PascalCase
     let fn_name = &function.sig.ident;
@@ -138,22 +137,23 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let props_name = quote::format_ident!("{}Props", fn_name);
     let props_builder_name = quote::format_ident!("{}PropsBuilder", fn_name);
 
-    // Check if the first parameter is HtmlFragment (slot)
-    let has_slot = function.sig.inputs.first().is_some_and(|arg| {
-        if let syn::FnArg::Typed(pat_type) = arg {
-            if let syn::Type::Path(type_path) = &*pat_type.ty {
-                type_path
+    // The first parameter is the slot if it's an HtmlFragment
+    let slot_param = function.sig.inputs.first().and_then(|arg| match arg {
+        syn::FnArg::Typed(pat_type) => match &*pat_type.ty {
+            syn::Type::Path(type_path)
+                if type_path
                     .path
                     .segments
                     .last()
-                    .is_some_and(|seg| seg.ident == "HtmlFragment")
-            } else {
-                false
+                    .is_some_and(|seg| seg.ident == "HtmlFragment") =>
+            {
+                Some(pat_type)
             }
-        } else {
-            false
-        }
+            _ => None,
+        },
+        syn::FnArg::Receiver(_) => None,
     });
+    let has_slot = slot_param.is_some();
 
     // Extract parameters (skip first if it's a slot)
     let params: Vec<_> = function
@@ -202,25 +202,18 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let is_no_params = params.is_empty();
 
     // Generate wrapper functions
-    let wrapper_fn = if has_slot {
-        // Extract slot parameter name
-        let slot_param = &function.sig.inputs[0];
-        let slot_param_name = if let syn::FnArg::Typed(pat_type) = slot_param {
-            if let syn::Pat::Ident(ident) = &*pat_type.pat {
-                &ident.ident
-            } else {
-                panic!("Slot parameter must be a simple identifier")
-            }
-        } else {
-            panic!("Slot parameter must be a typed parameter")
-        };
+    let wrapper_fn = if let Some(slot_param) = slot_param {
+        // The wrapper only forwards the slot, so it uses its own name for it
+        // instead of the user's pattern, which may not be a name at all (`_`).
+        let slot_name = syn::Ident::new("slot", proc_macro2::Span::mixed_site());
+        let slot_ty = &slot_param.ty;
 
         // For all slot components (with or without params), use the same signature
         quote! {
             #[allow(non_snake_case)]
-            #vis fn #fn_name #impl_generics(#slot_param, props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
+            #vis fn #fn_name #impl_generics(#slot_name: #slot_ty, props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
                 let #props_name { #(#param_names),* } = props;
-                #internal_fn_name(#slot_param_name, #(#param_names),*)
+                #internal_fn_name(#slot_name, #(#param_names),*)
             }
         }
     } else if is_no_params {

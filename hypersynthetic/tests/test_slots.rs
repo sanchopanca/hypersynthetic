@@ -76,3 +76,19 @@ fn test_slots_with_props() {
         "<div class=\"blue round\"><p>Hello, world!</p></div>"
     );
 }
+
+#[component]
+fn IgnoresSlot(_: HtmlFragment, text: &str) -> HtmlFragment {
+    html! { <p>{text}</p> }
+}
+
+#[test]
+fn test_slot_parameter_can_be_a_pattern() {
+    let result = html! {
+        <IgnoresSlot text="kept">
+            <span>"dropped"</span>
+        </IgnoresSlot>
+    };
+
+    assert_eq!(result.to_string(), "<p>kept</p>");
+}

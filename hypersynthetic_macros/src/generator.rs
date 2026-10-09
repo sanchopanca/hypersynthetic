@@ -128,8 +128,7 @@ fn generate_node(tag: Node) -> TokenStream2 {
                             quote::format_ident!("{}", name_str)
                         }
                         AttrName::Expression(_) => {
-                            // This shouldn't happen for component props
-                            panic!("Component props must have literal names")
+                            unreachable!("rejected by the parser in validate_prop_names")
                         }
                     };
 

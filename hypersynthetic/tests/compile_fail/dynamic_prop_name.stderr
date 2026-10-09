@@ -1,0 +1,5 @@
+error: component prop names can't be expressions, write the prop name literally
+  --> tests/compile_fail/dynamic_prop_name.rs:10:28
+   |
+10 |     let _ = html! { <Card {name}="1" /> };
+   |                            ^^^^
