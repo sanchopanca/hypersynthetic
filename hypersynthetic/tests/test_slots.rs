@@ -92,3 +92,32 @@ fn test_slot_parameter_can_be_a_pattern() {
 
     assert_eq!(result.to_string(), "<p>kept</p>");
 }
+
+#[test]
+fn test_slot_component_without_children() {
+    let result = html! {
+        <OrangeDiv />
+        <OrangeDiv></OrangeDiv>
+        <ColorfulDiv color="red" />
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<div class=\"orange round\"></div>\
+         <div class=\"orange round\"></div>\
+         <div class=\"red round\"></div>"
+    );
+}
+
+#[test]
+fn test_slot_passed_as_children_prop() {
+    let content = html! { <b>"bold"</b> };
+    let result = html! {
+        <OrangeDiv children={content} />
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<div class=\"orange round\"><b>bold</b></div>"
+    );
+}

@@ -1,0 +1,5 @@
+error: `children` is given twice: as an attribute and as the content between the tags
+ --> tests/compile_fail/children_given_twice.rs:9:30
+  |
+9 |     let _ = html! { <Wrapper children={html! {}}><b>"x"</b></Wrapper> };
+  |                              ^^^^^^^^

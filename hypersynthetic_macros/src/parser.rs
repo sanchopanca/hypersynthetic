@@ -119,6 +119,10 @@ impl Parse for Node {
                 } else {
                     let _: Token![>] = input.parse()?;
 
+                    if matches!(tag_name, TagName::Component(_)) && !children.is_empty() {
+                        reject_children_attribute(&attributes)?;
+                    }
+
                     Ok(match tag_name {
                         TagName::Component(name) => Node::Component(Component {
                             name,
@@ -242,6 +246,25 @@ fn validate_prop_names(props: &[Attribute]) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// The content between a component's tags is passed as its `children` prop,
+/// so it can't also be given as an attribute.
+fn reject_children_attribute(props: &[Attribute]) -> Result<()> {
+    let children_attribute = props.iter().find_map(|prop| match prop {
+        Attribute::RegularAttribute(RegularAttribute {
+            name: AttrName::Literal(name),
+            ..
+        }) if name.value() == "children" => Some(name),
+        _ => None,
+    });
+    match children_attribute {
+        Some(name) => Err(syn::Error::new(
+            name.span(),
+            "`children` is given twice: as an attribute and as the content between the tags",
+        )),
+        None => Ok(()),
+    }
 }
 
 impl Parse for Attribute {

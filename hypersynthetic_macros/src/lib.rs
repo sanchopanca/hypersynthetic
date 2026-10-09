@@ -89,6 +89,17 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
         Err(err) => return err.to_compile_error().into(),
     };
 
+    // The slot is passed as the `children` prop, so no other prop can have that name
+    let children_prop = param_names.iter().find(|name| **name == "children");
+    if let (Some(_), Some(name)) = (slot_param, children_prop) {
+        return syn::Error::new(
+            name.span(),
+            "a component with a slot can't have a prop named `children`, it's reserved for the slot",
+        )
+        .to_compile_error()
+        .into();
+    }
+
     // Generate struct fields, with the parameter's `#[builder(...)]` attributes
     // (`default`, `setter(into)`, ...) for the TypedBuilder derive
     let struct_fields = params.iter().zip(&param_names).map(|(param, name)| {
@@ -133,38 +144,39 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let generics = &internal_function.sig.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-    // Check if this is a no-parameter component (excluding slots)
-    let is_no_params = params.is_empty();
-
-    // Generate wrapper functions
-    let wrapper_fn = if let Some(slot_param) = slot_param {
-        // The wrapper only forwards the slot, so it uses its own name for it
-        // instead of the user's pattern, which may not be a name at all (`_`).
-        let slot_name = syn::Ident::new("slot", proc_macro2::Span::mixed_site());
-        let slot_ty = &slot_param.ty;
-
-        // For all slot components (with or without params), use the same signature
-        quote! {
-            #(#wrapper_attrs)*
-            #[allow(non_snake_case)]
-            #vis fn #fn_name #impl_generics(#slot_name: #slot_ty, props: #props_name #ty_generics) -> ::hypersynthetic::HtmlFragment #where_clause {
-                let #props_name { #(#param_names),* } = props;
-                #internal_fn_name(#slot_name, #(#param_names),*)
-            }
+    // The slot is a Props field named `children`, which html! sets when the
+    // component has children. It defaults to an empty fragment, so a component
+    // with a slot can be used without children. The wrapper binds it to its own
+    // name, because the user's parameter may not be a name at all (`_`).
+    let slot_var = syn::Ident::new("slot", proc_macro2::Span::mixed_site());
+    let (slot_field, slot_binding, slot_arg) = match slot_param {
+        Some(slot_param) => {
+            let slot_ty = &slot_param.ty;
+            (
+                quote! {
+                    #[builder(default = ::hypersynthetic::HtmlFragment::new(::std::vec::Vec::new()))]
+                    children: #slot_ty,
+                },
+                quote! { children: #slot_var, },
+                quote! { #slot_var, },
+            )
         }
-    } else if is_no_params {
-        // For no-parameter components, generate both a direct callable and props-based function
+        None => (quote! {}, quote! {}, quote! {}),
+    };
+
+    let wrapper_fn = quote! {
+        #(#wrapper_attrs)*
+        #[allow(non_snake_case)]
+        #vis fn #fn_name #impl_generics(props: #props_name #ty_generics) -> ::hypersynthetic::HtmlFragment #where_clause {
+            let #props_name { #slot_binding #(#param_names),* } = props;
+            #internal_fn_name(#slot_arg #(#param_names),*)
+        }
+    };
+
+    // Direct callable function for no-parameter components (for backwards compatibility)
+    let direct_fn = if slot_param.is_none() && params.is_empty() {
         let direct_fn_name = quote::format_ident!("__{}__direct", fn_name);
         quote! {
-            // Props-based function (main interface for html! macro)
-            #(#wrapper_attrs)*
-            #[allow(non_snake_case)]
-            #vis fn #fn_name #impl_generics(props: #props_name #ty_generics) -> ::hypersynthetic::HtmlFragment #where_clause {
-                let #props_name { #(#param_names),* } = props;
-                #internal_fn_name(#(#param_names),*)
-            }
-
-            // Direct callable function (for backwards compatibility)
             #[allow(non_snake_case)]
             #[doc(hidden)]
             #vis fn #direct_fn_name #impl_generics() -> ::hypersynthetic::HtmlFragment #where_clause {
@@ -172,22 +184,18 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
     } else {
-        // For components with params, single props-based function
-        quote! {
-            #(#wrapper_attrs)*
-            #[allow(non_snake_case)]
-            #vis fn #fn_name #impl_generics(props: #props_name #ty_generics) -> ::hypersynthetic::HtmlFragment #where_clause {
-                let #props_name { #(#param_names),* } = props;
-                #internal_fn_name(#(#param_names),*)
-            }
-        }
+        quote! {}
     };
 
     // Generate the final output - always generate Props struct
     let output = quote! {
         #[doc = #props_doc]
         #[derive(::hypersynthetic::typed_builder_macro::TypedBuilder)]
+        // The generated builder code refers to typed_builder, which users don't
+        // depend on directly
+        #[builder(crate_module_path = ::hypersynthetic::typed_builder)]
         #vis struct #props_name #impl_generics #where_clause {
+            #slot_field
             #(#struct_fields,)*
         }
 
@@ -202,6 +210,8 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
         #internal_function
 
         #wrapper_fn
+
+        #direct_fn
     };
 
     output.into()

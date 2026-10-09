@@ -1,6 +1,6 @@
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::quote;
-use syn::LitStr;
+use syn::{LitStr, spanned::Spanned};
 
 use crate::{
     attributes::{AttrName, AttrValue, InterpolatedSegment, InterpolatedString, RegularAttribute},
@@ -147,30 +147,25 @@ fn generate_node(tag: Node) -> TokenStream2 {
                 })
                 .collect();
 
-            let children: TokenStream2 =
-                generate_nodes(NodeCollection::Nodes(component.children.clone()));
-            let has_slots = !component.children.is_empty();
-
-            // For slots, we use the ComponentWithSlots system
-            let final_call = if has_slots {
-                quote! {
-                    ::hypersynthetic::component::component_with_slots_view(
-                        &#component_name,
-                        #children,
-                        ::hypersynthetic::component::component_with_slots_props_builder(&#component_name)
-                            #(#builder_calls)*
-                            .build()
-                    )
-                }
+            // Children go to the slot, a Props field named `children`. Without
+            // children it isn't set and defaults to an empty fragment. A component
+            // without a slot has no such setter, which makes children an error.
+            let children_call = if component.children.is_empty() {
+                quote! {}
             } else {
-                quote! {
-                    ::hypersynthetic::component::component_view(
-                        &#component_name,
-                        ::hypersynthetic::component::component_props_builder(&#component_name)
-                            #(#builder_calls)*
-                            .build()
-                    )
-                }
+                let children = generate_nodes(NodeCollection::Nodes(component.children.clone()));
+                let setter = Ident::new("children", component_name.span());
+                quote! { .#setter(#children) }
+            };
+
+            let final_call = quote! {
+                ::hypersynthetic::component::component_view(
+                    &#component_name,
+                    ::hypersynthetic::component::component_props_builder(&#component_name)
+                        #(#builder_calls)*
+                        #children_call
+                        .build()
+                )
             };
 
             let tokens = if component.has_for_attribute() {

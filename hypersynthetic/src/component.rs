@@ -14,20 +14,6 @@ where
     }
 }
 
-pub trait ComponentWithSlots<P> {
-    fn call_with_slots(&self, children: HtmlFragment, props: P) -> HtmlFragment;
-}
-
-impl<P, F> ComponentWithSlots<P> for F
-where
-    F: Fn(HtmlFragment, P) -> HtmlFragment,
-    P: Props,
-{
-    fn call_with_slots(&self, children: HtmlFragment, props: P) -> HtmlFragment {
-        self(children, props)
-    }
-}
-
 pub trait Props {
     type Builder;
 
@@ -54,20 +40,6 @@ pub fn component_props_builder<P: PropsOrNoPropsBuilder>(
     <P as PropsOrNoPropsBuilder>::builder_or_not()
 }
 
-pub fn component_with_slots_props_builder<P: PropsOrNoPropsBuilder>(
-    _f: &impl ComponentWithSlots<P>,
-) -> <P as PropsOrNoPropsBuilder>::Builder {
-    <P as PropsOrNoPropsBuilder>::builder_or_not()
-}
-
 pub fn component_view<P: Props>(component: &impl Component<P>, props: P) -> HtmlFragment {
     component.call(props)
-}
-
-pub fn component_with_slots_view<P: Props>(
-    component: &impl ComponentWithSlots<P>,
-    children: HtmlFragment,
-    props: P,
-) -> HtmlFragment {
-    component.call_with_slots(children, props)
 }

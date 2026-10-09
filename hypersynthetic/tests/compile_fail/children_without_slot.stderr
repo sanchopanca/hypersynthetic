@@ -1,0 +1,8 @@
+error[E0599]: no method named `children` found for struct `CardPropsBuilder<'a, TypedBuilderFields>` in the current scope
+ --> tests/compile_fail/children_without_slot.rs:9:22
+  |
+3 | #[component]
+  | ------------ method `children` not found for this struct
+...
+9 |     let _ = html! { <Card title="x"><p>"child"</p></Card> };
+  |                      ^^^^ method not found in `CardPropsBuilder<'_, ((&str,),)>`

@@ -25,3 +25,9 @@ pub fn Heading(text: &str) -> HtmlFragment {
 pub fn Boxed(children: HtmlFragment) -> HtmlFragment {
     html! { <div class="box">{{ children }}</div> }
 }
+
+/// A counter whose count is optional.
+#[component]
+pub fn Counter(#[builder(default)] count: u32) -> HtmlFragment {
+    html! { <span>{count}</span> }
+}

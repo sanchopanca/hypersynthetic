@@ -14,3 +14,16 @@ fn test_imported_component() {
 
     assert_eq!(string_representation, expected);
 }
+
+#[test]
+fn test_imported_component_with_optional_prop() {
+    use hypersynthetic::prelude::*;
+    use test_component_lib::Counter;
+
+    let result = html! {
+        <Counter />
+        <Counter count={2} />
+    };
+
+    assert_eq!(result.to_string(), "<span>0</span><span>2</span>");
+}

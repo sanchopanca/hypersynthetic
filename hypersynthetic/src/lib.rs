@@ -192,6 +192,48 @@ pub mod component;
 /// that will be injected into the `<div>` element.
 /// The double curly braces `{{ }}` are used to disable HTML escaping,
 /// which is the desired behavior in most cases to ensure the HTML content is rendered correctly.
+///
+/// ## The `children` prop
+///
+/// Inside the component, the slot has whatever name you gave the parameter (`inner_block` above).
+/// From the outside, it's always the prop named `children`:
+///
+/// - The content between the component's tags is passed as `children`.
+/// - An existing fragment can be passed directly with the `children` attribute.
+/// - It's optional: without content or a `children` attribute, the slot is an empty fragment.
+///
+/// ```
+/// # use hypersynthetic::prelude::*;
+/// # #[component]
+/// # fn OrangeDiv(inner_block: HtmlFragment) -> HtmlFragment {
+/// #     html! { <div class="orange round">{{ inner_block }}</div> }
+/// # }
+/// # fn main() {
+/// let content = html! { <p>"Hello"</p> };
+/// let result = html! {
+///     <OrangeDiv><p>"Hello"</p></OrangeDiv>
+///     <OrangeDiv children={content} />
+///     <OrangeDiv />
+/// };
+///
+/// assert_eq!(
+///     result.to_string(),
+///     "<div class=\"orange round\"><p>Hello</p></div>\
+///      <div class=\"orange round\"><p>Hello</p></div>\
+///      <div class=\"orange round\"></div>"
+/// );
+/// # }
+/// ```
+///
+/// Because of that, `children` is a reserved name for components (but not for HTML elements,
+/// where `<div children="...">` is an ordinary attribute). These are compile errors:
+///
+/// - Content between the tags of a component that has no slot:
+///   "no method named `children` found for struct `CardPropsBuilder`".
+/// - Both content between the tags and a `children` attribute.
+/// - A component with a slot that also has another parameter named `children`.
+///
+/// A component without a slot can still have a regular prop named `children`.
 pub use hypersynthetic_macros::component;
 
 /// The `html` macro allows to construct html fragments in Rust.
