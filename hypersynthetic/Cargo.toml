@@ -3,6 +3,7 @@ name = "hypersynthetic"
 version = "0.9.0"
 authors = ["Aleksandr Kovalev <aleksandr@kovalev.engineer>"]
 edition = "2024"
+rust-version = "1.85"
 description = "An HTML template engine that chose composition over inheritance"
 readme = "../README.md"
 homepage = "https://github.com/sanchopanca/hypersynthetic"
