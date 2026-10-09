@@ -580,10 +580,6 @@ impl HtmlFragment {
         self.0.is_empty()
     }
 
-    fn to_html(&self) -> String {
-        self.0.iter().map(|node| node.to_html()).collect()
-    }
-
     /// A copy of the top-level nodes.
     pub fn get_nodes(&self) -> Vec<Node> {
         self.0.clone()
@@ -666,16 +662,6 @@ impl<'a> IntoIterator for &'a mut HtmlFragment {
     }
 }
 
-impl Node {
-    fn to_html(&self) -> String {
-        match self {
-            Node::Text(text) => text.clone(),
-            Node::Element(element_data) => element_data.to_html(),
-            Node::DocType => "<!DOCTYPE html>".to_owned(),
-        }
-    }
-}
-
 impl ElementData {
     /// An element without attributes or children.
     pub fn new(tag_name: String) -> Self {
@@ -736,34 +722,6 @@ impl ElementData {
             .iter()
             .find(|attr| attr.name == name)
             .map(|attr| attr.value.as_deref().unwrap_or(""))
-    }
-
-    fn to_html(&self) -> String {
-        // Names can come from user data (`<div {name}="v">`). A name that isn't
-        // valid HTML could close the tag or start a new attribute, and can't be
-        // rendered safely, so it is skipped.
-        let attributes_string: String = self
-            .attributes
-            .iter()
-            .filter(|attr| is_valid_attribute_name(&attr.name))
-            .map(|attr| match &attr.value {
-                Some(value) => format!(" {}=\"{}\"", attr.name, escape_attribute(value)),
-                None => format!(" {}", attr.name),
-            })
-            .collect();
-
-        let children_string = self.children.to_html();
-
-        // `/>` is only meaningful on void elements: browsers ignore it on
-        // other tags and treat `<div />` as an unclosed `<div>`.
-        if self.self_closing && is_void_element(&self.tag_name) {
-            format!("<{}{} />", self.tag_name, attributes_string)
-        } else {
-            format!(
-                "<{}{}>{}</{}>",
-                self.tag_name, attributes_string, children_string, self.tag_name
-            )
-        }
     }
 }
 
@@ -831,21 +789,52 @@ impl<'a> Iterator for ElementDataIterMut<'a> {
     }
 }
 
+// Rendering writes straight into the formatter, passing it down to the children,
+// so the output is built in one buffer instead of a String per nesting level.
+
 impl fmt::Display for ElementData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_html())
+        write!(f, "<{}", self.tag_name)?;
+        // Names can come from user data (`<div {name}="v">`). A name that isn't
+        // valid HTML could close the tag or start a new attribute, and can't be
+        // rendered safely, so it is skipped.
+        for attr in &self.attributes {
+            if !is_valid_attribute_name(&attr.name) {
+                continue;
+            }
+            match &attr.value {
+                Some(value) => write!(f, " {}=\"{}\"", attr.name, escape_attribute(value))?,
+                None => write!(f, " {}", attr.name)?,
+            }
+        }
+
+        // `/>` is only meaningful on void elements: browsers ignore it on
+        // other tags and treat `<div />` as an unclosed `<div>`.
+        if self.self_closing && is_void_element(&self.tag_name) {
+            return f.write_str(" />");
+        }
+
+        f.write_str(">")?;
+        fmt::Display::fmt(&self.children, f)?;
+        write!(f, "</{}>", self.tag_name)
     }
 }
 
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_html())
+        match self {
+            Node::Text(text) => f.write_str(text),
+            Node::Element(element_data) => fmt::Display::fmt(element_data, f),
+            Node::DocType => f.write_str("<!DOCTYPE html>"),
+        }
     }
 }
 
 impl fmt::Display for HtmlFragment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_html())
+        self.0
+            .iter()
+            .try_for_each(|node| fmt::Display::fmt(node, f))
     }
 }
 
@@ -888,7 +877,7 @@ mod tests {
         let document = Node::Element(body);
 
         assert_eq!(
-            document.to_html(),
+            document.to_string(),
             "<body>Hello, Rust!<div class=\"container\">This is inside a div.</div></body>"
         )
     }
