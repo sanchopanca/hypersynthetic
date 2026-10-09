@@ -29,11 +29,13 @@ pub trait Props {
 }
 
 /// The props builder of a component, found through the component function's type.
+#[doc(hidden)]
 pub fn component_props_builder<P: Props>(_f: &impl Component<P>) -> P::Builder {
     P::builder()
 }
 
 /// Calls a component with its props.
+#[doc(hidden)]
 pub fn component_view<P: Props>(component: &impl Component<P>, props: P) -> HtmlFragment {
     component.call(props)
 }

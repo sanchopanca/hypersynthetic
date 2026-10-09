@@ -505,7 +505,7 @@ pub use hypersynthetic_macros::html;
 /// Everything needed to write templates and components: `use hypersynthetic::prelude::*;`
 pub mod prelude {
     pub use crate::HtmlFragment;
-    pub use crate::component::{Component, Props, component_props_builder, component_view};
+    pub use crate::component::{Component, Props};
     pub use crate::typed_builder;
     pub use crate::{component, html};
 }
