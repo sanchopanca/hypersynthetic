@@ -1,4 +1,4 @@
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::quote;
 
 use crate::{
@@ -6,14 +6,23 @@ use crate::{
     nodes::{Node, NodeCollection},
 };
 
+/// Identifier for a variable declared by the generated code.
+///
+/// `Span::mixed_site()` gives local variables `macro_rules!`-style hygiene: they are
+/// invisible to user code passed into the macro, so they can't shadow user variables.
+fn internal_ident(name: &str) -> Ident {
+    Ident::new(name, Span::mixed_site())
+}
+
 pub fn generate_nodes(NodeCollection::Nodes(nodes): NodeCollection) -> TokenStream2 {
+    let v = internal_ident("__hs_nodes");
     let nodes: Vec<TokenStream2> = nodes.into_iter().map(generate_node).collect();
 
     let nodes: Vec<TokenStream2> = nodes
         .into_iter()
         .map(|node| {
             quote! {
-                v.extend(#node);
+                #v.extend(#node);
             }
         })
         .collect();
@@ -21,9 +30,9 @@ pub fn generate_nodes(NodeCollection::Nodes(nodes): NodeCollection) -> TokenStre
     quote! {
         {
             hypersynthetic::HtmlFragment::new({
-                let mut v = vec![];
+                let mut #v = vec![];
                 #(#nodes)*
-                v
+                #v
             })
         }
     }
@@ -45,18 +54,19 @@ fn generate_node(tag: Node) -> TokenStream2 {
                 let for_expr = element.get_for_attribute();
                 let var = for_expr.pat;
                 let collection = for_expr.collection;
+                let for_v = internal_ident("__hs_for_nodes");
                 quote! {
                     {
-                        let mut for_v = Vec::new();
+                        let mut #for_v = Vec::new();
                         for #var in #collection {
-                            for_v.push(hypersynthetic::Node::Element(hypersynthetic::ElementData {
+                            #for_v.push(hypersynthetic::Node::Element(hypersynthetic::ElementData {
                                 tag_name: #tag_name.to_owned(),
                                 attributes: vec![#(#attributes),*],
                                 children: #children,
                                 self_closing: #self_closing,
                             }));
                         }
-                        for_v
+                        #for_v
                     }
                 }
             } else {
@@ -176,13 +186,14 @@ fn generate_node(tag: Node) -> TokenStream2 {
                 let for_expr = component.get_for_attribute();
                 let var = for_expr.pat;
                 let collection = for_expr.collection;
+                let for_v = internal_ident("__hs_for_nodes");
                 quote! {
                     {
-                        let mut for_v = Vec::new();
+                        let mut #for_v = Vec::new();
                         for #var in #collection {
-                            for_v.extend(#final_call.get_nodes());
+                            #for_v.extend(#final_call.get_nodes());
                         }
-                        for_v
+                        #for_v
                     }
                 }
             } else {
