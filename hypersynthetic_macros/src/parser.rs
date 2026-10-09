@@ -1,6 +1,7 @@
 use proc_macro2::{Group, Span, TokenStream as TokenStream2, TokenTree};
 use syn::{
     Expr, Ident, LitBool, LitStr, Pat, Path, Result, Token, braced,
+    ext::IdentExt,
     parse::{Parse, ParseStream},
     token::Brace,
 };
@@ -81,7 +82,7 @@ impl Parse for Node {
             let _: Token![>] = input.parse()?;
 
             let mut children: Vec<Node> = Vec::new();
-            while input.peek(Token![<]) && input.peek2(Ident)
+            while input.peek(Token![<]) && input.peek2(Ident::peek_any)
                 || input.peek(LitStr)
                 || input.peek(Brace)
             {
@@ -90,7 +91,7 @@ impl Parse for Node {
             }
 
             // Check for the closing tag
-            if input.peek(Token![<]) && input.peek2(Token![/]) && input.peek3(Ident) {
+            if input.peek(Token![<]) && input.peek2(Token![/]) && input.peek3(Ident::peek_any) {
                 let _: Token![<] = input.parse()?;
                 let _: Token![/] = input.parse()?;
                 let closing_span = input.span();
@@ -146,16 +147,23 @@ impl Parse for Node {
 
 impl Parse for TagName {
     fn parse(input: ParseStream) -> Result<Self> {
-        let path: Path = input.parse()?;
-        if is_path_pascal_case(&path) {
-            return Ok(TagName::Component(path));
-        }
+        // Element names can be Rust keywords (SVG's `<use>`), which a path can't
+        // be, unless it's a path keyword followed by `::` (`crate::Card`)
+        let is_path = input.peek(Ident) || input.peek(Token![::]) || input.peek2(Token![::]);
+        let mut name = if is_path {
+            let path: Path = input.parse()?;
+            if is_path_pascal_case(&path) {
+                return Ok(TagName::Component(path));
+            }
+            extract_ident_from_path(&path).to_string()
+        } else {
+            input.call(Ident::parse_any)?.to_string()
+        };
 
         // Custom elements have hyphens in their names: `<my-widget>`
-        let mut name = extract_ident_from_path(&path).to_string();
         while input.peek(Token![-]) {
             let _: Token![-] = input.parse()?;
-            let part: Ident = input.parse()?;
+            let part = input.call(Ident::parse_any)?;
             name.push('-');
             name.push_str(&part.to_string());
         }

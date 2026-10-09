@@ -538,3 +538,19 @@ fn test_custom_elements() {
          <sl-button-group>0</sl-button-group><sl-button-group>1</sl-button-group></my-widget>"
     );
 }
+
+#[test]
+fn test_keyword_tag_names() {
+    let result = html! {
+        <svg>
+            <use href="#icon" />
+            <use href="#other"></use>
+        </svg>
+        <x-type></x-type>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<svg><use href=\"#icon\"></use><use href=\"#other\"></use></svg><x-type></x-type>"
+    );
+}

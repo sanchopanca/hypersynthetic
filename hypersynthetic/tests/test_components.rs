@@ -152,3 +152,13 @@ fn test_cfg_on_component() {
 
     assert_eq!(result.to_string(), "<p>always</p>");
 }
+
+#[test]
+fn test_component_paths_starting_with_keywords() {
+    let result = html! {
+        <self::inner::InnerComponent val="a" />
+        <crate::inner::InnerComponent val="b" />
+    };
+
+    assert_eq!(result.to_string(), "<span>a</span><span>b</span>");
+}
