@@ -2,11 +2,12 @@ use quote::ToTokens as _;
 use syn::{Ident, Path};
 
 pub fn is_path_pascal_case(path: &Path) -> bool {
-    is_pascal_case(&extract_ident_from_path(path))
+    is_pascal_case(extract_ident_from_path(path))
 }
 
-pub fn extract_ident_from_path(path: &Path) -> Ident {
-    path.segments.last().unwrap().ident.clone()
+pub fn extract_ident_from_path(path: &Path) -> &Ident {
+    // A parsed `Path` always has at least one segment
+    &path.segments.last().unwrap().ident
 }
 
 pub fn path_to_string(path: &Path) -> String {

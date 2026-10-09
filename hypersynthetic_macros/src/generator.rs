@@ -36,8 +36,7 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
         Node::Element(element) => {
             let tag_name = element.tag_name.to_string();
             let self_closing = element.self_closing;
-            let children: TokenStream2 =
-                generate_nodes(NodeCollection::Nodes(element.children.clone()));
+            let children: TokenStream2 = generate_nodes(NodeCollection::Nodes(element.children));
             let attributes: Vec<TokenStream2> = regular_attributes(&element.attributes)
                 .map(generate_attribute)
                 .collect();
@@ -104,7 +103,7 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
             let children_call = if component.children.is_empty() {
                 quote! {}
             } else {
-                let children = generate_nodes(NodeCollection::Nodes(component.children.clone()));
+                let children = generate_nodes(NodeCollection::Nodes(component.children));
                 let setter = Ident::new("children", component_name.span());
                 quote! { .#setter(#children) }
             };
