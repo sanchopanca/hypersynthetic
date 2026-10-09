@@ -102,3 +102,32 @@ fn test_no_args_component() {
 
     assert_eq!(string_representation, expected);
 }
+
+#[component]
+fn Incremented(mut n: i32) -> HtmlFragment {
+    n += 1;
+    html! { <p>{n}</p> }
+}
+
+#[test]
+fn test_mut_parameter() {
+    let result = html! { <Incremented n={1} /> };
+
+    assert_eq!(result.to_string(), "<p>2</p>");
+}
+
+#[component]
+fn Appended(mut content: HtmlFragment, mut suffix: String) -> HtmlFragment {
+    suffix.push('!');
+    content.push(hypersynthetic::Node::Text(suffix));
+    html! { <div>{{ content }}</div> }
+}
+
+#[test]
+fn test_mut_parameters_with_slot() {
+    let result = html! {
+        <Appended suffix={"hi".to_owned()}><b>"x"</b></Appended>
+    };
+
+    assert_eq!(result.to_string(), "<div><b>x</b>hi!</div>");
+}

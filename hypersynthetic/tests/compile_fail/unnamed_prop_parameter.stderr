@@ -1,0 +1,5 @@
+error: component props need a name: use `name: Type` and destructure it in the function body
+ --> tests/compile_fail/unnamed_prop_parameter.rs:4:10
+  |
+4 | fn Point((x, y): (i32, i32)) -> HtmlFragment {
+  |          ^^^^^^

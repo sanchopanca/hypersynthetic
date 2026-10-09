@@ -170,12 +170,22 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
         })
         .collect();
 
+    // Props become struct fields, so they need plain names (`mut n` → `n`).
+    // The original patterns stay on the internal function.
+    let param_names = match params
+        .iter()
+        .map(|param| prop_name(&param.pat))
+        .collect::<syn::Result<Vec<_>>>()
+    {
+        Ok(names) => names,
+        Err(err) => return err.to_compile_error().into(),
+    };
+
     // Generate struct fields
-    let struct_fields = params.iter().map(|param| {
-        let pat = &param.pat;
+    let struct_fields = params.iter().zip(&param_names).map(|(param, name)| {
         let ty = &param.ty;
         quote! {
-            #pat: #ty
+            #name: #ty
         }
     });
 
@@ -194,9 +204,6 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Extract lifetimes and generics from the updated internal function
     let generics = &internal_function.sig.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
-    // Generate the parameter unpacking
-    let param_names: Vec<_> = params.iter().map(|param| &param.pat).collect();
 
     // Check if this is a no-parameter component (excluding slots)
     let is_no_params = params.is_empty();
@@ -266,4 +273,16 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     output.into()
+}
+
+/// The name a prop parameter binds. `mut`, `ref` and `name @ pattern` still
+/// bind one name, so they're allowed; other patterns have no name to use.
+fn prop_name(pat: &syn::Pat) -> syn::Result<&syn::Ident> {
+    match pat {
+        syn::Pat::Ident(pat_ident) => Ok(&pat_ident.ident),
+        _ => Err(syn::Error::new_spanned(
+            pat,
+            "component props need a name: use `name: Type` and destructure it in the function body",
+        )),
+    }
 }
