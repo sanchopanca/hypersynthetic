@@ -29,7 +29,7 @@ pub fn generate_nodes(NodeCollection::Nodes(nodes): NodeCollection) -> TokenStre
 
     quote! {
         {
-            hypersynthetic::HtmlFragment::new({
+            ::hypersynthetic::HtmlFragment::new({
                 let mut #v = vec![];
                 #(#nodes)*
                 #v
@@ -59,7 +59,7 @@ fn generate_node(tag: Node) -> TokenStream2 {
                     {
                         let mut #for_v = Vec::new();
                         for #var in #collection {
-                            #for_v.push(hypersynthetic::Node::Element(hypersynthetic::ElementData {
+                            #for_v.push(::hypersynthetic::Node::Element(::hypersynthetic::ElementData {
                                 tag_name: #tag_name.to_owned(),
                                 attributes: vec![#(#attributes),*],
                                 children: #children,
@@ -71,7 +71,7 @@ fn generate_node(tag: Node) -> TokenStream2 {
                 }
             } else {
                 quote! {
-                    vec![hypersynthetic::Node::Element(hypersynthetic::ElementData {
+                    vec![::hypersynthetic::Node::Element(::hypersynthetic::ElementData {
                         tag_name: #tag_name.to_owned(),
                         attributes: vec![#(#attributes),*],
                         children: #children,
@@ -95,22 +95,22 @@ fn generate_node(tag: Node) -> TokenStream2 {
         }
         Node::Text(text) => {
             quote! {
-                vec![hypersynthetic::Node::Text(hypersynthetic::escape_text(format!(#text)).to_string())]
+                vec![::hypersynthetic::Node::Text(::hypersynthetic::escape_text(format!(#text)).to_string())]
             }
         }
         Node::Expression(expr) => {
             quote! {
-                vec![hypersynthetic::Node::Text(hypersynthetic::escape_text(format!("{}", #expr)).to_string())]
+                vec![::hypersynthetic::Node::Text(::hypersynthetic::escape_text(format!("{}", #expr)).to_string())]
             }
         }
         Node::UnescapedExpression(expr) => {
             quote! {
-                vec![hypersynthetic::Node::Text(format!("{}", #expr))]
+                vec![::hypersynthetic::Node::Text(format!("{}", #expr))]
             }
         }
         Node::DocType => {
             quote! {
-                vec![hypersynthetic::Node::DocType]
+                vec![::hypersynthetic::Node::DocType]
             }
         }
         Node::Component(component) => {
@@ -162,19 +162,19 @@ fn generate_node(tag: Node) -> TokenStream2 {
             // For slots, we use the ComponentWithSlots system
             let final_call = if has_slots {
                 quote! {
-                    hypersynthetic::component::component_with_slots_view(
+                    ::hypersynthetic::component::component_with_slots_view(
                         &#component_name,
                         #children,
-                        hypersynthetic::component::component_with_slots_props_builder(&#component_name)
+                        ::hypersynthetic::component::component_with_slots_props_builder(&#component_name)
                             #(#builder_calls)*
                             .build()
                     )
                 }
             } else {
                 quote! {
-                    hypersynthetic::component::component_view(
+                    ::hypersynthetic::component::component_view(
                         &#component_name,
-                        hypersynthetic::component::component_props_builder(&#component_name)
+                        ::hypersynthetic::component::component_props_builder(&#component_name)
                             #(#builder_calls)*
                             .build()
                     )
@@ -226,17 +226,17 @@ fn generate_attribute(attr: RegularAttribute) -> TokenStream2 {
 
     let attr_value = match &attr.value {
         Some(AttrValue::Literal(value)) => {
-            quote! { Some(hypersynthetic::escape_attribute(#value).to_string()) }
+            quote! { Some(::hypersynthetic::escape_attribute(#value).to_string()) }
         }
         Some(AttrValue::Expression(expr)) => {
-            quote! { Some(hypersynthetic::escape_attribute(format!("{}", #expr)).to_string()) }
+            quote! { Some(::hypersynthetic::escape_attribute(format!("{}", #expr)).to_string()) }
         }
         Some(AttrValue::Interpolated(segments)) => interpolate_attr_value(segments),
         None => quote! { None },
     };
 
     quote! {
-        hypersynthetic::Attribute {
+        ::hypersynthetic::Attribute {
             name: #attr_name,
             value: #attr_value,
         }
@@ -254,7 +254,7 @@ fn interpolate_attr_value(segments: &[InterpolatedSegment]) -> TokenStream2 {
         .collect();
     let format_pattern = generate_format_string_pattern(interpolated.len());
     let format_call = quote! { format!(#format_pattern, #(#interpolated),*) };
-    quote! { Some(hypersynthetic::escape_attribute(#format_call).to_string()) }
+    quote! { Some(::hypersynthetic::escape_attribute(#format_call).to_string()) }
 }
 
 fn generate_format_string_pattern(count: usize) -> TokenStream2 {

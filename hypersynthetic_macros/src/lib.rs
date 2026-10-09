@@ -137,7 +137,7 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
         quote! {
             #(#wrapper_attrs)*
             #[allow(non_snake_case)]
-            #vis fn #fn_name #impl_generics(#slot_name: #slot_ty, props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
+            #vis fn #fn_name #impl_generics(#slot_name: #slot_ty, props: #props_name #ty_generics) -> ::hypersynthetic::HtmlFragment #where_clause {
                 let #props_name { #(#param_names),* } = props;
                 #internal_fn_name(#slot_name, #(#param_names),*)
             }
@@ -149,7 +149,7 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
             // Props-based function (main interface for html! macro)
             #(#wrapper_attrs)*
             #[allow(non_snake_case)]
-            #vis fn #fn_name #impl_generics(props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
+            #vis fn #fn_name #impl_generics(props: #props_name #ty_generics) -> ::hypersynthetic::HtmlFragment #where_clause {
                 let #props_name { #(#param_names),* } = props;
                 #internal_fn_name(#(#param_names),*)
             }
@@ -157,7 +157,7 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
             // Direct callable function (for backwards compatibility)
             #[allow(non_snake_case)]
             #[doc(hidden)]
-            #vis fn #direct_fn_name #impl_generics() -> hypersynthetic::HtmlFragment #where_clause {
+            #vis fn #direct_fn_name #impl_generics() -> ::hypersynthetic::HtmlFragment #where_clause {
                 #internal_fn_name()
             }
         }
@@ -166,7 +166,7 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
         quote! {
             #(#wrapper_attrs)*
             #[allow(non_snake_case)]
-            #vis fn #fn_name #impl_generics(props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
+            #vis fn #fn_name #impl_generics(props: #props_name #ty_generics) -> ::hypersynthetic::HtmlFragment #where_clause {
                 let #props_name { #(#param_names),* } = props;
                 #internal_fn_name(#(#param_names),*)
             }
@@ -181,7 +181,7 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
             #(#struct_fields,)*
         }
 
-        impl #impl_generics hypersynthetic::component::Props for #props_name #ty_generics #where_clause {
+        impl #impl_generics ::hypersynthetic::component::Props for #props_name #ty_generics #where_clause {
             type Builder = #props_builder_name #ty_generics;
 
             fn builder() -> Self::Builder {
