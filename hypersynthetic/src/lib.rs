@@ -266,6 +266,18 @@ pub use hypersynthetic_macros::component;
 /// assert_eq!(list.to_string(), "<p><b>bold</b></p>");
 /// ```
 ///
+/// An [Option] renders the value inside `Some` the same way, and nothing for `None`:
+/// ```
+/// # use hypersynthetic::html;
+/// let subtitle: Option<&str> = None;
+/// let badge = Some(html! { <b>"new"</b> });
+/// let header = html! {
+///     <h1>"Title"{badge}</h1>
+///     <h2>{subtitle}</h2>
+/// };
+/// assert_eq!(header.to_string(), "<h1>Title<b>new</b></h1><h2></h2>");
+/// ```
+///
 /// Here are the places where an expression can be used:
 /// 1. As a child of an element.
 /// ```

@@ -101,8 +101,8 @@ fn generate_node(tag: Node) -> TokenStream2 {
             }
         }
         // See `hypersynthetic::__private` for how fragments and other values are told apart
-        Node::Expression(expr) => render_expression(&expr, "render_escaped"),
-        Node::UnescapedExpression(expr) => render_expression(&expr, "render_raw"),
+        Node::Expression(expr) => render_expression(&expr, true),
+        Node::UnescapedExpression(expr) => render_expression(&expr, false),
         Node::DocType => {
             quote! {
                 vec![::hypersynthetic::Node::DocType]
@@ -226,18 +226,17 @@ fn generate_attribute(attr: RegularAttribute) -> TokenStream2 {
     }
 }
 
-fn render_expression(expr: &syn::Expr, method: &str) -> TokenStream2 {
+fn render_expression(expr: &syn::Expr, escape: bool) -> TokenStream2 {
     // Errors about the method (e.g. the value isn't Display) are reported at its
     // name, so give it the expression's span
-    let method = Ident::new(method, expr.span());
-    let call = quote! {
-        (&::hypersynthetic::__private::Render(&(#expr))).#method()
-    };
+    let render = Ident::new("render", expr.span());
     quote! {
         {
             #[allow(unused_imports)]
-            use ::hypersynthetic::__private::{RenderDisplay as _, RenderFragment as _};
-            #call
+            use ::hypersynthetic::__private::{
+                RenderDisplay as _, RenderFragment as _, RenderOption as _,
+            };
+            (&::hypersynthetic::__private::Render(&(#expr))).#render(#escape)
         }
     }
 }
