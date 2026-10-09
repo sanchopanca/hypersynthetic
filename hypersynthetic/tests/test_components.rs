@@ -131,3 +131,24 @@ fn test_mut_parameters_with_slot() {
 
     assert_eq!(result.to_string(), "<div><b>x</b>hi!</div>");
 }
+
+// The compiler evaluates `#[cfg]` before running attribute macros, even when it
+// comes after `#[component]`, so a disabled component disappears entirely.
+#[component]
+#[cfg(any())]
+fn NeverCompiled() -> HtmlFragment {
+    html! { <p>"never"</p> }
+}
+
+#[component]
+#[cfg(test)]
+fn AlwaysCompiled() -> HtmlFragment {
+    html! { <p>"always"</p> }
+}
+
+#[test]
+fn test_cfg_on_component() {
+    let result = html! { <AlwaysCompiled /> };
+
+    assert_eq!(result.to_string(), "<p>always</p>");
+}

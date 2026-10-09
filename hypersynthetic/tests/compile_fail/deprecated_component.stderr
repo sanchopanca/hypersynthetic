@@ -1,0 +1,11 @@
+error: use of deprecated function `OldCard`: use NewCard
+  --> tests/compile_fail/deprecated_component.rs:12:22
+   |
+12 |     let _ = html! { <OldCard /> };
+   |                      ^^^^^^^
+   |
+note: the lint level is defined here
+  --> tests/compile_fail/deprecated_component.rs:1:9
+   |
+ 1 | #![deny(deprecated)]
+   |         ^^^^^^^^^^

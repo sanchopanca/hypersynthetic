@@ -197,6 +197,16 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
     internal_function.sig.ident = internal_fn_name.clone();
     internal_function.vis = syn::Visibility::Inherited;
 
+    // Docs and deprecation describe the public component, so they move to the
+    // wrapper. The rest (`#[allow]`, `#[inline]`, ...) is about the body and stays.
+    // `#[cfg]` never gets here: the compiler evaluates it before calling the macro.
+    let (wrapper_attrs, internal_attrs): (Vec<_>, Vec<_>) =
+        std::mem::take(&mut internal_function.attrs)
+            .into_iter()
+            .partition(|attr| attr.path().is_ident("doc") || attr.path().is_ident("deprecated"));
+    internal_function.attrs = internal_attrs;
+    let props_doc = format!("Props for the [`{fn_name}`] component.");
+
     // Add allow directive for snake_case to the internal function
     let allow_attr: syn::Attribute = syn::parse_quote!(#[allow(non_snake_case)]);
     internal_function.attrs.push(allow_attr);
@@ -217,6 +227,7 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
         // For all slot components (with or without params), use the same signature
         quote! {
+            #(#wrapper_attrs)*
             #[allow(non_snake_case)]
             #vis fn #fn_name #impl_generics(#slot_name: #slot_ty, props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
                 let #props_name { #(#param_names),* } = props;
@@ -228,6 +239,7 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
         let direct_fn_name = quote::format_ident!("__{}__direct", fn_name);
         quote! {
             // Props-based function (main interface for html! macro)
+            #(#wrapper_attrs)*
             #[allow(non_snake_case)]
             #vis fn #fn_name #impl_generics(props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
                 let #props_name { #(#param_names),* } = props;
@@ -244,6 +256,7 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
     } else {
         // For components with params, single props-based function
         quote! {
+            #(#wrapper_attrs)*
             #[allow(non_snake_case)]
             #vis fn #fn_name #impl_generics(props: #props_name #ty_generics) -> hypersynthetic::HtmlFragment #where_clause {
                 let #props_name { #(#param_names),* } = props;
@@ -254,6 +267,7 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     // Generate the final output - always generate Props struct
     let output = quote! {
+        #[doc = #props_doc]
         #[derive(::hypersynthetic::typed_builder_macro::TypedBuilder)]
         #vis struct #props_name #impl_generics #where_clause {
             #(#struct_fields,)*
