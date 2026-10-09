@@ -657,11 +657,11 @@ impl ElementData {
 
     /// The attribute's value, unescaped. An attribute without a value (`disabled`)
     /// gives an empty string.
-    pub fn get_attribute(&self, name: &str) -> Option<String> {
+    pub fn get_attribute(&self, name: &str) -> Option<&str> {
         self.attributes
             .iter()
             .find(|attr| attr.name == name)
-            .map(|attr| attr.value.clone().unwrap_or("".to_owned()))
+            .map(|attr| attr.value.as_deref().unwrap_or(""))
     }
 
     fn to_html(&self) -> String {

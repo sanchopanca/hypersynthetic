@@ -38,14 +38,11 @@ fn test_get_attribute() {
 
     let div_element = div.iter_elements().next().unwrap();
 
-    assert_eq!(
-        div_element.get_attribute("class"),
-        Some("container".to_string())
-    );
+    assert_eq!(div_element.get_attribute("class"), Some("container"));
 
     assert_eq!(div_element.get_attribute("id"), None);
 
-    assert_eq!(div_element.get_attribute("itemscope"), Some("".to_string()));
+    assert_eq!(div_element.get_attribute("itemscope"), Some(""));
 }
 
 #[test]
@@ -174,15 +171,9 @@ fn test_get_attribute_returns_the_raw_value() {
     };
     let element = link.iter_elements().next().unwrap();
 
-    assert_eq!(
-        element.get_attribute("title"),
-        Some("Tom & Jerry".to_owned())
-    );
-    assert_eq!(element.get_attribute("data-tag"), Some("<b>".to_owned()));
-    assert_eq!(
-        element.get_attribute("data-quote"),
-        Some("say \"hi\"".to_owned())
-    );
+    assert_eq!(element.get_attribute("title"), Some("Tom & Jerry"));
+    assert_eq!(element.get_attribute("data-tag"), Some("<b>"));
+    assert_eq!(element.get_attribute("data-quote"), Some("say \"hi\""));
 }
 
 #[test]
@@ -204,8 +195,28 @@ fn test_get_then_set_attribute_does_not_change_the_output() {
     let before = link.to_string();
 
     let element = link.iter_elements_mut().next().unwrap();
-    let title = element.get_attribute("title").unwrap();
+    let title = element.get_attribute("title").unwrap().to_owned();
     element.set_attribute("title".to_owned(), title);
 
     assert_eq!(link.to_string(), before);
+}
+
+#[test]
+fn test_get_attribute_can_be_matched_on() {
+    let inputs = html! {
+        <input type="checkbox" />
+        <input type="text" />
+        <input />
+    };
+
+    let kinds: Vec<&str> = inputs
+        .iter_elements()
+        .map(|input| match input.get_attribute("type") {
+            Some("checkbox") => "checkbox",
+            Some(_) => "other",
+            None => "missing",
+        })
+        .collect();
+
+    assert_eq!(kinds, ["checkbox", "other", "missing"]);
 }
