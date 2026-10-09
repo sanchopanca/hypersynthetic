@@ -511,10 +511,13 @@ use std::fmt;
 use std::slice::Iter;
 use std::slice::IterMut;
 
+/// A sequence of HTML nodes, as produced by [html!].
+///
+/// The nodes are private, so the representation can change. Build fragments with
+/// [HtmlFragment::new], `From<Vec<Node>>` or `collect()`, and read them with
+/// [HtmlFragment::iter] or [HtmlFragment::iter_elements].
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum HtmlFragment {
-    Nodes(Vec<Node>),
-}
+pub struct HtmlFragment(Vec<Node>);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Node {
@@ -541,50 +544,37 @@ pub struct Attribute {
 }
 
 impl HtmlFragment {
-    // TODO: consider something else except Vec
     pub fn new(nodes: Vec<Node>) -> Self {
-        HtmlFragment::Nodes(nodes)
+        HtmlFragment(nodes)
     }
 
     pub fn push(&mut self, node: Node) {
-        match self {
-            HtmlFragment::Nodes(nodes) => nodes.push(node),
-        }
+        self.0.push(node);
     }
 
     /// The number of top-level nodes.
     pub fn len(&self) -> usize {
-        match self {
-            HtmlFragment::Nodes(nodes) => nodes.len(),
-        }
+        self.0.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.0.is_empty()
     }
 
     fn to_html(&self) -> String {
-        match self {
-            HtmlFragment::Nodes(nodes) => nodes.iter().map(|node| node.to_html()).collect(),
-        }
+        self.0.iter().map(|node| node.to_html()).collect()
     }
 
     pub fn get_nodes(&self) -> Vec<Node> {
-        match self {
-            HtmlFragment::Nodes(nodes) => nodes.clone(),
-        }
+        self.0.clone()
     }
 
     pub fn iter(&self) -> Iter<'_, Node> {
-        match self {
-            HtmlFragment::Nodes(nodes) => nodes.iter(),
-        }
+        self.0.iter()
     }
 
     pub fn iter_mut(&mut self) -> IterMut<'_, Node> {
-        match self {
-            HtmlFragment::Nodes(nodes) => nodes.iter_mut(),
-        }
+        self.0.iter_mut()
     }
 
     pub fn iter_elements(&self) -> ElementDataIter<'_> {
@@ -622,16 +612,14 @@ impl FromIterator<HtmlFragment> for HtmlFragment {
     fn from_iter<I: IntoIterator<Item = HtmlFragment>>(fragments: I) -> Self {
         fragments
             .into_iter()
-            .flat_map(|HtmlFragment::Nodes(nodes)| nodes)
+            .flat_map(|HtmlFragment(nodes)| nodes)
             .collect()
     }
 }
 
 impl Extend<Node> for HtmlFragment {
     fn extend<I: IntoIterator<Item = Node>>(&mut self, nodes: I) {
-        match self {
-            HtmlFragment::Nodes(existing) => existing.extend(nodes),
-        }
+        self.0.extend(nodes);
     }
 }
 
@@ -735,9 +723,7 @@ impl ElementData {
             })
             .collect();
 
-        let children_string: String = match &self.children {
-            HtmlFragment::Nodes(nodes) => nodes.iter().map(|node| node.to_html()).collect(),
-        };
+        let children_string = self.children.to_html();
 
         // `/>` is only meaningful on void elements: browsers ignore it on
         // other tags and treat `<div />` as an unclosed `<div>`.
