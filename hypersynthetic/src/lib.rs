@@ -502,19 +502,19 @@ use std::fmt;
 use std::slice::Iter;
 use std::slice::IterMut;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum HtmlFragment {
     Nodes(Vec<Node>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Node {
     Element(ElementData),
     Text(String),
     DocType,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ElementData {
     pub tag_name: String,
     pub attributes: Vec<Attribute>,
@@ -524,7 +524,7 @@ pub struct ElementData {
 
 /// An HTML attribute. The value is stored as is, not HTML-escaped: it's escaped when
 /// the element is rendered.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Attribute {
     pub name: String,
     /// `None` for an attribute without a value, like `disabled`.
@@ -541,6 +541,17 @@ impl HtmlFragment {
         match self {
             HtmlFragment::Nodes(nodes) => nodes.push(node),
         }
+    }
+
+    /// The number of top-level nodes.
+    pub fn len(&self) -> usize {
+        match self {
+            HtmlFragment::Nodes(nodes) => nodes.len(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     fn to_html(&self) -> String {
@@ -574,6 +585,33 @@ impl HtmlFragment {
     pub fn iter_elements_mut(&mut self) -> ElementDataIterMut<'_> {
         ElementDataIterMut {
             iter: self.iter_mut(),
+        }
+    }
+}
+
+/// An empty fragment.
+impl Default for HtmlFragment {
+    fn default() -> Self {
+        HtmlFragment::new(Vec::new())
+    }
+}
+
+impl From<Vec<Node>> for HtmlFragment {
+    fn from(nodes: Vec<Node>) -> Self {
+        HtmlFragment::new(nodes)
+    }
+}
+
+impl FromIterator<Node> for HtmlFragment {
+    fn from_iter<I: IntoIterator<Item = Node>>(nodes: I) -> Self {
+        HtmlFragment::new(nodes.into_iter().collect())
+    }
+}
+
+impl Extend<Node> for HtmlFragment {
+    fn extend<I: IntoIterator<Item = Node>>(&mut self, nodes: I) {
+        match self {
+            HtmlFragment::Nodes(existing) => existing.extend(nodes),
         }
     }
 }

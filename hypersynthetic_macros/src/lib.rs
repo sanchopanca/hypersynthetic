@@ -154,7 +154,7 @@ pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
             let slot_ty = &slot_param.ty;
             (
                 quote! {
-                    #[builder(default = ::hypersynthetic::HtmlFragment::new(::std::vec::Vec::new()))]
+                    #[builder(default)]
                     children: #slot_ty,
                 },
                 quote! { children: #slot_var, },

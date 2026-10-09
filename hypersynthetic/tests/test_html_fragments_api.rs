@@ -1,3 +1,4 @@
+use hypersynthetic::Node;
 use hypersynthetic::prelude::*;
 
 #[test]
@@ -219,4 +220,54 @@ fn test_get_attribute_can_be_matched_on() {
         .collect();
 
     assert_eq!(kinds, ["checkbox", "other", "missing"]);
+}
+
+#[test]
+fn test_fragment_equality() {
+    assert_eq!(
+        html! { <p class="a">"x"</p> },
+        html! { <p class="a">"x"</p> }
+    );
+    assert_ne!(
+        html! { <p class="a">"x"</p> },
+        html! { <p class="b">"x"</p> }
+    );
+    assert_ne!(html! { <p>"x"</p> }, html! { <p>"y"</p> });
+}
+
+#[test]
+fn test_default_fragment_is_empty() {
+    let fragment = HtmlFragment::default();
+
+    assert!(fragment.is_empty());
+    assert_eq!(fragment.len(), 0);
+    assert_eq!(fragment.to_string(), "");
+}
+
+#[test]
+fn test_len_counts_top_level_nodes() {
+    let fragment = html! { <p><b>"nested"</b></p> <hr /> "text" };
+
+    assert!(!fragment.is_empty());
+    assert_eq!(fragment.len(), 3);
+}
+
+#[test]
+fn test_fragment_from_nodes() {
+    let fragment = HtmlFragment::from(vec![Node::Text("a".to_owned())]);
+    assert_eq!(fragment.to_string(), "a");
+
+    let collected: HtmlFragment = (1..=3).map(|i| Node::Text(i.to_string())).collect();
+    assert_eq!(collected.to_string(), "123");
+}
+
+#[test]
+fn test_extend_fragment() {
+    let mut fragment = html! { <p>"first"</p> };
+    fragment.extend(html! { <p>"second"</p> <p>"third"</p> }.get_nodes());
+
+    assert_eq!(
+        fragment.to_string(),
+        "<p>first</p><p>second</p><p>third</p>"
+    );
 }
