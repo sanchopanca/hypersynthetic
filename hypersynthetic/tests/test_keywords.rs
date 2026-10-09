@@ -74,3 +74,35 @@ fn test_boolean_literal_attribute() {
         "<div true=\"on\" false=\"off\">Hello!</div>"
     );
 }
+
+#[test]
+fn test_keyword_attribute_names() {
+    let result = html! {
+        <link rel="preload" as="style" />
+        <script async type="module"></script>
+        <video loop muted></video>
+        <label for="name"></label>
+        <feBlend in="SourceGraphic" />
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<link rel=\"preload\" as=\"style\" />\
+         <script async type=\"module\"></script>\
+         <video loop muted></video>\
+         <label for=\"name\"></label>\
+         <feBlend in=\"SourceGraphic\"></feBlend>"
+    );
+}
+
+#[test]
+fn test_newer_keywords_and_booleans_as_attribute_names() {
+    let result = html! {
+        <x-el gen="1" self crate true false></x-el>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<x-el gen=\"1\" self crate true false></x-el>"
+    );
+}

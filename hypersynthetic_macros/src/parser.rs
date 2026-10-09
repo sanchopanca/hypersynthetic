@@ -1,6 +1,6 @@
 use proc_macro2::{Group, Span, TokenStream as TokenStream2, TokenTree};
 use syn::{
-    Expr, Ident, LitBool, LitInt, LitStr, Pat, Path, Result, Token, braced,
+    Expr, Ident, LitInt, LitStr, Pat, Path, Result, Token, braced,
     ext::IdentExt,
     parse::{Parse, ParseStream},
     token::Brace,
@@ -305,28 +305,6 @@ impl Parse for Attribute {
     }
 }
 
-macro_rules! match_keyword {
-    ($input:expr, $keyword:ident, $name:expr, $saw_word:expr) => {
-        if $input.peek(Token![$keyword]) {
-            if $saw_word {
-                break;
-            }
-            let _: Token![$keyword] = $input.parse()?;
-            $name.push_str(stringify!($keyword));
-            $saw_word = true;
-            continue;
-        }
-    };
-}
-
-macro_rules! match_keywords {
-    ($input:expr, $name:expr, $saw_word:expr, [$($keyword:ident),*]) => {
-        $(
-            match_keyword!($input, $keyword, $name, $saw_word);
-        )*
-    };
-}
-
 impl Parse for AttrName {
     fn parse(input: ParseStream) -> Result<Self> {
         if input.peek(Brace) {
@@ -342,11 +320,13 @@ impl Parse for AttrName {
         let mut saw_word = false;
         loop {
             let lookahead = input.lookahead1();
-            if lookahead.peek(Ident) {
+            // Any identifier, including Rust keywords (`type`, `for`, `async`) and
+            // `true`/`false`, which are all identifiers at the token level
+            if lookahead.peek(Ident::peek_any) {
                 if saw_word {
                     break;
                 }
-                let ident: Ident = input.parse()?;
+                let ident = input.call(Ident::parse_any)?;
                 name.push_str(&ident.to_string());
                 saw_word = true;
             } else if lookahead.peek(Token![-]) {
@@ -374,71 +354,7 @@ impl Parse for AttrName {
                 let token: LitInt = input.parse()?;
                 name.push_str(&token.to_string());
                 saw_word = true;
-            // true and false literals
-            } else if lookahead.peek(LitBool) {
-                let token: LitBool = input.parse()?;
-                name.push_str(&token.value.to_string());
-                saw_word = true;
-            // rest of the keywords
             } else {
-                match_keywords!(input, name, saw_word, [
-                    // Strict Keywords
-                    as,
-                    break,
-                    const,
-                    continue,
-                    crate,
-                    else,
-                    enum,
-                    extern,
-                    fn,
-                    for,
-                    if,
-                    impl,
-                    in,
-                    let,
-                    loop,
-                    match,
-                    mod,
-                    move,
-                    mut,
-                    pub,
-                    ref,
-                    return,
-                    self,
-                    Self,
-                    static,
-                    struct,
-                    super,
-                    trait,
-                    type,
-                    unsafe,
-                    use,
-                    where,
-                    while,
-                    // Strict Keywords 2018 Edition
-                    async,
-                    await,
-                    dyn,
-                    // Reserved Keywords
-                    abstract,
-                    become,
-                    box,
-                    do,
-                    final,
-                    macro,
-                    override,
-                    priv,
-                    typeof,
-                    unsized,
-                    virtual,
-                    yield,
-                    // Reserved Keywords 2018 Edition
-                    try,
-                    // Weak Keywords
-                    union
-                ]);
-
                 break;
             }
         }
