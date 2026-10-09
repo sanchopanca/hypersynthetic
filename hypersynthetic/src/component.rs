@@ -28,28 +28,9 @@ pub trait Props {
     fn builder() -> Self::Builder;
 }
 
-/// Same as [Props]; implemented for every [Props] type.
-pub trait PropsOrNoPropsBuilder {
-    /// The props builder.
-    type Builder;
-
-    /// A builder with no props set.
-    fn builder_or_not() -> Self::Builder;
-}
-
-impl<P: Props> PropsOrNoPropsBuilder for P {
-    type Builder = P::Builder;
-
-    fn builder_or_not() -> Self::Builder {
-        P::builder()
-    }
-}
-
 /// The props builder of a component, found through the component function's type.
-pub fn component_props_builder<P: PropsOrNoPropsBuilder>(
-    _f: &impl Component<P>,
-) -> <P as PropsOrNoPropsBuilder>::Builder {
-    <P as PropsOrNoPropsBuilder>::builder_or_not()
+pub fn component_props_builder<P: Props>(_f: &impl Component<P>) -> P::Builder {
+    P::builder()
 }
 
 /// Calls a component with its props.
