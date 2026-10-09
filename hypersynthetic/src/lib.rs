@@ -522,9 +522,12 @@ pub struct ElementData {
     pub self_closing: bool,
 }
 
+/// An HTML attribute. The value is stored as is, not HTML-escaped: it's escaped when
+/// the element is rendered.
 #[derive(Clone, Debug)]
 pub struct Attribute {
     pub name: String,
+    /// `None` for an attribute without a value, like `disabled`.
     pub value: Option<String>,
 }
 
@@ -621,7 +624,8 @@ impl ElementData {
         self.attributes.iter().any(|attr| attr.name == name)
     }
 
-    /// Sets the attribute's value, adding the attribute if it doesn't exist.
+    /// Sets the attribute's value, adding the attribute if it doesn't exist. The value
+    /// is escaped when rendered, so pass it unescaped.
     /// Like the DOM's `setAttribute`, an existing attribute keeps its position.
     /// Duplicates of it are removed, since browsers only use the first one.
     pub fn set_attribute(&mut self, name: String, value: String) {
@@ -651,6 +655,8 @@ impl ElementData {
         self.attributes.retain(|attr| attr.name != name);
     }
 
+    /// The attribute's value, unescaped. An attribute without a value (`disabled`)
+    /// gives an empty string.
     pub fn get_attribute(&self, name: &str) -> Option<String> {
         self.attributes
             .iter()
@@ -667,7 +673,7 @@ impl ElementData {
             .iter()
             .filter(|attr| is_valid_attribute_name(&attr.name))
             .map(|attr| match &attr.value {
-                Some(value) => format!(" {}=\"{}\"", attr.name, value),
+                Some(value) => format!(" {}=\"{}\"", attr.name, escape_attribute(value)),
                 None => format!(" {}", attr.name),
             })
             .collect();

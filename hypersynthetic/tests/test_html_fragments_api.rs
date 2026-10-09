@@ -165,3 +165,47 @@ fn test_set_attribute_removes_duplicates() {
 
     assert_eq!(link.to_string(), r#"<a href="/3" title="t"></a>"#);
 }
+
+#[test]
+fn test_get_attribute_returns_the_raw_value() {
+    let title = "<b>";
+    let link = html! {
+        <a title="Tom & Jerry" data-tag={title} data-quote="say \"hi\""></a>
+    };
+    let element = link.iter_elements().next().unwrap();
+
+    assert_eq!(
+        element.get_attribute("title"),
+        Some("Tom & Jerry".to_owned())
+    );
+    assert_eq!(element.get_attribute("data-tag"), Some("<b>".to_owned()));
+    assert_eq!(
+        element.get_attribute("data-quote"),
+        Some("say \"hi\"".to_owned())
+    );
+}
+
+#[test]
+fn test_set_attribute_value_is_escaped_when_rendered() {
+    let mut link = html! { <a></a> };
+    let element = link.iter_elements_mut().next().unwrap();
+
+    element.set_attribute("title".to_owned(), "\"quoted\" & <b>".to_owned());
+
+    assert_eq!(
+        link.to_string(),
+        r#"<a title="&quot;quoted&quot; &amp; &lt;b&gt;"></a>"#
+    );
+}
+
+#[test]
+fn test_get_then_set_attribute_does_not_change_the_output() {
+    let mut link = html! { <a title="Tom & Jerry"></a> };
+    let before = link.to_string();
+
+    let element = link.iter_elements_mut().next().unwrap();
+    let title = element.get_attribute("title").unwrap();
+    element.set_attribute("title".to_owned(), title);
+
+    assert_eq!(link.to_string(), before);
+}

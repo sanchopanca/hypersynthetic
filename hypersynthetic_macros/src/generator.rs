@@ -204,16 +204,13 @@ fn generate_attribute(attr: RegularAttribute) -> TokenStream2 {
         AttrName::Expression(expr) => quote! { format!("{}", #expr) },
     };
 
+    // Values are stored unescaped and escaped when rendering
     let attr_value = match &attr.value {
-        Some(AttrValue::Literal(value)) => {
-            quote! { Some(::hypersynthetic::escape_attribute(#value).to_string()) }
-        }
-        Some(AttrValue::Expression(expr)) => {
-            quote! { Some(::hypersynthetic::escape_attribute(format!("{}", #expr)).to_string()) }
-        }
+        Some(AttrValue::Literal(value)) => quote! { Some(#value.to_owned()) },
+        Some(AttrValue::Expression(expr)) => quote! { Some(format!("{}", #expr)) },
         Some(AttrValue::Interpolated(string)) => {
             let value = generate_format(string);
-            quote! { Some(::hypersynthetic::escape_attribute(#value).to_string()) }
+            quote! { Some(#value) }
         }
         None => quote! { None },
     };
