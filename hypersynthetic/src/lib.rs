@@ -65,6 +65,9 @@ pub use typed_builder_macro;
 
 pub mod component;
 
+#[doc(hidden)]
+pub mod __private;
+
 /// The component macro provides a way to define reusable and self-contained web components.
 /// A component is a function that returns a [HtmlFragment]. The easiest way to create one is
 /// [html] macro.
@@ -189,9 +192,8 @@ pub mod component;
 /// ```
 ///
 /// In the `OrangeDiv` component, `inner_block` represents the slot content
-/// that will be injected into the `<div>` element.
-/// The double curly braces `{{ }}` are used to disable HTML escaping,
-/// which is the desired behavior in most cases to ensure the HTML content is rendered correctly.
+/// that will be injected into the `<div>` element. A fragment is inserted as HTML,
+/// so `{inner_block}` works the same as `{{ inner_block }}`.
 ///
 /// ## The `children` prop
 ///
@@ -253,7 +255,18 @@ pub use hypersynthetic_macros::component;
 /// will be substituted with the result of .to_string() call, applying html escaping.
 /// To avoid escaping, wrap the expression in double curly braces: `{{expression}}` (not available in string literals,
 /// see an example below).
-/// Here are the places where it can be used:
+///
+/// An [HtmlFragment] is inserted as HTML in both cases, so templates can be composed:
+/// ```
+/// # use hypersynthetic::html;
+/// let item = html! { <b>"bold"</b> };
+/// let list = html! {
+///     <p>{item}</p>
+/// };
+/// assert_eq!(list.to_string(), "<p><b>bold</b></p>");
+/// ```
+///
+/// Here are the places where an expression can be used:
 /// 1. As a child of an element.
 /// ```
 /// # use hypersynthetic::html;
