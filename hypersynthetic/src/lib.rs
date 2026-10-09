@@ -229,6 +229,18 @@ pub use hypersynthetic_macros::component;
 /// assert_eq!(div.to_string(), "<div>Hello World</div>");
 /// ```
 ///
+/// In string literals, both in text and in attribute values, the braces can contain
+/// any expression, optionally followed by a [`format!`] spec:
+/// ```
+/// # use hypersynthetic::html;
+/// struct Item { name: &'static str, price: f64 }
+/// let item = Item { name: "Tea", price: 2.5 };
+/// let p = html! {
+///     <p data-price="{item.price:.2}">"{item.name}: {item.price:.2}"</p>
+/// };
+/// assert_eq!(p.to_string(), r#"<p data-price="2.50">Tea: 2.50</p>"#);
+/// ```
+///
 /// ## Disabling escaping
 /// To disable escaping, use double curly braces: `{{expression}}`.
 /// ```

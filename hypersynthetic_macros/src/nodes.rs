@@ -1,6 +1,6 @@
-use syn::{Expr, Ident, LitStr, Path};
+use syn::{Expr, Ident, Path};
 
-use crate::attributes::{Attribute, ForExpr, RegularAttribute};
+use crate::attributes::{Attribute, ForExpr, InterpolatedString, RegularAttribute};
 
 #[derive(Clone)]
 pub enum NodeCollection {
@@ -13,7 +13,7 @@ pub enum Node {
     DocType,
     Element(Tag),
     Expression(Expr),
-    Text(LitStr),
+    Text(InterpolatedString),
     UnescapedExpression(Expr),
 }
 

@@ -1,0 +1,11 @@
+error[E0425]: cannot find value `missing` in this scope
+ --> tests/compile_fail/interpolation_errors.rs:4:32
+  |
+4 |     let _ = html! { <p title="{missing}"></p> };
+  |                                ^^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `absent` in this scope
+ --> tests/compile_fail/interpolation_errors.rs:5:24
+  |
+5 |     let _ = html! { <p>"{absent.len()}"</p> };
+  |                        ^^^^^^^^^^^^^^^^ not found in this scope

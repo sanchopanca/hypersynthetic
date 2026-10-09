@@ -1,8 +1,9 @@
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::quote;
+use syn::LitStr;
 
 use crate::{
-    attributes::{AttrName, AttrValue, InterpolatedSegment, RegularAttribute},
+    attributes::{AttrName, AttrValue, InterpolatedSegment, InterpolatedString, RegularAttribute},
     nodes::{Node, NodeCollection},
 };
 
@@ -94,8 +95,9 @@ fn generate_node(tag: Node) -> TokenStream2 {
             }
         }
         Node::Text(text) => {
+            let text = generate_format(&text);
             quote! {
-                vec![::hypersynthetic::Node::Text(::hypersynthetic::escape_text(format!(#text)).to_string())]
+                vec![::hypersynthetic::Node::Text(::hypersynthetic::escape_text(#text).to_string())]
             }
         }
         Node::Expression(expr) => {
@@ -136,18 +138,7 @@ fn generate_node(tag: Node) -> TokenStream2 {
                     let attr_value = match &attr.value {
                         Some(AttrValue::Literal(value)) => quote! { #value },
                         Some(AttrValue::Expression(expr)) => quote! { #expr },
-                        Some(AttrValue::Interpolated(segments)) => {
-                            // For interpolated values, we need to generate the interpolation
-                            let interpolated: Vec<TokenStream2> = segments
-                                .iter()
-                                .map(|segment| match segment {
-                                    InterpolatedSegment::Str(s) => quote! { #s },
-                                    InterpolatedSegment::Expr(e) => quote! { format!("{}", #e) },
-                                })
-                                .collect();
-                            let format_pattern = generate_format_string_pattern(interpolated.len());
-                            quote! { format!(#format_pattern, #(#interpolated),*) }
-                        }
+                        Some(AttrValue::Interpolated(string)) => generate_format(string),
                         None => quote! {},
                     };
 
@@ -231,7 +222,10 @@ fn generate_attribute(attr: RegularAttribute) -> TokenStream2 {
         Some(AttrValue::Expression(expr)) => {
             quote! { Some(::hypersynthetic::escape_attribute(format!("{}", #expr)).to_string()) }
         }
-        Some(AttrValue::Interpolated(segments)) => interpolate_attr_value(segments),
+        Some(AttrValue::Interpolated(string)) => {
+            let value = generate_format(string);
+            quote! { Some(::hypersynthetic::escape_attribute(#value).to_string()) }
+        }
         None => quote! { None },
     };
 
@@ -243,22 +237,33 @@ fn generate_attribute(attr: RegularAttribute) -> TokenStream2 {
     }
 }
 
-fn interpolate_attr_value(segments: &[InterpolatedSegment]) -> TokenStream2 {
-    let interpolated: Vec<TokenStream2> = segments
-        .iter()
-        .map(|segment| match segment {
-            InterpolatedSegment::Str(s) => quote! { #s },
-            InterpolatedSegment::Expr(e) => quote! { format!("{}", #e) },
-            // InterpolatedSegment::Expr(e) => quote! { #e },
-        })
-        .collect();
-    let format_pattern = generate_format_string_pattern(interpolated.len());
-    let format_call = quote! { format!(#format_pattern, #(#interpolated),*) };
-    quote! { Some(::hypersynthetic::escape_attribute(#format_call).to_string()) }
-}
+/// A `format!` call that produces the string's value.
+fn generate_format(string: &InterpolatedString) -> TokenStream2 {
+    // Passing the literal unchanged lets rustc point errors at the exact
+    // `{name}` inside it, which it can't do for a string we build.
+    if string.is_format_string {
+        let lit = &string.lit;
+        return quote! { format!(#lit) };
+    }
 
-fn generate_format_string_pattern(count: usize) -> TokenStream2 {
-    let patterns: Vec<TokenStream2> = (0..count).map(|_| quote! {"{}"}).collect();
-    let pattern_string = quote! { concat!(#(#patterns),*) };
-    pattern_string
+    let mut format_string = String::new();
+    let mut args = Vec::new();
+    for segment in &string.segments {
+        match segment {
+            InterpolatedSegment::Str(text) => {
+                format_string.push_str(&text.replace('{', "{{").replace('}', "}}"));
+            }
+            InterpolatedSegment::Expr { expr, spec } => {
+                format_string.push('{');
+                if let Some(spec) = spec {
+                    format_string.push(':');
+                    format_string.push_str(spec);
+                }
+                format_string.push('}');
+                args.push(expr);
+            }
+        }
+    }
+    let format_string = LitStr::new(&format_string, string.lit.span());
+    quote! { format!(#format_string, #(#args),*) }
 }

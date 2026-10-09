@@ -24,13 +24,23 @@ pub enum AttrName {
 pub enum AttrValue {
     Literal(LitStr),
     Expression(Expr),
-    Interpolated(Vec<InterpolatedSegment>),
+    Interpolated(InterpolatedString),
+}
+
+/// A string literal containing `{expression}` or `{expression:spec}`.
+#[derive(Clone)]
+pub struct InterpolatedString {
+    pub lit: LitStr,
+    pub segments: Vec<InterpolatedSegment>,
+    /// Every interpolation is a plain identifier, so `lit` is itself a valid
+    /// `format!` string.
+    pub is_format_string: bool,
 }
 
 #[derive(Clone)]
 pub enum InterpolatedSegment {
-    Str(LitStr),
-    Expr(Expr),
+    Str(String),
+    Expr { expr: Expr, spec: Option<String> },
 }
 
 #[derive(Clone)]

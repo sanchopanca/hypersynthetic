@@ -1,3 +1,4 @@
+use proc_macro2::{Group, Span, TokenStream as TokenStream2, TokenTree};
 use syn::{
     Expr, Ident, LitBool, LitStr, Pat, Path, Result, Token, braced,
     parse::{Parse, ParseStream},
@@ -5,7 +6,10 @@ use syn::{
 };
 
 use crate::{
-    attributes::{AttrName, AttrValue, Attribute, ForExpr, InterpolatedSegment, RegularAttribute},
+    attributes::{
+        AttrName, AttrValue, Attribute, ForExpr, InterpolatedSegment, InterpolatedString,
+        RegularAttribute,
+    },
     nodes::{Component, Node, NodeCollection, Tag},
     utils::{extract_ident_from_path, is_path_pascal_case, path_to_string},
 };
@@ -122,8 +126,7 @@ impl Parse for Node {
                 Ok(Node::Text(input.parse()?))
             }
         } else if input.peek(LitStr) {
-            let content: LitStr = input.parse()?;
-            Ok(Node::Text(content))
+            Ok(Node::Text(input.parse()?))
         } else if input.peek(Brace) {
             let content_brackets;
             braced!(content_brackets in input);
@@ -352,12 +355,12 @@ impl Parse for AttrValue {
             let content_expr: Expr = content_brackets.parse()?;
             Ok(AttrValue::Expression(content_expr))
         } else {
-            let lit_str: LitStr = input.parse()?;
-            let segments = parse_interpolated_string(&lit_str)?;
-            match segments.as_slice() {
-                [] => Ok(AttrValue::Literal(LitStr::new("", lit_str.span()))),
-                [InterpolatedSegment::Str(text)] => Ok(AttrValue::Literal(text.clone())),
-                _ => Ok(AttrValue::Interpolated(segments)),
+            let string: InterpolatedString = input.parse()?;
+            let span = string.lit.span();
+            match string.segments.as_slice() {
+                [] => Ok(AttrValue::Literal(LitStr::new("", span))),
+                [InterpolatedSegment::Str(text)] => Ok(AttrValue::Literal(LitStr::new(text, span))),
+                _ => Ok(AttrValue::Interpolated(string)),
             }
         }
     }
@@ -382,55 +385,155 @@ impl Parse for NodeCollection {
     }
 }
 
-/// Splits an attribute value into literal text and `{expression}`s.
-/// `{{` and `}}` are literal braces, as in text nodes and `format!` strings.
-fn parse_interpolated_string(lit: &LitStr) -> Result<Vec<InterpolatedSegment>> {
-    let value = lit.value();
-    let error = |message: String| syn::Error::new(lit.span(), message);
+/// Splits a string literal into text and `{expression}`/`{expression:spec}` parts.
+/// `{{` and `}}` are literal braces, as in `format!` strings.
+impl Parse for InterpolatedString {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let lit: LitStr = input.parse()?;
+        let value = lit.value();
+        let error = |message: String| syn::Error::new(lit.span(), message);
 
-    let mut segments = Vec::new();
-    let mut text = String::new();
-    let mut chars = value.chars().peekable();
-    while let Some(c) = chars.next() {
-        match c {
-            '{' if chars.next_if_eq(&'{').is_some() => text.push('{'),
-            '}' if chars.next_if_eq(&'}').is_some() => text.push('}'),
-            '{' => {
-                let mut expr_str = String::new();
-                loop {
-                    match chars.next() {
-                        Some('}') => break,
-                        Some(c) => expr_str.push(c),
-                        None => {
-                            return Err(error(
-                                "unmatched `{` in attribute value; use `{{` for a literal brace"
-                                    .to_owned(),
-                            ));
+        let mut segments = Vec::new();
+        let mut is_format_string = true;
+        let mut text = String::new();
+        let mut chars = value.chars().peekable();
+        while let Some(c) = chars.next() {
+            match c {
+                '{' if chars.next_if_eq(&'{').is_some() => text.push('{'),
+                '}' if chars.next_if_eq(&'}').is_some() => text.push('}'),
+                '{' => {
+                    let mut content = String::new();
+                    loop {
+                        match chars.next() {
+                            Some('}') => break,
+                            Some(c) => content.push(c),
+                            None => {
+                                return Err(error(
+                                    "unmatched `{`; use `{{` for a literal brace".to_owned(),
+                                ));
+                            }
                         }
                     }
+                    let (expr, spec) =
+                        parse_interpolation(&content, lit.span()).ok_or_else(|| {
+                            error(format!(
+                                "invalid expression `{{{content}}}`; \
+                             use `{{{{` and `}}}}` for literal braces"
+                            ))
+                        })?;
+                    let expr_text = match &spec {
+                        Some(spec) => &content[..content.len() - spec.len() - 1],
+                        None => &content,
+                    };
+                    is_format_string &= is_identifier(&expr, expr_text);
+                    if !text.is_empty() {
+                        segments.push(InterpolatedSegment::Str(std::mem::take(&mut text)));
+                    }
+                    segments.push(InterpolatedSegment::Expr { expr, spec });
                 }
-                let expr: Expr = syn::parse_str(&expr_str).map_err(|_| {
-                    error(format!(
-                        "invalid expression `{{{expr_str}}}` in attribute value; \
-                         use `{{{{` and `}}}}` for literal braces"
-                    ))
-                })?;
-                if !text.is_empty() {
-                    let text = std::mem::take(&mut text);
-                    segments.push(InterpolatedSegment::Str(LitStr::new(&text, lit.span())));
+                '}' => {
+                    return Err(error(
+                        "unmatched `}`; use `}}` for a literal brace".to_owned(),
+                    ));
                 }
-                segments.push(InterpolatedSegment::Expr(expr));
+                c => text.push(c),
             }
-            '}' => {
-                return Err(error(
-                    "unmatched `}` in attribute value; use `}}` for a literal brace".to_owned(),
-                ));
-            }
-            c => text.push(c),
         }
+        if !text.is_empty() {
+            segments.push(InterpolatedSegment::Str(text));
+        }
+        Ok(InterpolatedString {
+            lit,
+            segments,
+            is_format_string,
+        })
     }
-    if !text.is_empty() {
-        segments.push(InterpolatedSegment::Str(LitStr::new(&text, lit.span())));
+}
+
+/// Parses `expression` or `expression:spec`. The spec starts after the last
+/// `:` that isn't part of a `::` path separator.
+fn parse_interpolation(content: &str, span: Span) -> Option<(Expr, Option<String>)> {
+    if let Ok(expr) = parse_expr_with_span(content, span) {
+        return Some((expr, None));
     }
-    Ok(segments)
+    let bytes = content.as_bytes();
+    let colon = (0..bytes.len()).rev().find(|&i| {
+        bytes[i] == b':' && bytes.get(i + 1) != Some(&b':') && (i == 0 || bytes[i - 1] != b':')
+    })?;
+    let spec = &content[colon + 1..];
+    if !is_format_spec(spec) {
+        return None;
+    }
+    let expr = parse_expr_with_span(&content[..colon], span).ok()?;
+    Some((expr, Some(spec.to_owned())))
+}
+
+/// Checks the `std::fmt` grammar, so that text after a `:` that isn't a spec
+/// (`{ open: false }`) isn't mistaken for one:
+/// `[[fill]align][sign]['#']['0'][width]['.' precision][type]`
+fn is_format_spec(spec: &str) -> bool {
+    fn is_align(c: char) -> bool {
+        matches!(c, '<' | '^' | '>')
+    }
+    fn is_word(c: char) -> bool {
+        c.is_alphanumeric() || c == '_'
+    }
+    // count := integer | (integer | identifier) '$'
+    fn strip_count(s: &str) -> &str {
+        let word = s.find(|c| !is_word(c)).unwrap_or(s.len());
+        if word > 0 && s[word..].starts_with('$') {
+            return &s[word + 1..];
+        }
+        s.trim_start_matches(|c: char| c.is_ascii_digit())
+    }
+
+    let mut s = spec;
+    let mut chars = s.chars();
+    match (chars.next(), chars.next()) {
+        (Some(fill), Some(align)) if is_align(align) => s = &s[fill.len_utf8() + 1..],
+        (Some(align), _) if is_align(align) => s = &s[1..],
+        _ => {}
+    }
+    s = s.strip_prefix(['+', '-']).unwrap_or(s);
+    s = s.strip_prefix('#').unwrap_or(s);
+    s = s.strip_prefix('0').unwrap_or(s);
+    s = strip_count(s);
+    if let Some(precision) = s.strip_prefix('.') {
+        s = precision
+            .strip_prefix('*')
+            .unwrap_or_else(|| strip_count(precision));
+    }
+    // type: empty, `?`, `x?`, `X?`, or a trait name like `x` or `e`
+    let ty = s.strip_suffix('?').unwrap_or(s);
+    ty.is_empty() || (ty.chars().all(is_word) && !ty.starts_with(|c: char| c.is_ascii_digit()))
+}
+
+/// Tokens parsed from a string get `Span::call_site()`, so errors in them would
+/// point at the whole macro. Give them the span of the literal they came from.
+fn parse_expr_with_span(code: &str, span: Span) -> Result<Expr> {
+    fn respan(tokens: TokenStream2, span: Span) -> TokenStream2 {
+        tokens
+            .into_iter()
+            .map(|token| match token {
+                TokenTree::Group(group) => {
+                    let mut new = Group::new(group.delimiter(), respan(group.stream(), span));
+                    new.set_span(span);
+                    TokenTree::Group(new)
+                }
+                mut other => {
+                    other.set_span(span);
+                    other
+                }
+            })
+            .collect()
+    }
+    let tokens: TokenStream2 = syn::parse_str(code)?;
+    syn::parse2(respan(tokens, span))
+}
+
+/// Whether `format!` would accept `text` as an inline argument: a plain
+/// identifier, written without whitespace.
+fn is_identifier(expr: &Expr, text: &str) -> bool {
+    matches!(expr, Expr::Path(path) if path.qself.is_none() && path.path.get_ident().is_some())
+        && text.chars().all(|c| c.is_alphanumeric() || c == '_')
 }
