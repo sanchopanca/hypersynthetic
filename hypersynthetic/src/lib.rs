@@ -207,7 +207,18 @@ pub use hypersynthetic_macros::component;
 /// };
 /// assert_eq!(div.to_string(), r#"<button hx-get="/resources">Get 'em</button>"#);
 /// ```
-///  
+///
+/// Attribute names aren't escaped. Instead, an attribute whose name isn't valid HTML
+/// (empty, or containing whitespace, control characters or any of `"'<>/=`) is not rendered.
+/// ```
+/// # use hypersynthetic::html;
+/// let name = "x onclick=alert(1)";
+/// let div = html! {
+///     <div {name}="v" class="c"></div>
+/// };
+/// assert_eq!(div.to_string(), r#"<div class="c"></div>"#);
+/// ```
+///
 /// 4. In a string literal.
 /// ```
 /// # use hypersynthetic::html;
@@ -464,9 +475,13 @@ impl ElementData {
     }
 
     fn to_html(&self) -> String {
+        // Names can come from user data (`<div {name}="v">`). A name that isn't
+        // valid HTML could close the tag or start a new attribute, and can't be
+        // rendered safely, so it is skipped.
         let attributes_string: String = self
             .attributes
             .iter()
+            .filter(|attr| is_valid_attribute_name(&attr.name))
             .map(|attr| match &attr.value {
                 Some(value) => format!(" {}=\"{}\"", attr.name, value),
                 None => format!(" {}", attr.name),
@@ -488,6 +503,22 @@ impl ElementData {
             )
         }
     }
+}
+
+/// Attribute names are one or more characters other than controls, space,
+/// `"`, `'`, `>`, `/`, `=` and noncharacters. `<` is also rejected: the parser
+/// tolerates it, but it is a parse error and never intended.
+/// See <https://html.spec.whatwg.org/multipage/syntax.html#attributes-2>.
+fn is_valid_attribute_name(name: &str) -> bool {
+    let is_noncharacter =
+        |c: char| matches!(c, '\u{FDD0}'..='\u{FDEF}') || (c as u32 & 0xFFFE) == 0xFFFE;
+
+    !name.is_empty()
+        && !name.chars().any(|c| {
+            c.is_control()
+                || matches!(c, ' ' | '"' | '\'' | '>' | '/' | '=' | '<')
+                || is_noncharacter(c)
+        })
 }
 
 /// Elements that can't have children, so they have no end tag.

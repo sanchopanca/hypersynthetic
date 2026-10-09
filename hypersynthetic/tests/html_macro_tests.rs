@@ -275,6 +275,59 @@ fn test_attribute_name_substitution() {
 }
 
 #[test]
+fn test_attribute_name_substitution_with_unusual_valid_names() {
+    let names = ["@click", "x-on:submit.prevent", "data-ünïcode"];
+    let result = html! {
+        <button :for={name in names} {name}="v"></button>
+    };
+
+    let expected = "<button @click=\"v\"></button>\
+                    <button x-on:submit.prevent=\"v\"></button>\
+                    <button data-ünïcode=\"v\"></button>";
+    assert_eq!(result.to_string(), expected);
+}
+
+#[test]
+fn test_attribute_name_substitution_cannot_inject_attributes() {
+    let name = "x onmouseover=alert(1) y";
+    let result = html! {
+        <div {name}="v" class="c"></div>
+    };
+
+    assert_eq!(result.to_string(), "<div class=\"c\"></div>");
+}
+
+#[test]
+fn test_attribute_name_substitution_cannot_break_out_of_tag() {
+    let names = [
+        "x><script>alert(1)</script",
+        "x\"",
+        "x'",
+        "x/",
+        "x=",
+        "x\ty",
+        "x\0",
+        "",
+    ];
+    let result = html! {
+        <div :for={name in names} {name}="v" class="c"></div>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<div class=\"c\"></div>".repeat(names.len())
+    );
+}
+
+#[test]
+fn test_set_attribute_with_invalid_name_is_not_rendered() {
+    let mut element = ElementData::new("div".to_owned());
+    element.set_attribute("x onclick".to_owned(), "alert(1)".to_owned());
+
+    assert_eq!(element.to_string(), "<div></div>");
+}
+
+#[test]
 fn test_several_elements_without_a_parent() {
     let result = html! {
         <head></head>
@@ -367,14 +420,14 @@ fn test_escaping_in_attribute_value_expression() {
 }
 
 #[test]
-fn test_escaping_in_attribute_name() {
+fn test_invalid_attribute_name_is_not_rendered() {
     let result = html! {
         <div { "<script>alert(1)</script>" }="whatever"></div>
     };
 
     let string_representation = result.to_string();
 
-    let expected = "<div &lt;script&gt;alert(1)&lt;/script&gt;=\"whatever\"></div>";
+    let expected = "<div></div>";
     assert_eq!(string_representation, expected);
 }
 

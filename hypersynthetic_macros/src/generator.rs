@@ -221,9 +221,8 @@ fn generate_node(tag: Node) -> TokenStream2 {
 fn generate_attribute(attr: RegularAttribute) -> TokenStream2 {
     let attr_name = match &attr.name {
         AttrName::Literal(name) => quote! { #name.to_owned() },
-        AttrName::Expression(expr) => {
-            quote! { hypersynthetic::escape_attribute(format!("{}", #expr)).to_string() }
-        }
+        // Not escaped: names are validated when rendering instead.
+        AttrName::Expression(expr) => quote! { format!("{}", #expr) },
     };
 
     let attr_value = match &attr.value {
