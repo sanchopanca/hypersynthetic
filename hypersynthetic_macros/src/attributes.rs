@@ -37,6 +37,20 @@ pub struct InterpolatedString {
     pub is_format_string: bool,
 }
 
+impl InterpolatedString {
+    /// The text, if it has no `{expression}` in it. `{{` and `}}` are already
+    /// single braces.
+    pub fn literal(&self) -> Option<String> {
+        self.segments
+            .iter()
+            .map(|segment| match segment {
+                InterpolatedSegment::Str(text) => Some(text.as_str()),
+                InterpolatedSegment::Expr { .. } => None,
+            })
+            .collect()
+    }
+}
+
 #[derive(Clone)]
 pub enum InterpolatedSegment {
     Str(String),

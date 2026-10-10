@@ -580,3 +580,14 @@ fn test_alpine_attribute_names() {
          ></form>"
     );
 }
+
+#[test]
+fn test_literal_text_escaping() {
+    let result = html! {
+        <p>"Tom & Jerry <3 \"double\" 'single' {{braces}} ünïcødé &amp;"</p>
+    };
+    assert_eq!(
+        result.to_string(),
+        "<p>Tom &amp; Jerry &lt;3 \"double\" 'single' {braces} ünïcødé &amp;amp;</p>"
+    );
+}

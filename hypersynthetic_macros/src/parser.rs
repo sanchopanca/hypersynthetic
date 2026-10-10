@@ -245,24 +245,16 @@ fn raw_text_children(tag_name: &str, children: Vec<Node>) -> Result<Vec<Node>> {
     children
         .into_iter()
         .map(|child| match child {
-            Node::Text(text) => {
-                let mut raw = String::new();
-                for segment in text.segments {
-                    match segment {
-                        InterpolatedSegment::Str(part) => raw.push_str(&part),
-                        InterpolatedSegment::Expr { .. } => {
-                            return Err(syn::Error::new(
-                                text.lit.span(),
-                                format!(
-                                    "`<{tag_name}>` content isn't HTML, so `{{...}}` in a string \
-                                     can't escape values for it: close the string and {advice}"
-                                ),
-                            ));
-                        }
-                    }
-                }
-                Ok(Node::RawText(raw))
-            }
+            Node::Text(text) => match text.literal() {
+                Some(raw) => Ok(Node::RawText(raw)),
+                None => Err(syn::Error::new(
+                    text.lit.span(),
+                    format!(
+                        "`<{tag_name}>` content isn't HTML, so `{{...}}` in a string \
+                         can't escape values for it: close the string and {advice}"
+                    ),
+                )),
+            },
             Node::Expression(expr) => Err(syn::Error::new_spanned(
                 expr,
                 format!(
