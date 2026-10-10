@@ -388,6 +388,38 @@ pub use hypersynthetic_macros::component;
 /// assert_eq!(div.to_string(), r#"<div x-data="{ open: false, count: 5 }"></div>"#);
 /// ```
 ///
+/// # `<script>` and `<style>`
+/// The content of these elements is JavaScript and CSS, not HTML: browsers don't decode
+/// `&lt;` or `&amp;` there. So string literals in them are rendered as written, without
+/// escaping (braces are still written `{{` and `}}`):
+/// ```
+/// # use hypersynthetic::html;
+/// let style = html! {
+///     <style>"a > b {{ color: red; }}"</style>
+/// };
+/// assert_eq!(style.to_string(), "<style>a > b { color: red; }</style>");
+/// ```
+///
+/// HTML escaping can't make a value safe inside JavaScript or CSS, so `{expression}`,
+/// and `{expression}` inside a string literal, are compile errors there. Insert values
+/// unescaped with `{{expression}}`, after making sure they can't contain `</script>`
+/// (or `</style>`):
+/// ```
+/// # use hypersynthetic::html;
+/// let count = 5;
+/// let script = html! {
+///     <script>"let count = "{{count}}";"</script>
+/// };
+/// assert_eq!(script.to_string(), "<script>let count = 5;</script>");
+/// ```
+/// ```compile_fail
+/// # use hypersynthetic::html;
+/// let count = 5;
+/// let script = html! {
+///     <script>"let count = {count};"</script> // error: `<script>` content isn't HTML
+/// };
+/// ```
+///
 /// # Conditionals
 /// A special pseudo-attribute `:if` is used to conditionally render an element.
 /// ```

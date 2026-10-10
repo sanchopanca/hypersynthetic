@@ -18,6 +18,8 @@ pub enum Node {
     DocType,
     Element(Tag),
     Expression(Expr),
+    /// Text of a `<script>` or `<style>`, rendered without escaping
+    RawText(String),
     Text(InterpolatedString),
     UnescapedExpression(Expr),
 }

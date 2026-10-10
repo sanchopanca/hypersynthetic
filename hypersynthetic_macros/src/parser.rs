@@ -130,9 +130,13 @@ impl Parse for Node {
                             children,
                         }),
                         TagName::Element(tag_name) => Node::Element(Tag {
+                            children: if is_raw_text_element(&tag_name) {
+                                raw_text_children(&tag_name, children)?
+                            } else {
+                                children
+                            },
                             tag_name,
                             attributes,
-                            children,
                             self_closing: false,
                         }),
                     })
@@ -222,6 +226,52 @@ impl Parse for TagName {
         }
         Ok(TagName::Element(name))
     }
+}
+
+/// Elements whose content is JavaScript or CSS, not HTML: browsers don't decode
+/// entities there, so HTML escaping would change the code.
+/// See <https://html.spec.whatwg.org/multipage/syntax.html#raw-text-elements>.
+fn is_raw_text_element(tag_name: &str) -> bool {
+    matches!(tag_name, "script" | "style")
+}
+
+/// String literals in a raw text element are code, written by the template's author,
+/// so they become raw text. Values would need JavaScript or CSS escaping, which
+/// `{expression}` can't do, so they must be inserted unescaped with `{{expression}}`.
+fn raw_text_children(tag_name: &str, children: Vec<Node>) -> Result<Vec<Node>> {
+    let advice = format!(
+        "insert the value unescaped with `{{{{...}}}}`, and make sure it can't contain `</{tag_name}>`"
+    );
+    children
+        .into_iter()
+        .map(|child| match child {
+            Node::Text(text) => {
+                let mut raw = String::new();
+                for segment in text.segments {
+                    match segment {
+                        InterpolatedSegment::Str(part) => raw.push_str(&part),
+                        InterpolatedSegment::Expr { .. } => {
+                            return Err(syn::Error::new(
+                                text.lit.span(),
+                                format!(
+                                    "`<{tag_name}>` content isn't HTML, so `{{...}}` in a string \
+                                     can't escape values for it: close the string and {advice}"
+                                ),
+                            ));
+                        }
+                    }
+                }
+                Ok(Node::RawText(raw))
+            }
+            Node::Expression(expr) => Err(syn::Error::new_spanned(
+                expr,
+                format!(
+                    "`<{tag_name}>` content isn't HTML, so `{{...}}` can't escape values for it: {advice}"
+                ),
+            )),
+            other => Ok(other),
+        })
+        .collect()
 }
 
 /// Props become builder method calls (`.data_id(…)`), so their names must be

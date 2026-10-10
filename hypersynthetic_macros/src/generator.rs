@@ -60,6 +60,12 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
                 #target.push(::hypersynthetic::Node::Text(::hypersynthetic::escape_text(#text).into_owned()));
             }
         }
+        // Already checked by the parser: literal code, no values
+        Node::RawText(text) => {
+            quote! {
+                #target.push(::hypersynthetic::Node::Text(#text.to_owned()));
+            }
+        }
         // See `hypersynthetic::__private` for how fragments and other values are told apart
         Node::Expression(expr) => render_expression(&expr, true, target),
         Node::UnescapedExpression(expr) => render_expression(&expr, false, target),

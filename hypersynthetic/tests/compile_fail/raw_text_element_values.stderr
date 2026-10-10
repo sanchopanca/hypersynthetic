@@ -1,0 +1,11 @@
+error: `<script>` content isn't HTML, so `{...}` can't escape values for it: insert the value unescaped with `{{...}}`, and make sure it can't contain `</script>`
+ --> tests/compile_fail/raw_text_element_values.rs:6:30
+  |
+6 |     let _ = html! { <script>{count}</script> };
+  |                              ^^^^^
+
+error: `<style>` content isn't HTML, so `{...}` in a string can't escape values for it: close the string and insert the value unescaped with `{{...}}`, and make sure it can't contain `</style>`
+ --> tests/compile_fail/raw_text_element_values.rs:7:28
+  |
+7 |     let _ = html! { <style>"p {{ color: {color}; }}"</style> };
+  |                            ^^^^^^^^^^^^^^^^^^^^^^^^^
