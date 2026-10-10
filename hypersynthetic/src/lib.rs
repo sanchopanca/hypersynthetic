@@ -588,8 +588,10 @@ pub enum Node {
     Element(ElementData),
     /// Text that is written to the output as is. [html!] escapes text before storing it
     /// here; when creating a `Text` node yourself, escape untrusted input with
-    /// [escape_text].
-    Text(String),
+    /// [escape_text]. Like names in [ElementData], it's a [Cow]: text written in a
+    /// template is borrowed, so create one with `Node::Text("…".into())` or
+    /// `Node::Text(string.into())`.
+    Text(Cow<'static, str>),
     /// `<!DOCTYPE html>`.
     DocType,
 }
@@ -993,13 +995,13 @@ mod tests {
     fn it_serializes() {
         let mut body = ElementData::new("body".to_string());
 
-        let text = Node::Text("Hello, Rust!".to_string());
+        let text = Node::Text("Hello, Rust!".into());
         body.add_child(text);
 
         let mut div = ElementData::new("div".to_string());
         div.set_attribute("class".to_string(), "container".to_string());
 
-        let inner_text = Node::Text("This is inside a div.".to_string());
+        let inner_text = Node::Text("This is inside a div.".into());
         div.add_child(inner_text);
 
         body.add_child(Node::Element(div));

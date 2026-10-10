@@ -61,15 +61,26 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
             )
         }
         Node::Text(text) => {
-            let text = generate_format(&text);
+            let text = match text.literal() {
+                // Escaped now, with the same function the runtime uses, so the
+                // escaped text can be borrowed instead of copied on every render
+                Some(literal) => {
+                    let escaped: &str = &htmlize::escape_text(literal);
+                    quote! { ::std::borrow::Cow::Borrowed(#escaped) }
+                }
+                None => {
+                    let text = generate_format(&text);
+                    quote! { ::hypersynthetic::escape_text(#text) }
+                }
+            };
             quote! {
-                #target.push(::hypersynthetic::Node::Text(::hypersynthetic::escape_text(#text).into_owned()));
+                #target.push(::hypersynthetic::Node::Text(#text));
             }
         }
         // Already checked by the parser: literal code, no values
         Node::RawText(text) => {
             quote! {
-                #target.push(::hypersynthetic::Node::Text(#text.to_owned()));
+                #target.push(::hypersynthetic::Node::Text(::std::borrow::Cow::Borrowed(#text)));
             }
         }
         // See `hypersynthetic::__private` for how fragments and other values are told apart

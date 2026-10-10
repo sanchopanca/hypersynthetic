@@ -254,10 +254,10 @@ fn test_len_counts_top_level_nodes() {
 
 #[test]
 fn test_fragment_from_nodes() {
-    let fragment = HtmlFragment::from(vec![Node::Text("a".to_owned())]);
+    let fragment = HtmlFragment::from(vec![Node::Text("a".into())]);
     assert_eq!(fragment.to_string(), "a");
 
-    let collected: HtmlFragment = (1..=3).map(|i| Node::Text(i.to_string())).collect();
+    let collected: HtmlFragment = (1..=3).map(|i| Node::Text(i.to_string().into())).collect();
     assert_eq!(collected.to_string(), "123");
 }
 
@@ -293,7 +293,7 @@ fn test_into_nodes() {
     let nodes = fragment.into_nodes();
 
     assert_eq!(nodes.len(), 2);
-    assert_eq!(nodes[1], Node::Text("b".to_owned()));
+    assert_eq!(nodes[1], Node::Text("b".into()));
 }
 
 #[test]
@@ -304,7 +304,7 @@ fn test_fragment_into_iterator() {
     for node in fragment {
         kinds.push(match node {
             Node::Element(element) => element.tag_name.into_owned(),
-            Node::Text(text) => text,
+            Node::Text(text) => text.into_owned(),
             Node::DocType => "doctype".to_owned(),
         });
     }
@@ -323,8 +323,8 @@ fn test_changing_a_clone_leaves_the_original() {
     let ul = copy.iter_elements_mut().next().unwrap();
     let li = ul.children.iter_elements_mut().next().unwrap();
     li.set_attribute("class".to_owned(), "x".to_owned());
-    ul.add_child(Node::Text("b".to_owned()));
-    copy.push(Node::Text("c".to_owned()));
+    ul.add_child(Node::Text("b".into()));
+    copy.push(Node::Text("c".into()));
 
     assert_eq!(original.to_string(), "<ul><li>a</li></ul>");
     assert_eq!(copy.to_string(), r#"<ul><li class="x">a</li>b</ul>c"#);
@@ -340,7 +340,7 @@ fn test_changing_a_page_leaves_the_inserted_fragment() {
     for p in div.children.iter_elements_mut() {
         p.set_attribute("id".to_owned(), "changed".to_owned());
     }
-    div.add_child(Node::Text("more".to_owned()));
+    div.add_child(Node::Text("more".into()));
 
     assert_eq!(card.to_string(), "<div><p>text</p></div>");
     assert_eq!(
@@ -365,7 +365,7 @@ fn test_element_api_takes_str_and_string() {
     let mut link = ElementData::new("a");
     link.set_attribute("href", "/home");
     link.set_attribute(String::from("data-id"), 7.to_string());
-    link.add_child(Node::Text("Home".to_owned()));
+    link.add_child(Node::Text("Home".into()));
 
     assert_eq!(link.tag_name, "a");
     assert_eq!(link.get_attribute("href"), Some("/home"));

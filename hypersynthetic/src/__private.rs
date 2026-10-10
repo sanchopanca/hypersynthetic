@@ -42,10 +42,11 @@ fn text(value: Option<&dyn Display>, escape: bool, out: &mut Vec<Node>) {
         return;
     };
     let text = value.to_string();
+    // Escaping an owned String gives an owned Cow, which can be 'static
     let text = if escape {
-        escape_text(text).into_owned()
+        escape_text(text)
     } else {
-        text
+        Cow::Owned(text)
     };
     out.push(Node::Text(text));
 }

@@ -78,7 +78,7 @@ fn nested_moved(depth: usize) -> HtmlFragment {
     let mut node = Node::Element({
         let mut span = ElementData::new("span");
         span.add_child(Node::Text(
-            "A leaf with some text that has to reach the top".to_owned(),
+            "A leaf with some text that has to reach the top".into(),
         ));
         span
     });

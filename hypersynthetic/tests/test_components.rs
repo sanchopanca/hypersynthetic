@@ -119,7 +119,7 @@ fn test_mut_parameter() {
 #[component]
 fn Appended(mut content: HtmlFragment, mut suffix: String) -> HtmlFragment {
     suffix.push('!');
-    content.push(hypersynthetic::Node::Text(suffix));
+    content.push(hypersynthetic::Node::Text(suffix.into()));
     html! { <div>{{ content }}</div> }
 }
 
