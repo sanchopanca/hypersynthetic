@@ -577,13 +577,35 @@ use std::sync::Arc;
 
 /// A sequence of HTML nodes, as produced by [html!].
 ///
-/// The nodes are private, so the representation can change. Build fragments with
-/// [HtmlFragment::new], `From<Vec<Node>>` or `collect()`, and read them with
-/// [HtmlFragment::iter] or [HtmlFragment::iter_elements].
+/// Build fragments with [html!], [HtmlFragment::new], `From<Vec<Node>>` or `collect()`,
+/// and read or change them with [HtmlFragment::child_nodes],
+/// [HtmlFragment::child_nodes_mut] or [HtmlFragment::iter_elements].
 ///
 /// Cloning is cheap: the nodes are shared until one of the copies is changed, and only
 /// then copied (copy-on-write). So inserting a fragment into another one with
 /// `{fragment}` doesn't copy everything below it.
+///
+/// # Compared to the DOM
+///
+/// Fragments and elements work like a simplified DOM, with the same names in snake_case
+/// where an operation means the same thing:
+///
+/// | DOM | hypersynthetic |
+/// |---|---|
+/// | `childNodes` | [child_nodes()](HtmlFragment::child_nodes), a slice |
+/// | `firstChild`, `lastChild` | `child_nodes().first()`, `child_nodes().last()` |
+/// | `children` (elements only) | [iter_elements()](HtmlFragment::iter_elements) |
+/// | `append()`, `appendChild()` | [push()](HtmlFragment::push), [add_child()](ElementData::add_child), `extend()` |
+/// | `prepend()`, `insertBefore()` | [child_nodes_mut()](HtmlFragment::child_nodes_mut)`.insert(index, node)` |
+/// | `removeChild()` | `child_nodes_mut().remove(index)` or `.retain(…)` |
+/// | `replaceChildren()` | `*child_nodes_mut() = nodes` |
+/// | `tagName` | [tag_name](ElementData::tag_name) |
+/// | `getAttribute()`, `setAttribute()`, `hasAttribute()`, `removeAttribute()` | [get_attribute()](ElementData::get_attribute), [set_attribute()](ElementData::set_attribute), [has_attribute()](ElementData::has_attribute), [remove_attribute()](ElementData::remove_attribute) |
+/// | `outerHTML`, `innerHTML` | `to_string()`, `element.children.to_string()` |
+/// | `parentNode`, `nextSibling`, `remove()` | none: nodes don't know their parent, so change the tree from the parent |
+///
+/// Note that [ElementData::children] is the DOM's `childNodes` (text included), not its
+/// `children` (elements only).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HtmlFragment(Arc<Vec<Node>>);
 
@@ -616,7 +638,8 @@ pub struct ElementData {
     pub tag_name: Cow<'static, str>,
     /// The attributes, in the order they are rendered.
     pub attributes: Vec<Attribute>,
-    /// The nodes between the opening and the closing tag.
+    /// The nodes between the opening and the closing tag: the DOM's `childNodes`, text
+    /// included, not its `children`, which are only the elements.
     pub children: HtmlFragment,
     /// Written as `<tag />`. Only void elements (`br`, `img`, `input`, ...) are rendered
     /// that way; other elements get a closing tag, since browsers ignore `/>` on them.
@@ -639,15 +662,24 @@ impl HtmlFragment {
         HtmlFragment(Arc::new(nodes))
     }
 
-    /// The nodes, for changing them. If they're shared with a clone, they're copied
-    /// first, so the clone doesn't change.
-    fn nodes_mut(&mut self) -> &mut Vec<Node> {
+    /// The top-level nodes: the DOM's `childNodes`.
+    pub fn child_nodes(&self) -> &[Node] {
+        &self.0
+    }
+
+    /// The top-level nodes, to change them with `Vec`'s methods: `insert` for the DOM's
+    /// `insertBefore()` and `prepend()`, `remove` or `retain` for `removeChild()`, or
+    /// assign a new `Vec` for `replaceChildren()`.
+    ///
+    /// If the nodes are shared with a clone of the fragment, they're copied first, so
+    /// the clone doesn't change.
+    pub fn child_nodes_mut(&mut self) -> &mut Vec<Node> {
         Arc::make_mut(&mut self.0)
     }
 
     /// Appends a node at the end.
     pub fn push(&mut self, node: Node) {
-        self.nodes_mut().push(node);
+        self.child_nodes_mut().push(node);
     }
 
     /// The number of top-level nodes.
@@ -660,10 +692,13 @@ impl HtmlFragment {
         self.0.is_empty()
     }
 
-    /// A copy of the top-level nodes. Use [HtmlFragment::into_nodes] to take them
-    /// without copying when the fragment isn't needed anymore.
+    /// A copy of the top-level nodes.
+    #[deprecated(
+        note = "use `child_nodes()` to read the nodes, `child_nodes().to_vec()` for a copy, \
+                or `into_nodes()` if the fragment isn't needed anymore"
+    )]
     pub fn get_nodes(&self) -> Vec<Node> {
-        self.0.to_vec()
+        self.child_nodes().to_vec()
     }
 
     /// The top-level nodes, taken out of the fragment. They're copied only if the
@@ -679,7 +714,7 @@ impl HtmlFragment {
 
     /// Iterates over the top-level nodes, mutably.
     pub fn iter_mut(&mut self) -> IterMut<'_, Node> {
-        self.nodes_mut().iter_mut()
+        self.child_nodes_mut().iter_mut()
     }
 
     /// Iterates over the top-level elements, skipping text and doctype nodes. It doesn't
@@ -724,7 +759,7 @@ impl FromIterator<HtmlFragment> for HtmlFragment {
 
 impl Extend<Node> for HtmlFragment {
     fn extend<I: IntoIterator<Item = Node>>(&mut self, nodes: I) {
-        self.nodes_mut().extend(nodes);
+        self.child_nodes_mut().extend(nodes);
     }
 }
 
@@ -770,6 +805,18 @@ impl ElementData {
     /// Appends a node to the children.
     pub fn add_child(&mut self, child: Node) {
         self.children.push(child);
+    }
+
+    /// The nodes between the opening and the closing tag: the DOM's `childNodes`. See
+    /// [HtmlFragment::child_nodes].
+    pub fn child_nodes(&self) -> &[Node] {
+        self.children.child_nodes()
+    }
+
+    /// The nodes between the opening and the closing tag, to change them. See
+    /// [HtmlFragment::child_nodes_mut].
+    pub fn child_nodes_mut(&mut self) -> &mut Vec<Node> {
+        self.children.child_nodes_mut()
     }
 
     /// Whether the element has an attribute with this name.

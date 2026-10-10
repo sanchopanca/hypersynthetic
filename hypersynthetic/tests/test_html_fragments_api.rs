@@ -264,7 +264,7 @@ fn test_fragment_from_nodes() {
 #[test]
 fn test_extend_fragment() {
     let mut fragment = html! { <p>"first"</p> };
-    fragment.extend(html! { <p>"second"</p> <p>"third"</p> }.get_nodes());
+    fragment.extend(html! { <p>"second"</p> <p>"third"</p> }.into_nodes());
 
     assert_eq!(
         fragment.to_string(),
@@ -481,4 +481,53 @@ fn test_which_attribute_names_are_rendered() {
             "{name:?} should be skipped"
         );
     }
+}
+
+// `child_nodes()` is the DOM's `childNodes`, as a slice; `child_nodes_mut()` gives the
+// Vec, whose methods cover insertBefore, removeChild, prepend and replaceChildren.
+
+#[test]
+fn test_child_nodes() {
+    let fragment = html! { <p>"a"</p> "b" <hr /> };
+    let nodes = fragment.child_nodes();
+
+    assert_eq!(nodes.len(), 3);
+    assert_eq!(nodes[1], Node::Text("b".into()));
+    assert!(matches!(nodes.first(), Some(Node::Element(p)) if p.tag_name == "p"));
+    assert!(matches!(nodes.last(), Some(Node::Element(hr)) if hr.tag_name == "hr"));
+}
+
+#[test]
+fn test_child_nodes_mut() {
+    let mut list = html! { <li>"b"</li><li>"d"</li><li>"x"</li> };
+    let nodes = list.child_nodes_mut();
+
+    nodes.insert(1, Node::Text("c".into())); // insertBefore
+    nodes.insert(0, Node::Text("a".into())); // prepend
+    nodes.pop(); // removeChild
+    nodes.retain(|node| !matches!(node, Node::Text(text) if text == "c"));
+
+    assert_eq!(list.to_string(), "a<li>b</li><li>d</li>");
+}
+
+#[test]
+fn test_element_child_nodes() {
+    let mut ul = ElementData::new("ul");
+    ul.add_child(Node::Text("old".into()));
+
+    *ul.child_nodes_mut() = vec![Node::Text("new".into())]; // replaceChildren
+
+    assert_eq!(ul.child_nodes(), [Node::Text("new".into())]);
+    assert_eq!(Node::Element(ul).to_string(), "<ul>new</ul>");
+}
+
+#[test]
+fn test_child_nodes_mut_leaves_clones_unchanged() {
+    let original = html! { <p>"a"</p> };
+    let mut copy = original.clone();
+
+    copy.child_nodes_mut().clear();
+
+    assert_eq!(original.to_string(), "<p>a</p>");
+    assert!(copy.is_empty());
 }
