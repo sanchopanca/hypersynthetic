@@ -199,3 +199,28 @@ fn test_boolean_prop_shorthand() {
          <button disabled=\"false\" data-primary=\"true\"></button>"
     );
 }
+
+// What the `impl Trait` error suggests instead (see compile_fail/impl_trait_prop.rs)
+#[component]
+fn Shows<T: std::fmt::Display>(value: T) -> HtmlFragment {
+    html! { <p>{value}</p> }
+}
+
+#[component]
+fn List<T: std::fmt::Display>(items: Vec<T>) -> HtmlFragment {
+    html! { <li :for={item in items}>{item}</li> }
+}
+
+#[test]
+fn test_generic_props() {
+    let result = html! {
+        <Shows value={1} />
+        <Shows value="two" />
+        <List items={vec![3, 4]} />
+        <List items={vec!["five"]} />
+    };
+    assert_eq!(
+        result.to_string(),
+        "<p>1</p><p>two</p><li>3</li><li>4</li><li>five</li>"
+    );
+}

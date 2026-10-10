@@ -10,7 +10,7 @@ use generator::generate_nodes;
 use nodes::NodeCollection;
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{ItemFn, parse_macro_input, visit_mut::VisitMut};
+use syn::{ItemFn, parse_macro_input, visit::Visit, visit_mut::VisitMut};
 use utils::is_pascal_case;
 
 #[proc_macro]
@@ -98,6 +98,17 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
         Ok(names) => names,
         Err(err) => return err.to_compile_error().into(),
     };
+
+    // Props become struct fields, where `impl Trait` isn't allowed
+    if let Some(impl_trait) = params.iter().find_map(|param| find_impl_trait(&param.ty)) {
+        return syn::Error::new_spanned(
+            impl_trait,
+            "component props can't use `impl Trait`, because they are struct fields: \
+             use a generic parameter instead, like `<T: Trait>`",
+        )
+        .to_compile_error()
+        .into();
+    }
 
     // The slot is passed as the `children` prop, so no other prop can have that name
     let children_prop = param_names.iter().find(|name| **name == "children");
@@ -221,6 +232,23 @@ fn prop_name(pat: &syn::Pat) -> syn::Result<&syn::Ident> {
             "component props need a name: use `name: Type` and destructure it in the function body",
         )),
     }
+}
+
+/// The first `impl Trait` in `ty`, at any depth (`impl Display`, `Vec<impl Display>`).
+fn find_impl_trait(ty: &syn::Type) -> Option<&syn::TypeImplTrait> {
+    struct ImplTraitFinder<'ast> {
+        found: Option<&'ast syn::TypeImplTrait>,
+    }
+
+    impl<'ast> Visit<'ast> for ImplTraitFinder<'ast> {
+        fn visit_type_impl_trait(&mut self, impl_trait: &'ast syn::TypeImplTrait) {
+            self.found.get_or_insert(impl_trait);
+        }
+    }
+
+    let mut finder = ImplTraitFinder { found: None };
+    finder.visit_type(ty);
+    finder.found
 }
 
 /// Names the lifetimes elided in the parameters (`&T`, `&mut T`, `'_`), declaring

@@ -1,0 +1,11 @@
+error: component props can't use `impl Trait`, because they are struct fields: use a generic parameter instead, like `<T: Trait>`
+ --> tests/compile_fail/impl_trait_prop.rs:4:17
+  |
+4 | fn Shows(value: impl std::fmt::Display) -> HtmlFragment {
+  |                 ^^^^^^^^^^^^^^^^^^^^^^
+
+error: component props can't use `impl Trait`, because they are struct fields: use a generic parameter instead, like `<T: Trait>`
+ --> tests/compile_fail/impl_trait_prop.rs:9:20
+  |
+9 | fn List(items: Vec<impl std::fmt::Display>) -> HtmlFragment {
+  |                    ^^^^^^^^^^^^^^^^^^^^^^
