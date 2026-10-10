@@ -312,18 +312,29 @@ pub use hypersynthetic_macros::component;
 /// assert_eq!(span.to_string(), r#"<span id="header-42">Breaking news</span>"#);
 /// ```
 ///
-/// An [Option] value leaves the attribute out when it's `None`. That's also how to write
-/// boolean attributes like `disabled`, which are on whenever they're present, even as
-/// `disabled="false"`:
+/// An [Option] value leaves the attribute out when it's `None`:
 /// ```
 /// # use hypersynthetic::html;
 /// let title: Option<&str> = None;
-/// let busy = false;
-/// let button = html! {
-///     <button title={title} disabled={busy.then_some("")}>"Save"</button>
-/// };
-/// assert_eq!(button.to_string(), "<button>Save</button>");
+/// let link = html! { <a href="/" title={title}>"Home"</a> };
+/// assert_eq!(link.to_string(), r#"<a href="/">Home</a>"#);
 /// ```
+///
+/// HTML boolean attributes like `disabled`, `checked` or `hidden` are on whenever
+/// they're present, even as `disabled="false"`. So on them, a [bool] value decides whether
+/// the attribute is there. On other attributes, a `bool` is written as `"true"` or `"false"`,
+/// which is what `aria-expanded` or htmx's `hx-boost` expect:
+/// ```
+/// # use hypersynthetic::html;
+/// let busy = false;
+/// let open = false;
+/// let button = html! {
+///     <button disabled={busy} aria-expanded={open}>"Menu"</button>
+/// };
+/// assert_eq!(button.to_string(), r#"<button aria-expanded="false">Menu</button>"#);
+/// ```
+/// For boolean attributes of custom elements, which hypersynthetic doesn't know about,
+/// use an `Option`: `my-flag={on.then_some("")}`.
 ///
 /// 3. In an attribute name.
 /// ```
@@ -807,6 +818,45 @@ fn is_void_element(tag_name: &str) -> bool {
     VOID_ELEMENTS
         .iter()
         .any(|void| void.eq_ignore_ascii_case(tag_name))
+}
+
+/// Attributes that are on whenever they're present, whatever their value: a `bool`
+/// value decides whether they're rendered.
+/// See <https://html.spec.whatwg.org/multipage/indices.html#attributes-3>.
+pub(crate) fn is_boolean_attribute(name: &str) -> bool {
+    const BOOLEAN_ATTRIBUTES: [&str; 28] = [
+        "allowfullscreen",
+        "async",
+        "autofocus",
+        "autoplay",
+        "checked",
+        "controls",
+        "default",
+        "defer",
+        "disabled",
+        "formnovalidate",
+        "hidden",
+        "inert",
+        "ismap",
+        "itemscope",
+        "loop",
+        "multiple",
+        "muted",
+        "nomodule",
+        "novalidate",
+        "open",
+        "playsinline",
+        "readonly",
+        "required",
+        "reversed",
+        "selected",
+        "shadowrootclonable",
+        "shadowrootdelegatesfocus",
+        "shadowrootserializable",
+    ];
+    BOOLEAN_ATTRIBUTES
+        .iter()
+        .any(|boolean| boolean.eq_ignore_ascii_case(name))
 }
 
 /// Iterator returned by [HtmlFragment::iter_elements].

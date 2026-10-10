@@ -13,13 +13,15 @@
 //!
 //! `Render` holds a reference, so expressions are borrowed like `format!` borrows them.
 //!
-//! An attribute value `attr={expr}` uses the same lookup with `attribute_value()`, which
-//! only [RenderDisplay] and [RenderOption] have: any `Display` value (a fragment too) is
-//! formatted, and an `Option` gives `None` to leave the attribute out.
+//! An attribute value `attr={expr}` uses the same lookup with `attribute_value(name)`,
+//! which gives `None` to leave the attribute out, or `Some` of its value. [RenderBool]
+//! takes `bool` first: on a boolean attribute (`disabled`) it decides whether the
+//! attribute is there. [RenderFragment] has no such method, so any other `Display`
+//! value (a fragment too) is formatted, and an `Option` is left out when `None`.
 
 use std::fmt::Display;
 
-use crate::{HtmlFragment, Node, escape_text};
+use crate::{HtmlFragment, Node, escape_text, is_boolean_attribute};
 
 pub struct Render<'a, T: ?Sized>(pub &'a T);
 
@@ -76,9 +78,35 @@ impl RenderFragment for Render<'_, Option<&HtmlFragment>> {
     }
 }
 
+/// `attr={flag}`: on a boolean attribute, present without a value or left out. On
+/// others, `"true"` or `"false"`, which `aria-expanded` and the like need.
+fn bool_attribute(value: bool, name: &str) -> Option<Option<String>> {
+    if is_boolean_attribute(name) {
+        value.then_some(None)
+    } else {
+        Some(Some(value.to_string()))
+    }
+}
+
+pub trait RenderBool {
+    fn attribute_value(&self, name: &str) -> Option<Option<String>>;
+}
+
+impl RenderBool for Render<'_, bool> {
+    fn attribute_value(&self, name: &str) -> Option<Option<String>> {
+        bool_attribute(*self.0, name)
+    }
+}
+
+impl RenderBool for Render<'_, &bool> {
+    fn attribute_value(&self, name: &str) -> Option<Option<String>> {
+        bool_attribute(**self.0, name)
+    }
+}
+
 pub trait RenderDisplay {
     fn render(&self, escape: bool, out: &mut Vec<Node>);
-    fn attribute_value(&self) -> Option<String>;
+    fn attribute_value(&self, name: &str) -> Option<Option<String>>;
 }
 
 impl<T: Display + ?Sized> RenderDisplay for &Render<'_, T> {
@@ -86,8 +114,8 @@ impl<T: Display + ?Sized> RenderDisplay for &Render<'_, T> {
         text(Some(&self.0), escape, out)
     }
 
-    fn attribute_value(&self) -> Option<String> {
-        Some(self.0.to_string())
+    fn attribute_value(&self, _name: &str) -> Option<Option<String>> {
+        Some(Some(self.0.to_string()))
     }
 }
 
@@ -95,7 +123,7 @@ impl<T: Display + ?Sized> RenderDisplay for &Render<'_, T> {
 // and `Option<T>` would conflict, because std could implement Display for Option.
 pub trait RenderOption {
     fn render(&self, escape: bool, out: &mut Vec<Node>);
-    fn attribute_value(&self) -> Option<String>;
+    fn attribute_value(&self, name: &str) -> Option<Option<String>>;
 }
 
 impl<T: Display> RenderOption for &Render<'_, Option<T>> {
@@ -107,8 +135,8 @@ impl<T: Display> RenderOption for &Render<'_, Option<T>> {
         )
     }
 
-    fn attribute_value(&self) -> Option<String> {
-        self.0.as_ref().map(ToString::to_string)
+    fn attribute_value(&self, _name: &str) -> Option<Option<String>> {
+        self.0.as_ref().map(|value| Some(value.to_string()))
     }
 }
 
@@ -121,7 +149,7 @@ impl<T: Display> RenderOption for &Render<'_, &Option<T>> {
         )
     }
 
-    fn attribute_value(&self) -> Option<String> {
-        self.0.as_ref().map(ToString::to_string)
+    fn attribute_value(&self, _name: &str) -> Option<Option<String>> {
+        self.0.as_ref().map(|value| Some(value.to_string()))
     }
 }

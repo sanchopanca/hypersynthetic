@@ -195,8 +195,8 @@ fn test_boolean_prop_shorthand() {
 
     assert_eq!(
         result.to_string(),
-        "<button disabled=\"true\" data-primary=\"false\"></button>\
-         <button disabled=\"false\" data-primary=\"true\"></button>"
+        "<button disabled data-primary=\"false\"></button>\
+         <button data-primary=\"true\"></button>"
     );
 }
 

@@ -190,22 +190,28 @@ fn generate_attribute(attr: &RegularAttribute, target: &Ident) -> TokenStream2 {
             push(quote! { Some(#value) })
         }
         None => push(quote! { None }),
-        // An `Option` value leaves the attribute out when it's `None`. See
-        // `hypersynthetic::__private` for how options and other values are told apart.
+        // A `None`, or `false` on a boolean attribute like `disabled`, leaves the
+        // attribute out. See `hypersynthetic::__private` for how values are told apart.
         Some(AttrValue::Expression(expr)) => {
+            let name = internal_ident("__hs_name");
             let value = internal_ident("__hs_value");
-            let push = push(quote! { Some(#value) });
             // Errors about the method (e.g. the value isn't Display) are reported at
             // its name, so give it the expression's span
             let attribute_value = Ident::new("attribute_value", expr.span());
             quote! {
                 {
                     #[allow(unused_imports)]
-                    use ::hypersynthetic::__private::{RenderDisplay as _, RenderOption as _};
-                    if let Some(#value) =
-                        (&::hypersynthetic::__private::Render(&(#expr))).#attribute_value()
+                    use ::hypersynthetic::__private::{
+                        RenderBool as _, RenderDisplay as _, RenderOption as _,
+                    };
+                    let #name: ::std::string::String = #attr_name;
+                    if let Some(#value) = (&::hypersynthetic::__private::Render(&(#expr)))
+                        .#attribute_value(&#name)
                     {
-                        #push
+                        #target.push(::hypersynthetic::Attribute {
+                            name: #name,
+                            value: #value,
+                        });
                     }
                 }
             }
