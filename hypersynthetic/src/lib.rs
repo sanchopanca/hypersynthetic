@@ -62,7 +62,6 @@
 #![warn(missing_docs)]
 
 pub use htmlize::{escape_attribute, escape_text};
-pub use typed_builder;
 
 pub mod component;
 
@@ -561,7 +560,6 @@ pub use hypersynthetic_macros::html;
 pub mod prelude {
     pub use crate::HtmlFragment;
     pub use crate::component::{Component, Props};
-    pub use crate::typed_builder;
     pub use crate::{component, html};
 }
 

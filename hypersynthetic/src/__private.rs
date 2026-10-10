@@ -23,6 +23,11 @@ use std::fmt::Display;
 
 use crate::{HtmlFragment, Node, escape_text, is_boolean_attribute};
 
+/// For the `TypedBuilder` derive that `#[component]` generates, since users don't
+/// depend on typed-builder. It's here rather than public so that typed-builder's
+/// version isn't part of hypersynthetic's API.
+pub use typed_builder;
+
 pub struct Render<'a, T: ?Sized>(pub &'a T);
 
 fn fragment(fragment: Option<&HtmlFragment>, out: &mut Vec<Node>) {

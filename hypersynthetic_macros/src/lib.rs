@@ -197,10 +197,10 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
     // Generate the final output - always generate Props struct
     let output = quote! {
         #[doc = #props_doc]
-        #[derive(::hypersynthetic::typed_builder::TypedBuilder)]
+        #[derive(::hypersynthetic::__private::typed_builder::TypedBuilder)]
         // The generated builder code refers to typed_builder, which users don't
         // depend on directly
-        #[builder(crate_module_path = ::hypersynthetic::typed_builder)]
+        #[builder(crate_module_path = ::hypersynthetic::__private::typed_builder)]
         #vis struct #props_name #impl_generics #where_clause {
             #slot_field
             #(#struct_fields,)*
