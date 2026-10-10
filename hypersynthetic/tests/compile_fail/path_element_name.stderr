@@ -1,0 +1,11 @@
+error: `foo::bar` isn't a valid tag name: element names can't be paths, and component names start with an uppercase letter
+ --> tests/compile_fail/path_element_name.rs:4:22
+  |
+4 |     let _ = html! { <foo::bar></foo::bar> };
+  |                      ^^^^^^^^
+
+error: `::div` isn't a valid tag name: element names can't be paths, and component names start with an uppercase letter
+ --> tests/compile_fail/path_element_name.rs:5:22
+  |
+5 |     let _ = html! { <::div></::div> };
+  |                      ^^^^^

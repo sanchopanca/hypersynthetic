@@ -12,7 +12,7 @@ use crate::{
         RegularAttribute,
     },
     nodes::{Component, Node, NodeCollection, Tag, TagName},
-    utils::{extract_ident_from_path, is_path_pascal_case},
+    utils::{is_path_pascal_case, path_to_string},
 };
 
 impl Parse for Node {
@@ -195,7 +195,20 @@ impl Parse for TagName {
             if is_path_pascal_case(&path) {
                 return Ok(TagName::Component(path));
             }
-            extract_ident_from_path(&path).to_string()
+            // Only components can be paths: `<foo::bar>` isn't an element
+            match path.get_ident() {
+                Some(ident) => ident.to_string(),
+                None => {
+                    return Err(syn::Error::new_spanned(
+                        &path,
+                        format!(
+                            "`{}` isn't a valid tag name: element names can't be paths, \
+                             and component names start with an uppercase letter",
+                            path_to_string(&path)
+                        ),
+                    ));
+                }
+            }
         } else {
             input.call(Ident::parse_any)?.to_string()
         };
