@@ -76,3 +76,47 @@ fn test_option_prop() {
 
     assert_eq!(result.to_string(), "<p>Hello, Ann</p><p>Hello</p>");
 }
+
+// In an attribute value, `None` leaves the attribute out and `Some` renders the value.
+
+#[test]
+fn test_option_attribute_values() {
+    let title: Option<&str> = None;
+    let id: Option<u32> = Some(7);
+    let result = html! {
+        <div title={title} id={id} class="c"></div>
+    };
+
+    assert_eq!(result.to_string(), r#"<div id="7" class="c"></div>"#);
+}
+
+#[test]
+fn test_option_for_boolean_attributes() {
+    let render = |disabled: bool| html! { <button disabled={disabled.then_some("")}></button> };
+
+    assert_eq!(render(true).to_string(), r#"<button disabled=""></button>"#);
+    assert_eq!(render(false).to_string(), "<button></button>");
+}
+
+#[test]
+fn test_option_attribute_values_are_borrowed_not_moved() {
+    let title = Some(String::from("t"));
+    let result = html! {
+        <a title={title}></a>
+        <a title={&title}></a>
+    };
+
+    assert_eq!(result.to_string(), r#"<a title="t"></a><a title="t"></a>"#);
+    assert_eq!(title.as_deref(), Some("t"));
+}
+
+#[test]
+fn test_option_value_with_dynamic_attribute_name() {
+    let name = "hx-get";
+    let url: Option<&str> = None;
+    let result = html! {
+        <button {name}={url} {name}={Some("/items")}></button>
+    };
+
+    assert_eq!(result.to_string(), r#"<button hx-get="/items"></button>"#);
+}

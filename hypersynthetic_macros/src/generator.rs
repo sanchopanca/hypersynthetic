@@ -37,13 +37,19 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
             let tag_name = element.tag_name.to_string();
             let self_closing = element.self_closing;
             let children: TokenStream2 = generate_nodes(NodeCollection::Nodes(element.children));
+            let attributes_target = internal_ident("__hs_attributes");
             let attributes: Vec<TokenStream2> = regular_attributes(&element.attributes)
-                .map(generate_attribute)
+                .map(|attr| generate_attribute(attr, &attributes_target))
                 .collect();
+            let attribute_count = attributes.len();
             let push = quote! {
                 #target.push(::hypersynthetic::Node::Element(::hypersynthetic::ElementData {
                     tag_name: #tag_name.to_owned(),
-                    attributes: vec![#(#attributes),*],
+                    attributes: {
+                        let mut #attributes_target = ::std::vec::Vec::with_capacity(#attribute_count);
+                        #(#attributes)*
+                        #attributes_target
+                    },
                     children: #children,
                     self_closing: #self_closing,
                 }));
@@ -160,28 +166,49 @@ fn wrap_in_for_and_if(
     }
 }
 
-fn generate_attribute(attr: &RegularAttribute) -> TokenStream2 {
+/// A statement that adds the attribute to the `target` vector.
+fn generate_attribute(attr: &RegularAttribute, target: &Ident) -> TokenStream2 {
     let attr_name = match &attr.name {
         AttrName::Literal(name) => quote! { #name.to_owned() },
         // Not escaped: names are validated when rendering instead.
         AttrName::Expression(expr) => quote! { format!("{}", #expr) },
     };
-
-    // Values are stored unescaped and escaped when rendering
-    let attr_value = match &attr.value {
-        Some(AttrValue::Literal(value)) => quote! { Some(#value.to_owned()) },
-        Some(AttrValue::Expression(expr)) => quote! { Some(format!("{}", #expr)) },
-        Some(AttrValue::Interpolated(string)) => {
-            let value = generate_format(string);
-            quote! { Some(#value) }
+    let push = |value: TokenStream2| {
+        quote! {
+            #target.push(::hypersynthetic::Attribute {
+                name: #attr_name,
+                value: #value,
+            });
         }
-        None => quote! { None },
     };
 
-    quote! {
-        ::hypersynthetic::Attribute {
-            name: #attr_name,
-            value: #attr_value,
+    // Values are stored unescaped and escaped when rendering
+    match &attr.value {
+        Some(AttrValue::Literal(value)) => push(quote! { Some(#value.to_owned()) }),
+        Some(AttrValue::Interpolated(string)) => {
+            let value = generate_format(string);
+            push(quote! { Some(#value) })
+        }
+        None => push(quote! { None }),
+        // An `Option` value leaves the attribute out when it's `None`. See
+        // `hypersynthetic::__private` for how options and other values are told apart.
+        Some(AttrValue::Expression(expr)) => {
+            let value = internal_ident("__hs_value");
+            let push = push(quote! { Some(#value) });
+            // Errors about the method (e.g. the value isn't Display) are reported at
+            // its name, so give it the expression's span
+            let attribute_value = Ident::new("attribute_value", expr.span());
+            quote! {
+                {
+                    #[allow(unused_imports)]
+                    use ::hypersynthetic::__private::{RenderDisplay as _, RenderOption as _};
+                    if let Some(#value) =
+                        (&::hypersynthetic::__private::Render(&(#expr))).#attribute_value()
+                    {
+                        #push
+                    }
+                }
+            }
         }
     }
 }

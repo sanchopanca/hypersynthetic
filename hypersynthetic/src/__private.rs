@@ -12,6 +12,10 @@
 //! `Option<T: Display>` impl would format a fragment instead of inserting it.
 //!
 //! `Render` holds a reference, so expressions are borrowed like `format!` borrows them.
+//!
+//! An attribute value `attr={expr}` uses the same lookup with `attribute_value()`, which
+//! only [RenderDisplay] and [RenderOption] have: any `Display` value (a fragment too) is
+//! formatted, and an `Option` gives `None` to leave the attribute out.
 
 use std::fmt::Display;
 
@@ -74,11 +78,16 @@ impl RenderFragment for Render<'_, Option<&HtmlFragment>> {
 
 pub trait RenderDisplay {
     fn render(&self, escape: bool, out: &mut Vec<Node>);
+    fn attribute_value(&self) -> Option<String>;
 }
 
 impl<T: Display + ?Sized> RenderDisplay for &Render<'_, T> {
     fn render(&self, escape: bool, out: &mut Vec<Node>) {
         text(Some(&self.0), escape, out)
+    }
+
+    fn attribute_value(&self) -> Option<String> {
+        Some(self.0.to_string())
     }
 }
 
@@ -86,6 +95,7 @@ impl<T: Display + ?Sized> RenderDisplay for &Render<'_, T> {
 // and `Option<T>` would conflict, because std could implement Display for Option.
 pub trait RenderOption {
     fn render(&self, escape: bool, out: &mut Vec<Node>);
+    fn attribute_value(&self) -> Option<String>;
 }
 
 impl<T: Display> RenderOption for &Render<'_, Option<T>> {
@@ -96,6 +106,10 @@ impl<T: Display> RenderOption for &Render<'_, Option<T>> {
             out,
         )
     }
+
+    fn attribute_value(&self) -> Option<String> {
+        self.0.as_ref().map(ToString::to_string)
+    }
 }
 
 impl<T: Display> RenderOption for &Render<'_, &Option<T>> {
@@ -105,5 +119,9 @@ impl<T: Display> RenderOption for &Render<'_, &Option<T>> {
             escape,
             out,
         )
+    }
+
+    fn attribute_value(&self) -> Option<String> {
+        self.0.as_ref().map(ToString::to_string)
     }
 }

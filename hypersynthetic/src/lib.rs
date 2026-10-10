@@ -312,6 +312,19 @@ pub use hypersynthetic_macros::component;
 /// assert_eq!(span.to_string(), r#"<span id="header-42">Breaking news</span>"#);
 /// ```
 ///
+/// An [Option] value leaves the attribute out when it's `None`. That's also how to write
+/// boolean attributes like `disabled`, which are on whenever they're present, even as
+/// `disabled="false"`:
+/// ```
+/// # use hypersynthetic::html;
+/// let title: Option<&str> = None;
+/// let busy = false;
+/// let button = html! {
+///     <button title={title} disabled={busy.then_some("")}>"Save"</button>
+/// };
+/// assert_eq!(button.to_string(), "<button>Save</button>");
+/// ```
+///
 /// 3. In an attribute name.
 /// ```
 /// # use hypersynthetic::html;
