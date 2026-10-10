@@ -20,9 +20,9 @@ mod inner {
     }
 
     #[component]
-    pub fn Div(content: HtmlFragment) -> HtmlFragment {
+    pub fn Div(children: HtmlFragment) -> HtmlFragment {
         html! {
-            <div>{{ content }}</div>
+            <div>{{ children }}</div>
         }
     }
 }
@@ -117,10 +117,10 @@ fn test_mut_parameter() {
 }
 
 #[component]
-fn Appended(mut content: HtmlFragment, mut suffix: String) -> HtmlFragment {
+fn Appended(mut children: HtmlFragment, mut suffix: String) -> HtmlFragment {
     suffix.push('!');
-    content.push(hypersynthetic::Node::Text(suffix.into()));
-    html! { <div>{{ content }}</div> }
+    children.push(hypersynthetic::Node::Text(suffix.into()));
+    html! { <div>{{ children }}</div> }
 }
 
 #[test]

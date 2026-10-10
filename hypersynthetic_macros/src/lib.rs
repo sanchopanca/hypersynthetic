@@ -55,30 +55,10 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
     let props_name = quote::format_ident!("{}Props", fn_name);
     let props_builder_name = quote::format_ident!("{}PropsBuilder", fn_name);
 
-    // The first parameter is the slot if it's an HtmlFragment
-    let slot_param = function.sig.inputs.first().and_then(|arg| match arg {
-        syn::FnArg::Typed(pat_type) => match &*pat_type.ty {
-            syn::Type::Path(type_path)
-                if type_path
-                    .path
-                    .segments
-                    .last()
-                    .is_some_and(|seg| seg.ident == "HtmlFragment") =>
-            {
-                Some(pat_type)
-            }
-            _ => None,
-        },
-        syn::FnArg::Receiver(_) => None,
-    });
-    let has_slot = slot_param.is_some();
-
-    // Extract parameters (skip first if it's a slot)
     let params: Vec<_> = function
         .sig
         .inputs
         .iter()
-        .skip(if has_slot { 1 } else { 0 })
         .filter_map(|arg| {
             if let syn::FnArg::Typed(pat_type) = arg {
                 Some(pat_type)
@@ -110,23 +90,25 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
         .into();
     }
 
-    // The slot is passed as the `children` prop, so no other prop can have that name
-    let children_prop = param_names.iter().find(|name| **name == "children");
-    if let (Some(_), Some(name)) = (slot_param, children_prop) {
-        return syn::Error::new(
-            name.span(),
-            "a component with a slot can't have a prop named `children`, it's reserved for the slot",
-        )
-        .to_compile_error()
-        .into();
+    if let Err(err) = check_children_prop(&params, &param_names) {
+        return err.to_compile_error().into();
     }
 
     // Generate struct fields, with the parameter's `#[builder(...)]` attributes
     // (`default`, `setter(into)`, ...) for the TypedBuilder derive
     let struct_fields = params.iter().zip(&param_names).map(|(param, name)| {
         let ty = &param.ty;
-        let builder_attrs = param.attrs.iter().filter(|attr| is_builder_attr(attr));
+        let builder_attrs: Vec<_> = param
+            .attrs
+            .iter()
+            .filter(|attr| is_builder_attr(attr))
+            .collect();
+        // `children` is optional: without content between the tags, it's an empty
+        // fragment. Unless the parameter configures its builder itself.
+        let default =
+            (is_children(name) && builder_attrs.is_empty()).then(|| quote! { #[builder(default)] });
         quote! {
+            #default
             #(#builder_attrs)*
             #name: #ty
         }
@@ -165,32 +147,12 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
     let generics = &internal_function.sig.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-    // The slot is a Props field named `children`, which html! sets when the
-    // component has children. It defaults to an empty fragment, so a component
-    // with a slot can be used without children. The wrapper binds it to its own
-    // name, because the user's parameter may not be a name at all (`_`).
-    let slot_var = syn::Ident::new("slot", proc_macro2::Span::mixed_site());
-    let (slot_field, slot_binding, slot_arg) = match slot_param {
-        Some(slot_param) => {
-            let slot_ty = &slot_param.ty;
-            (
-                quote! {
-                    #[builder(default)]
-                    children: #slot_ty,
-                },
-                quote! { children: #slot_var, },
-                quote! { #slot_var, },
-            )
-        }
-        None => (quote! {}, quote! {}, quote! {}),
-    };
-
     let wrapper_fn = quote! {
         #(#wrapper_attrs)*
         #[allow(non_snake_case)]
         #vis fn #fn_name #impl_generics(props: #props_name #ty_generics) -> ::hypersynthetic::HtmlFragment #where_clause {
-            let #props_name { #slot_binding #(#param_names),* } = props;
-            #internal_fn_name(#slot_arg #(#param_names),*)
+            let #props_name { #(#param_names),* } = props;
+            #internal_fn_name(#(#param_names),*)
         }
     };
 
@@ -202,7 +164,6 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
         // depend on directly
         #[builder(crate_module_path = ::hypersynthetic::__private::typed_builder)]
         #vis struct #props_name #impl_generics #where_clause {
-            #slot_field
             #(#struct_fields,)*
         }
 
@@ -220,6 +181,44 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     output.into()
+}
+
+/// The content between a component's tags is passed as its `children` prop.
+fn is_children(name: &syn::Ident) -> bool {
+    name == "children"
+}
+
+/// `children` receives the content between the tags, so it must be a fragment.
+/// `_children`, which rustc suggests for an unused parameter, wouldn't receive it.
+fn check_children_prop(params: &[&syn::PatType], names: &[&syn::Ident]) -> syn::Result<()> {
+    for (param, name) in params.iter().zip(names) {
+        if *name == "_children" {
+            return Err(syn::Error::new(
+                name.span(),
+                "the content between the tags goes to the prop named `children`, not `_children`; \
+                 if the component doesn't use it, keep the name and add `#[allow(unused_variables)]`",
+            ));
+        }
+        if is_children(name) && !is_html_fragment(&param.ty) {
+            return Err(syn::Error::new_spanned(
+                &param.ty,
+                "`children` receives the content between the component's tags, \
+                 so it must be an `HtmlFragment`",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn is_html_fragment(ty: &syn::Type) -> bool {
+    match ty {
+        syn::Type::Path(type_path) => type_path
+            .path
+            .segments
+            .last()
+            .is_some_and(|segment| segment.ident == "HtmlFragment"),
+        _ => false,
+    }
 }
 
 /// The name a prop parameter binds. `mut`, `ref` and `name @ pattern` still

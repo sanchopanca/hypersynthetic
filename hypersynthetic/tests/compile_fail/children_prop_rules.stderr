@@ -1,0 +1,11 @@
+error: `children` receives the content between the component's tags, so it must be an `HtmlFragment`
+ --> tests/compile_fail/children_prop_rules.rs:4:19
+  |
+4 | fn List(children: Vec<String>) -> HtmlFragment {
+  |                   ^^^^^^^^^^^
+
+error: the content between the tags goes to the prop named `children`, not `_children`; if the component doesn't use it, keep the name and add `#[allow(unused_variables)]`
+ --> tests/compile_fail/children_prop_rules.rs:9:12
+  |
+9 | fn Ignores(_children: HtmlFragment) -> HtmlFragment {
+  |            ^^^^^^^^^

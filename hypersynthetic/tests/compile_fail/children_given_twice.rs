@@ -1,8 +1,8 @@
 use hypersynthetic::prelude::*;
 
 #[component]
-fn Wrapper(content: HtmlFragment) -> HtmlFragment {
-    html! { <div>{{ content }}</div> }
+fn Wrapper(children: HtmlFragment) -> HtmlFragment {
+    html! { <div>{{ children }}</div> }
 }
 
 fn main() {

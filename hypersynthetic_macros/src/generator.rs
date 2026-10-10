@@ -120,9 +120,9 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
                 })
                 .collect();
 
-            // Children go to the slot, a Props field named `children`. Without
-            // children it isn't set and defaults to an empty fragment. A component
-            // without a slot has no such setter, which makes children an error.
+            // Children go to the component's `children` prop. Without children it
+            // isn't set and defaults to an empty fragment. A component without a
+            // `children` parameter has no such setter, which makes children an error.
             let children_call = if component.children.is_empty() {
                 quote! {}
             } else {

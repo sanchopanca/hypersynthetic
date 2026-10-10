@@ -1,5 +1,0 @@
-error: a component with a slot can't have a prop named `children`, it's reserved for the slot
- --> tests/compile_fail/reserved_children_prop.rs:4:33
-  |
-4 | fn Panel(content: HtmlFragment, children: &str) -> HtmlFragment {
-  |                                 ^^^^^^^^

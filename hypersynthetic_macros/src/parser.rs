@@ -78,7 +78,7 @@ impl Parse for Node {
                 let _: Token![/] = input.parse()?;
                 let _: Token![>] = input.parse()?;
 
-                // Self-closing -> no children (slots)
+                // Self-closing -> no children
                 return Ok(match tag_name {
                     TagName::Component(name) => Node::Component(Component {
                         name,

@@ -1,10 +1,10 @@
 use hypersynthetic::prelude::*;
 
 #[component]
-fn OrangeDiv(inner_block: HtmlFragment) -> HtmlFragment {
+fn OrangeDiv(children: HtmlFragment) -> HtmlFragment {
     html! {
         <div class="orange round">
-            {{ inner_block }}
+            {{ children }}
         </div>
     }
 }
@@ -55,10 +55,10 @@ fn test_slots_with_for() {
 }
 
 #[component]
-fn ColorfulDiv(inner_block: HtmlFragment, color: &str) -> HtmlFragment {
+fn ColorfulDiv(children: HtmlFragment, color: &str) -> HtmlFragment {
     html! {
         <div class="{color} round">
-            {{ inner_block }}
+            {{ children }}
         </div>
     }
 }
@@ -78,12 +78,12 @@ fn test_slots_with_props() {
 }
 
 #[component]
-fn IgnoresSlot(_: HtmlFragment, text: &str) -> HtmlFragment {
+fn IgnoresSlot(#[allow(unused_variables)] children: HtmlFragment, text: &str) -> HtmlFragment {
     html! { <p>{text}</p> }
 }
 
 #[test]
-fn test_slot_parameter_can_be_a_pattern() {
+fn test_unused_children() {
     let result = html! {
         <IgnoresSlot text="kept">
             <span>"dropped"</span>
@@ -119,5 +119,46 @@ fn test_slot_passed_as_children_prop() {
     assert_eq!(
         result.to_string(),
         "<div class=\"orange round\"><b>bold</b></div>"
+    );
+}
+
+// Only the parameter named `children` receives the content between the tags.
+// Other `HtmlFragment` parameters are ordinary props, in any position.
+
+#[component]
+fn Layout(header: HtmlFragment, footer: HtmlFragment) -> HtmlFragment {
+    html! { <header>{header}</header><footer>{footer}</footer> }
+}
+
+#[test]
+fn test_fragment_props_are_ordinary_props() {
+    let result = html! {
+        <Layout header={html! { <h1>"Title"</h1> }} footer={html! { "(c)" }} />
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<header><h1>Title</h1></header><footer>(c)</footer>"
+    );
+}
+
+#[component]
+fn Panel(title: &str, header: HtmlFragment, children: HtmlFragment) -> HtmlFragment {
+    html! { <section><h2>{title}</h2>{header}<div>{children}</div></section> }
+}
+
+#[test]
+fn test_children_in_any_position() {
+    let result = html! {
+        <Panel title="T" header={html! { <i>"h"</i> }}>
+            <p>"body"</p>
+        </Panel>
+        <Panel title="Empty" header={html! {}} />
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<section><h2>T</h2><i>h</i><div><p>body</p></div></section>\
+         <section><h2>Empty</h2><div></div></section>"
     );
 }

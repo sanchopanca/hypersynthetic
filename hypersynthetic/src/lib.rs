@@ -153,28 +153,19 @@ pub mod __private;
 /// # }
 /// ```
 ///
-/// # Slots
+/// # Children
 ///
-/// Components in this library can accept a slot argument, which allows for flexible and reusable HTML structures.
-/// The slot argument must be an [HtmlFragment] and should be the first argument in the component function.
-///
-/// ## Slot Example
-///
-/// Here is how to create and use a component called `OrangeDiv`
-/// that wraps its content in a styled `<div>` element:
+/// The content between a component's tags is passed to its parameter named `children`,
+/// which must be an [HtmlFragment]. It can be anywhere in the parameter list.
 ///
 /// ```
 /// # use hypersynthetic::prelude::*;
 /// #[component]
-/// fn OrangeDiv(inner_block: HtmlFragment) -> HtmlFragment {
+/// fn OrangeDiv(children: HtmlFragment) -> HtmlFragment {
 ///     html! {
-///         <div class="orange round">
-///             {{ inner_block }}
-///         </div>
+///         <div class="orange round">{children}</div>
 ///     }
 /// }
-///
-/// // ...
 ///
 /// # fn main() {
 /// let data = "Hello, world!";
@@ -191,24 +182,18 @@ pub mod __private;
 /// # }
 /// ```
 ///
-/// In the `OrangeDiv` component, `inner_block` represents the slot content
-/// that will be injected into the `<div>` element. A fragment is inserted as HTML,
-/// so `{inner_block}` works the same as `{{ inner_block }}`.
+/// `children` is a prop like any other, with two differences:
 ///
-/// ## The `children` prop
-///
-/// Inside the component, the slot has whatever name you gave the parameter (`inner_block` above).
-/// From the outside, it's always the prop named `children`:
-///
-/// - The content between the component's tags is passed as `children`.
-/// - An existing fragment can be passed directly with the `children` attribute.
-/// - It's optional: without content or a `children` attribute, the slot is an empty fragment.
+/// - The content between the tags is passed as `children`, and an existing fragment can
+///   also be passed as an attribute: `<OrangeDiv children={content} />`. Giving both is a
+///   compile error.
+/// - It's optional: without content or a `children` attribute, it's an empty fragment.
 ///
 /// ```
 /// # use hypersynthetic::prelude::*;
 /// # #[component]
-/// # fn OrangeDiv(inner_block: HtmlFragment) -> HtmlFragment {
-/// #     html! { <div class="orange round">{{ inner_block }}</div> }
+/// # fn OrangeDiv(children: HtmlFragment) -> HtmlFragment {
+/// #     html! { <div class="orange round">{children}</div> }
 /// # }
 /// # fn main() {
 /// let content = html! { <p>"Hello"</p> };
@@ -227,15 +212,36 @@ pub mod __private;
 /// # }
 /// ```
 ///
-/// Because of that, `children` is a reserved name for components (but not for HTML elements,
-/// where `<div children="...">` is an ordinary attribute). These are compile errors:
+/// Other [HtmlFragment] parameters are ordinary props, so a component can take several
+/// pieces of HTML:
 ///
-/// - Content between the tags of a component that has no slot:
-///   "no method named `children` found for struct `CardPropsBuilder`".
-/// - Both content between the tags and a `children` attribute.
-/// - A component with a slot that also has another parameter named `children`.
+/// ```
+/// # use hypersynthetic::prelude::*;
+/// #[component]
+/// fn Page(header: HtmlFragment, children: HtmlFragment) -> HtmlFragment {
+///     html! { <header>{header}</header><main>{children}</main> }
+/// }
 ///
-/// A component without a slot can still have a regular prop named `children`.
+/// # fn main() {
+/// let page = html! {
+///     <Page header={html! { <h1>"Title"</h1> }}>
+///         <p>"Text"</p>
+///     </Page>
+/// };
+/// assert_eq!(
+///     page.to_string(),
+///     "<header><h1>Title</h1></header><main><p>Text</p></main>"
+/// );
+/// # }
+/// ```
+///
+/// Content between the tags of a component without a `children` parameter is a compile
+/// error: "no method named `children` found for struct `CardPropsBuilder`". If a component
+/// accepts children but doesn't use them, keep the name `children` and add
+/// `#[allow(unused_variables)]` to the parameter: `_children` wouldn't receive them.
+///
+/// `children` is only special for components. On HTML elements, `<div children="...">`
+/// is an ordinary attribute.
 pub use hypersynthetic_macros::component;
 
 /// The `html` macro allows to construct html fragments in Rust.

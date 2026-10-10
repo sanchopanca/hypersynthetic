@@ -10,10 +10,10 @@ fn Dialog(text: &str) -> HtmlFragment {
 }
 
 #[component]
-fn Dialog2(content: HtmlFragment) -> HtmlFragment {
+fn Dialog2(children: HtmlFragment) -> HtmlFragment {
     html! {
         <div>
-            {{ content }}
+            {{ children }}
         </div>
     }
 }
