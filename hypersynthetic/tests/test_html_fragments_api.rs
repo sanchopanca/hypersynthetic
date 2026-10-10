@@ -311,3 +311,51 @@ fn test_fragment_into_iterator() {
 
     assert_eq!(kinds, ["p", "b", "hr"]);
 }
+
+// Fragments are values: changing a copy, or a fragment that another one was
+// inserted into, never changes the original, even deep in the children.
+
+#[test]
+fn test_changing_a_clone_leaves_the_original() {
+    let original = html! { <ul><li>"a"</li></ul> };
+
+    let mut copy = original.clone();
+    let ul = copy.iter_elements_mut().next().unwrap();
+    let li = ul.children.iter_elements_mut().next().unwrap();
+    li.set_attribute("class".to_owned(), "x".to_owned());
+    ul.add_child(Node::Text("b".to_owned()));
+    copy.push(Node::Text("c".to_owned()));
+
+    assert_eq!(original.to_string(), "<ul><li>a</li></ul>");
+    assert_eq!(copy.to_string(), r#"<ul><li class="x">a</li>b</ul>c"#);
+}
+
+#[test]
+fn test_changing_a_page_leaves_the_inserted_fragment() {
+    let card = html! { <div><p>"text"</p></div> };
+    let mut page = html! { <main>{card}</main> };
+
+    let main = page.iter_elements_mut().next().unwrap();
+    let div = main.children.iter_elements_mut().next().unwrap();
+    for p in div.children.iter_elements_mut() {
+        p.set_attribute("id".to_owned(), "changed".to_owned());
+    }
+    div.add_child(Node::Text("more".to_owned()));
+
+    assert_eq!(card.to_string(), "<div><p>text</p></div>");
+    assert_eq!(
+        page.to_string(),
+        r#"<main><div><p id="changed">text</p>more</div></main>"#
+    );
+}
+
+#[test]
+fn test_into_nodes_of_a_shared_fragment() {
+    let fragment = html! { <p>"a"</p><p>"b"</p> };
+    let copy = fragment.clone();
+
+    let nodes = copy.into_nodes();
+
+    assert_eq!(nodes.len(), 2);
+    assert_eq!(fragment.len(), 2);
+}

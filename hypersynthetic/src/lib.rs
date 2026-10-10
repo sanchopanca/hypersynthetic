@@ -566,14 +566,19 @@ pub mod prelude {
 use std::fmt;
 use std::slice::Iter;
 use std::slice::IterMut;
+use std::sync::Arc;
 
 /// A sequence of HTML nodes, as produced by [html!].
 ///
 /// The nodes are private, so the representation can change. Build fragments with
 /// [HtmlFragment::new], `From<Vec<Node>>` or `collect()`, and read them with
 /// [HtmlFragment::iter] or [HtmlFragment::iter_elements].
+///
+/// Cloning is cheap: the nodes are shared until one of the copies is changed, and only
+/// then copied (copy-on-write). So inserting a fragment into another one with
+/// `{fragment}` doesn't copy everything below it.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct HtmlFragment(Vec<Node>);
+pub struct HtmlFragment(Arc<Vec<Node>>);
 
 /// A node in an [HtmlFragment].
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -615,12 +620,18 @@ pub struct Attribute {
 impl HtmlFragment {
     /// A fragment containing `nodes`.
     pub fn new(nodes: Vec<Node>) -> Self {
-        HtmlFragment(nodes)
+        HtmlFragment(Arc::new(nodes))
+    }
+
+    /// The nodes, for changing them. If they're shared with a clone, they're copied
+    /// first, so the clone doesn't change.
+    fn nodes_mut(&mut self) -> &mut Vec<Node> {
+        Arc::make_mut(&mut self.0)
     }
 
     /// Appends a node at the end.
     pub fn push(&mut self, node: Node) {
-        self.0.push(node);
+        self.nodes_mut().push(node);
     }
 
     /// The number of top-level nodes.
@@ -636,12 +647,13 @@ impl HtmlFragment {
     /// A copy of the top-level nodes. Use [HtmlFragment::into_nodes] to take them
     /// without copying when the fragment isn't needed anymore.
     pub fn get_nodes(&self) -> Vec<Node> {
-        self.0.clone()
+        self.0.to_vec()
     }
 
-    /// The top-level nodes, taken out of the fragment.
+    /// The top-level nodes, taken out of the fragment. They're copied only if the
+    /// fragment shares them with a clone.
     pub fn into_nodes(self) -> Vec<Node> {
-        self.0
+        Arc::unwrap_or_clone(self.0)
     }
 
     /// Iterates over the top-level nodes.
@@ -651,7 +663,7 @@ impl HtmlFragment {
 
     /// Iterates over the top-level nodes, mutably.
     pub fn iter_mut(&mut self) -> IterMut<'_, Node> {
-        self.0.iter_mut()
+        self.nodes_mut().iter_mut()
     }
 
     /// Iterates over the top-level elements, skipping text and doctype nodes. It doesn't
@@ -696,7 +708,7 @@ impl FromIterator<HtmlFragment> for HtmlFragment {
 
 impl Extend<Node> for HtmlFragment {
     fn extend<I: IntoIterator<Item = Node>>(&mut self, nodes: I) {
-        self.0.extend(nodes);
+        self.nodes_mut().extend(nodes);
     }
 }
 
@@ -705,7 +717,7 @@ impl IntoIterator for HtmlFragment {
     type IntoIter = std::vec::IntoIter<Node>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+        self.into_nodes().into_iter()
     }
 }
 
