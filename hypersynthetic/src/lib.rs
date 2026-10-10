@@ -825,50 +825,52 @@ impl ElementData {
     }
 }
 
+/// The ASCII bytes allowed in tag and attribute names: not controls, whitespace,
+/// DEL, `/`, `>`, `<`, `=` or quotes. Bytes 0x80 and above are allowed here: in UTF-8,
+/// every byte of a non-ASCII character is 0x80 or above, so it can't be mistaken for
+/// one of these. Names are checked for every element on every render, so it's a
+/// table built at compile time: one load per byte.
+const NAME_BYTES: [bool; 256] = {
+    let mut allowed = [true; 256];
+    // Controls and whitespace (0x00 to space), then DEL and the characters above
+    let mut byte = 0;
+    while byte <= b' ' {
+        allowed[byte as usize] = false;
+        byte += 1;
+    }
+    let rejected = [0x7f, b'/', b'>', b'<', b'=', b'"', b'\''];
+    let mut i = 0;
+    while i < rejected.len() {
+        allowed[rejected[i] as usize] = false;
+        i += 1;
+    }
+    allowed
+};
+
 /// Tag names start with an ASCII letter, and end at whitespace, `/` or `>`. The
 /// other characters rejected here (`<`, `=`, quotes, controls) don't end a name, but
 /// are never intended and could confuse other parsers.
 /// See <https://html.spec.whatwg.org/multipage/parsing.html#tag-name-state>.
-///
-/// This runs for every element on every render, so it's a byte lookup: everything
-/// that matters is ASCII, and in UTF-8 the bytes of other characters are all 0x80
-/// or above, so they can't be mistaken for one of these.
 fn is_valid_tag_name(name: &str) -> bool {
-    const ALLOWED: [bool; 256] = {
-        let mut allowed = [true; 256];
-        // Controls and whitespace (0x00 to space), DEL, and the characters above
-        let mut byte = 0;
-        while byte <= b' ' {
-            allowed[byte as usize] = false;
-            byte += 1;
-        }
-        let rejected = [0x7f, b'/', b'>', b'<', b'=', b'"', b'\''];
-        let mut i = 0;
-        while i < rejected.len() {
-            allowed[rejected[i] as usize] = false;
-            i += 1;
-        }
-        allowed
-    };
-
     name.as_bytes().first().is_some_and(u8::is_ascii_alphabetic)
-        && name.bytes().all(|byte| ALLOWED[byte as usize])
+        && name.bytes().all(|byte| NAME_BYTES[byte as usize])
 }
 
 /// Attribute names are one or more characters other than controls, space,
 /// `"`, `'`, `>`, `/`, `=` and noncharacters. `<` is also rejected: the parser
 /// tolerates it, but it is a parse error and never intended.
 /// See <https://html.spec.whatwg.org/multipage/syntax.html#attributes-2>.
+///
+/// The ASCII rules are the [NAME_BYTES] table. Non-ASCII controls (U+0080 to
+/// U+009F) and noncharacters need the characters decoded, which only names
+/// with non-ASCII characters pay for.
 fn is_valid_attribute_name(name: &str) -> bool {
     let is_noncharacter =
         |c: char| matches!(c, '\u{FDD0}'..='\u{FDEF}') || (c as u32 & 0xFFFE) == 0xFFFE;
 
     !name.is_empty()
-        && !name.chars().any(|c| {
-            c.is_control()
-                || matches!(c, ' ' | '"' | '\'' | '>' | '/' | '=' | '<')
-                || is_noncharacter(c)
-        })
+        && name.bytes().all(|byte| NAME_BYTES[byte as usize])
+        && (name.is_ascii() || !name.chars().any(|c| c.is_control() || is_noncharacter(c)))
 }
 
 /// Elements that can't have children, so they have no end tag.

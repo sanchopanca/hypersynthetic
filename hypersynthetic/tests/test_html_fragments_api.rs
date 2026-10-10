@@ -428,3 +428,57 @@ fn test_invalid_nested_element_is_skipped_inside_a_valid_one() {
 
     assert_eq!(page.to_string(), "<div><p>kept</p></div>");
 }
+
+#[test]
+fn test_which_attribute_names_are_rendered() {
+    let valid = [
+        "class",
+        "hx-get",
+        "@click",
+        "x-on:submit.prevent",
+        ":class",
+        "data-2",
+        "data-ünïcødé",
+        "x\u{00A0}y",
+        "日本",
+    ];
+    let invalid = [
+        "",
+        "a b",
+        "a\tb",
+        "a\"b",
+        "a'b",
+        "a>b",
+        "a/b",
+        "a=b",
+        "a<b",
+        "a\u{7f}b",
+        // Non-ASCII controls and noncharacters
+        "a\u{0085}b",
+        "a\u{009F}b",
+        "a\u{FDD0}b",
+        "a\u{FDEF}b",
+        "a\u{FFFE}b",
+        "a\u{FFFF}b",
+        "a\u{1FFFE}b",
+        "a\u{10FFFF}b",
+    ];
+    for name in valid {
+        let mut div = ElementData::new("div");
+        div.set_attribute(name.to_owned(), "v");
+        assert_eq!(
+            Node::Element(div).to_string(),
+            format!("<div {name}=\"v\"></div>"),
+            "{name:?} should be rendered"
+        );
+    }
+    for name in invalid {
+        let mut div = ElementData::new("div");
+        div.set_attribute(name.to_owned(), "v");
+        assert_eq!(
+            Node::Element(div).to_string(),
+            "<div></div>",
+            "{name:?} should be skipped"
+        );
+    }
+}
