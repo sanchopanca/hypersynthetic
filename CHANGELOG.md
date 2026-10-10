@@ -2,7 +2,7 @@
 
 Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released together.
 
-## 0.10.0 (unreleased)
+## 0.10.0 (2026-10-10)
 
 A large release: safer output, much faster building of pages that use components with
 children, a DOM-like API for changing HTML after it's built, and many fixes to `html!`
