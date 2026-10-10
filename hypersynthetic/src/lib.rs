@@ -61,7 +61,10 @@
 
 #![warn(missing_docs)]
 
+pub use class_list::{ClassList, ClassListMut};
 pub use htmlize::{escape_attribute, escape_text};
+
+mod class_list;
 
 pub mod component;
 
@@ -601,6 +604,9 @@ use std::sync::Arc;
 /// | `replaceChildren()` | `*child_nodes_mut() = nodes` |
 /// | `tagName` | [tag_name](ElementData::tag_name) |
 /// | `getAttribute()`, `setAttribute()`, `hasAttribute()`, `removeAttribute()` | [get_attribute()](ElementData::get_attribute), [set_attribute()](ElementData::set_attribute), [has_attribute()](ElementData::has_attribute), [remove_attribute()](ElementData::remove_attribute) |
+/// | `toggleAttribute()`, `getAttributeNames()` | [toggle_attribute()](ElementData::toggle_attribute), [get_attribute_names()](ElementData::get_attribute_names) |
+/// | `id` | [id()](ElementData::id), `None` when missing |
+/// | `classList` | [class_list()](ElementData::class_list) to read, [class_list_mut()](ElementData::class_list_mut) to change |
 /// | `outerHTML`, `innerHTML` | `to_string()`, `element.children.to_string()` |
 /// | `parentNode`, `nextSibling`, `remove()` | none: nodes don't know their parent, so change the tree from the parent |
 ///
@@ -869,6 +875,60 @@ impl ElementData {
             .iter()
             .find(|attr| attr.name == name)
             .map(|attr| attr.value.as_deref().unwrap_or(""))
+    }
+
+    /// The attributes' names, in order: the DOM's `getAttributeNames()`.
+    pub fn get_attribute_names(&self) -> impl Iterator<Item = &str> {
+        self.attributes.iter().map(|attr| &*attr.name)
+    }
+
+    /// Adds the attribute (without a value, like `disabled`) if it's missing, and
+    /// removes it if it's there; with `force`, only adds (`Some(true)`) or only removes
+    /// (`Some(false)`). Returns whether the element has the attribute afterwards. Like
+    /// the DOM's `toggleAttribute()`.
+    pub fn toggle_attribute(
+        &mut self,
+        name: impl Into<Cow<'static, str>>,
+        force: Option<bool>,
+    ) -> bool {
+        let name = name.into();
+        if self.has_attribute(&name) {
+            if force != Some(true) {
+                self.remove_attribute(&name);
+                return false;
+            }
+            true
+        } else {
+            if force != Some(false) {
+                self.attributes.push(Attribute { name, value: None });
+                return true;
+            }
+            false
+        }
+    }
+
+    /// The `id` attribute, if there is one. Like the DOM's `id`, but `None` instead of
+    /// an empty string when it's missing.
+    pub fn id(&self) -> Option<&str> {
+        self.get_attribute("id")
+    }
+
+    /// The element's classes, to read them: the DOM's `classList`. See [ClassList].
+    pub fn class_list(&self) -> ClassList<'_> {
+        ClassList::new(self)
+    }
+
+    /// The element's classes, to change them: the DOM's `classList`, with `add`,
+    /// `remove`, `toggle` and `replace`. See [ClassListMut].
+    ///
+    /// ```
+    /// # use hypersynthetic::ElementData;
+    /// let mut button = ElementData::new("button");
+    /// button.class_list_mut().add("btn").add("primary");
+    /// assert_eq!(button.get_attribute("class"), Some("btn primary"));
+    /// ```
+    pub fn class_list_mut(&mut self) -> ClassListMut<'_> {
+        ClassListMut::new(self)
     }
 }
 
