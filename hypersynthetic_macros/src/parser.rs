@@ -87,6 +87,7 @@ impl Parse for Node {
                     }),
                     TagName::Element(tag_name) => Node::Element(Tag {
                         tag_name,
+                        span: tag_name_span,
                         attributes,
                         children: Vec::new(),
                         self_closing: true,
@@ -136,6 +137,7 @@ impl Parse for Node {
                                 children
                             },
                             tag_name,
+                            span: tag_name_span,
                             attributes,
                             self_closing: false,
                         }),
@@ -259,6 +261,22 @@ fn raw_text_children(tag_name: &str, children: Vec<Node>) -> Result<Vec<Node>> {
                 expr,
                 format!(
                     "`<{tag_name}>` content isn't HTML, so `{{...}}` can't escape values for it: {advice}"
+                ),
+            )),
+            // A browser reads everything up to the closing tag as code, so tags in
+            // it would be JavaScript or CSS syntax errors
+            Node::Element(element) => Err(syn::Error::new(
+                element.span,
+                format!(
+                    "`<{tag_name}>` content isn't HTML, so it can't contain elements: \
+                     write the code as a string literal"
+                ),
+            )),
+            Node::Component(component) => Err(syn::Error::new_spanned(
+                &component.name,
+                format!(
+                    "`<{tag_name}>` content isn't HTML, so it can't contain components, \
+                     which render HTML: write the code as a string literal"
                 ),
             )),
             other => Ok(other),

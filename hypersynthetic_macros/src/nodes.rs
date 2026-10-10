@@ -1,5 +1,6 @@
 use std::fmt;
 
+use proc_macro2::Span;
 use syn::{Expr, Path};
 
 use crate::{
@@ -44,6 +45,8 @@ impl fmt::Display for TagName {
 #[derive(Clone)]
 pub struct Tag {
     pub tag_name: String,
+    /// Where the tag name is, for errors about the element
+    pub span: Span,
     pub attributes: Vec<Attribute>,
     pub children: Vec<Node>,
     pub self_closing: bool,

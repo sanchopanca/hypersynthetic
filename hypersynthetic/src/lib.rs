@@ -454,6 +454,10 @@ pub use hypersynthetic_macros::component;
 /// };
 /// ```
 ///
+/// For the same reason, elements and components inside `<script>` or `<style>` are
+/// compile errors: a browser reads everything up to `</script>` as code, so tags there
+/// would be JavaScript or CSS syntax errors.
+///
 /// # Conditionals
 /// A special pseudo-attribute `:if` is used to conditionally render an element.
 /// ```

@@ -1,0 +1,11 @@
+error: `<script>` content isn't HTML, so it can't contain elements: write the code as a string literal
+ --> tests/compile_fail/raw_text_element_children.rs:9:42
+  |
+9 |     let _ = html! { <script>"let a = 1;"<b>"bold"</b></script> };
+  |                                          ^
+
+error: `<style>` content isn't HTML, so it can't contain components, which render HTML: write the code as a string literal
+  --> tests/compile_fail/raw_text_element_children.rs:10:29
+   |
+10 |     let _ = html! { <style><Rule /></style> };
+   |                             ^^^^
