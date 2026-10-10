@@ -612,7 +612,10 @@ use std::sync::Arc;
 /// | `getElementById()` | [get_element_by_id()](HtmlFragment::get_element_by_id), [get_element_by_id_mut()](HtmlFragment::get_element_by_id_mut) |
 /// | `getElementsByTagName()`, `getElementsByClassName()` | [get_elements_by_tag_name()](HtmlFragment::get_elements_by_tag_name), [get_elements_by_class_name()](HtmlFragment::get_elements_by_class_name): iterators, not live lists |
 /// | walking the tree (`TreeWalker`, `querySelectorAll("*")`) | [descendants()](HtmlFragment::descendants), and [for_each_descendant_mut()](HtmlFragment::for_each_descendant_mut) to change elements |
+/// | `createTextNode()` | [Node::text()], which escapes |
+/// | `textContent = text` | [set_text_content()](ElementData::set_text_content) |
 /// | `outerHTML`, `innerHTML` | `to_string()`, `element.children.to_string()` |
+/// | `innerHTML = html` | `*element.child_nodes_mut() = vec![Node::raw_html(html)]` ([Node::raw_html()]) |
 /// | `parentNode`, `nextSibling`, `remove()` | none: nodes don't know their parent, so change the tree from the parent |
 ///
 /// Note that [ElementData::children] is the DOM's `childNodes` (text included), not its
@@ -625,14 +628,39 @@ pub struct HtmlFragment(Arc<Vec<Node>>);
 pub enum Node {
     /// An element with its attributes and children, like `<p class="x">...</p>`.
     Element(ElementData),
-    /// Text that is written to the output as is. [html!] escapes text before storing it
-    /// here; when creating a `Text` node yourself, escape untrusted input with
-    /// [escape_text]. Like names in [ElementData], it's a [Cow]: text written in a
-    /// template is borrowed, so create one with `Node::Text("…".into())` or
-    /// `Node::Text(string.into())`.
+    /// HTML that is written to the output as is: text that has already been escaped,
+    /// or markup. Create text nodes with [Node::text], which escapes, and use
+    /// [Node::raw_html] to make inserting markup explicit. Like names in
+    /// [ElementData], it's a [Cow], so text written in a template is borrowed.
     Text(Cow<'static, str>),
     /// `<!DOCTYPE html>`.
     DocType,
+}
+
+impl Node {
+    /// A text node, escaped so it's displayed as written: `<` becomes `&lt;`. Like the
+    /// DOM's `createTextNode()`. Safe for untrusted input, and the same node that
+    /// `{text}` in [html!] creates.
+    ///
+    /// ```
+    /// # use hypersynthetic::Node;
+    /// let comment = String::from("<b>hi</b>");
+    /// assert_eq!(Node::text(comment).to_string(), "&lt;b&gt;hi&lt;/b&gt;");
+    /// ```
+    pub fn text(text: impl Into<Cow<'static, str>>) -> Self {
+        Node::Text(escape_text(text.into()))
+    }
+
+    /// HTML inserted as is, without escaping, like setting the DOM's `innerHTML`.
+    /// Never pass untrusted input: it can contain `<script>`. Use [Node::text] for text.
+    ///
+    /// ```
+    /// # use hypersynthetic::Node;
+    /// assert_eq!(Node::raw_html("<b>hi</b>").to_string(), "<b>hi</b>");
+    /// ```
+    pub fn raw_html(html: impl Into<Cow<'static, str>>) -> Self {
+        Node::Text(html.into())
+    }
 }
 
 /// An HTML element: `<tag_name attributes...>children</tag_name>`.
@@ -828,6 +856,12 @@ impl ElementData {
     /// [HtmlFragment::child_nodes_mut].
     pub fn child_nodes_mut(&mut self) -> &mut Vec<Node> {
         self.children.child_nodes_mut()
+    }
+
+    /// Replaces the children with this text, escaped (see [Node::text]). Like setting
+    /// the DOM's `textContent`.
+    pub fn set_text_content(&mut self, text: impl Into<Cow<'static, str>>) {
+        *self.child_nodes_mut() = vec![Node::text(text)];
     }
 
     /// Whether the element has an attribute with this name.

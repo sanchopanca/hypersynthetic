@@ -276,3 +276,44 @@ fn test_for_each_descendant_mut_sees_added_children() {
 
     assert_eq!(tags, ["ul", "li"]);
 }
+
+// Creating text: `Node::text` escapes (the DOM's createTextNode), `Node::raw_html`
+// is the explicit way to insert markup as is.
+
+#[test]
+fn test_node_text_escapes() {
+    let user_input = String::from("<script>alert(1)</script> & \"quotes\"");
+
+    assert_eq!(
+        Node::text(user_input).to_string(),
+        "&lt;script&gt;alert(1)&lt;/script&gt; &amp; \"quotes\""
+    );
+    assert_eq!(Node::text("plain").to_string(), "plain");
+}
+
+#[test]
+fn test_node_text_is_what_html_creates() {
+    let value = "a < b";
+    let from_macro = html! { {value} };
+
+    assert_eq!(from_macro.child_nodes(), [Node::text(value)]);
+}
+
+#[test]
+fn test_node_raw_html() {
+    let mut p = ElementData::new("p");
+    p.add_child(Node::raw_html("<b>bold</b> &amp;"));
+
+    assert_eq!(Node::Element(p).to_string(), "<p><b>bold</b> &amp;</p>");
+}
+
+#[test]
+fn test_set_text_content() {
+    let mut page = html! { <p>"old " <b>"text"</b></p> };
+    let p = page.iter_elements_mut().next().unwrap();
+
+    p.set_text_content("new <text>");
+
+    assert_eq!(p.child_nodes(), [Node::text("new <text>")]);
+    assert_eq!(page.to_string(), "<p>new &lt;text&gt;</p>");
+}
