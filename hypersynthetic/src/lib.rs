@@ -609,7 +609,10 @@ pub enum Node {
 /// ones computed at runtime are owned `String`s.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ElementData {
-    /// The element's name, like `div` or `my-widget`.
+    /// The element's name, like `div` or `my-widget`. If it isn't a valid tag name
+    /// (it must start with an ASCII letter and can't contain whitespace, `/`, `>`, `<`,
+    /// `=`, quotes or control characters), the element isn't rendered, children
+    /// included, since the name could inject markup.
     pub tag_name: Cow<'static, str>,
     /// The attributes, in the order they are rendered.
     pub attributes: Vec<Attribute>,
@@ -822,6 +825,36 @@ impl ElementData {
     }
 }
 
+/// Tag names start with an ASCII letter, and end at whitespace, `/` or `>`. The
+/// other characters rejected here (`<`, `=`, quotes, controls) don't end a name, but
+/// are never intended and could confuse other parsers.
+/// See <https://html.spec.whatwg.org/multipage/parsing.html#tag-name-state>.
+///
+/// This runs for every element on every render, so it's a byte lookup: everything
+/// that matters is ASCII, and in UTF-8 the bytes of other characters are all 0x80
+/// or above, so they can't be mistaken for one of these.
+fn is_valid_tag_name(name: &str) -> bool {
+    const ALLOWED: [bool; 256] = {
+        let mut allowed = [true; 256];
+        // Controls and whitespace (0x00 to space), DEL, and the characters above
+        let mut byte = 0;
+        while byte <= b' ' {
+            allowed[byte as usize] = false;
+            byte += 1;
+        }
+        let rejected = [0x7f, b'/', b'>', b'<', b'=', b'"', b'\''];
+        let mut i = 0;
+        while i < rejected.len() {
+            allowed[rejected[i] as usize] = false;
+            i += 1;
+        }
+        allowed
+    };
+
+    name.as_bytes().first().is_some_and(u8::is_ascii_alphabetic)
+        && name.bytes().all(|byte| ALLOWED[byte as usize])
+}
+
 /// Attribute names are one or more characters other than controls, space,
 /// `"`, `'`, `>`, `/`, `=` and noncharacters. `<` is also rejected: the parser
 /// tolerates it, but it is a parse error and never intended.
@@ -930,6 +963,12 @@ impl<'a> Iterator for ElementDataIterMut<'a> {
 
 impl fmt::Display for ElementData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // A name from user data (`ElementData::new(name)`) that isn't valid HTML
+        // could inject markup, and an element can't be rendered without its name,
+        // so the whole element is skipped, like an invalid attribute.
+        if !is_valid_tag_name(&self.tag_name) {
+            return Ok(());
+        }
         write!(f, "<{}", self.tag_name)?;
         // Names can come from user data (`<div {name}="v">`). A name that isn't
         // valid HTML could close the tag or start a new attribute, and can't be

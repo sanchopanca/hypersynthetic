@@ -374,3 +374,57 @@ fn test_element_api_takes_str_and_string() {
         r#"<a href="/home" data-id="7">Home</a>"#
     );
 }
+
+// Like attribute names, a tag name that isn't valid HTML would let the name inject
+// markup, so such an element isn't rendered, children included.
+
+#[test]
+fn test_element_with_invalid_tag_name_is_not_rendered() {
+    for name in [
+        "img src=x onerror=alert(1)",
+        "div>",
+        "a/b",
+        "x\"y",
+        "1div",
+        "-div",
+        "",
+        "tab\tname",
+    ] {
+        let mut element = ElementData::new(name.to_owned());
+        element.add_child(Node::Text("child".into()));
+        let page = HtmlFragment::from(vec![
+            Node::Text("before".into()),
+            Node::Element(element),
+            Node::Text("after".into()),
+        ]);
+
+        assert_eq!(page.to_string(), "beforeafter", "tag name {name:?}");
+    }
+}
+
+#[test]
+fn test_valid_tag_names_are_rendered() {
+    for name in [
+        "p",
+        "H1",
+        "my-widget",
+        "x-ünïcødé",
+        "svg:rect",
+        "foreignObject",
+    ] {
+        let element = ElementData::new(name.to_owned());
+        assert_eq!(
+            Node::Element(element).to_string(),
+            format!("<{name}></{name}>")
+        );
+    }
+}
+
+#[test]
+fn test_invalid_nested_element_is_skipped_inside_a_valid_one() {
+    let mut page = html! { <div><p>"kept"</p></div> };
+    let div = page.iter_elements_mut().next().unwrap();
+    div.add_child(Node::Element(ElementData::new("bad name")));
+
+    assert_eq!(page.to_string(), "<div><p>kept</p></div>");
+}
