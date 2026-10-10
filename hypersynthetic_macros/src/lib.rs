@@ -21,7 +21,17 @@ pub fn html(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn component(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
+    // `#[component(...)]`: there are no options, so arguments would be ignored silently
+    if !attr.is_empty() {
+        return syn::Error::new_spanned(
+            proc_macro2::TokenStream::from(attr),
+            "`#[component]` doesn't take arguments",
+        )
+        .to_compile_error()
+        .into();
+    }
+
     let mut function = parse_macro_input!(item as ItemFn);
 
     // Props struct fields can't have elided lifetimes

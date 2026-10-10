@@ -1,0 +1,5 @@
+error: `#[component]` doesn't take arguments
+ --> tests/compile_fail/component_arguments.rs:3:13
+  |
+3 | #[component(inline)]
+  |             ^^^^^^
