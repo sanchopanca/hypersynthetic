@@ -63,8 +63,10 @@
 
 pub use class_list::{ClassList, ClassListMut};
 pub use htmlize::{escape_attribute, escape_text};
+pub use search::Descendants;
 
 mod class_list;
+mod search;
 
 pub mod component;
 
@@ -607,6 +609,9 @@ use std::sync::Arc;
 /// | `toggleAttribute()`, `getAttributeNames()` | [toggle_attribute()](ElementData::toggle_attribute), [get_attribute_names()](ElementData::get_attribute_names) |
 /// | `id` | [id()](ElementData::id), `None` when missing |
 /// | `classList` | [class_list()](ElementData::class_list) to read, [class_list_mut()](ElementData::class_list_mut) to change |
+/// | `getElementById()` | [get_element_by_id()](HtmlFragment::get_element_by_id), [get_element_by_id_mut()](HtmlFragment::get_element_by_id_mut) |
+/// | `getElementsByTagName()`, `getElementsByClassName()` | [get_elements_by_tag_name()](HtmlFragment::get_elements_by_tag_name), [get_elements_by_class_name()](HtmlFragment::get_elements_by_class_name): iterators, not live lists |
+/// | walking the tree (`TreeWalker`, `querySelectorAll("*")`) | [descendants()](HtmlFragment::descendants), and [for_each_descendant_mut()](HtmlFragment::for_each_descendant_mut) to change elements |
 /// | `outerHTML`, `innerHTML` | `to_string()`, `element.children.to_string()` |
 /// | `parentNode`, `nextSibling`, `remove()` | none: nodes don't know their parent, so change the tree from the parent |
 ///

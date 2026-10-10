@@ -147,3 +147,132 @@ fn test_class_list_rejects_empty_names() {
 fn test_class_list_rejects_names_with_whitespace() {
     ElementData::new("p").class_list_mut().add("a b");
 }
+
+// Searching: tree order (depth-first, parents before children), like the DOM.
+
+fn ids<'a>(elements: impl Iterator<Item = &'a ElementData>) -> Vec<&'a str> {
+    elements
+        .map(|element| element.id().unwrap_or("-"))
+        .collect()
+}
+
+fn page() -> HtmlFragment {
+    html! {
+        <div id="a" class="box">
+            "text"
+            <p id="b" class="note box"><span id="c" class="box note big"></span></p>
+            <p id="d"></p>
+        </div>
+        <footer id="e" class="note"></footer>
+        <p id="b"></p>
+    }
+}
+
+#[test]
+fn test_descendants() {
+    let page = page();
+    assert_eq!(ids(page.descendants()), ["a", "b", "c", "d", "e", "b"]);
+
+    // An element's descendants don't include the element itself
+    let div = page.get_element_by_id("a").unwrap();
+    assert_eq!(ids(div.descendants()), ["b", "c", "d"]);
+}
+
+#[test]
+fn test_get_element_by_id() {
+    let page = page();
+
+    assert_eq!(page.get_element_by_id("c").unwrap().tag_name, "span");
+    // The first one in tree order
+    assert_eq!(
+        page.get_element_by_id("b").unwrap().get_attribute("class"),
+        Some("note box")
+    );
+    assert!(page.get_element_by_id("missing").is_none());
+}
+
+#[test]
+fn test_get_elements_by_tag_name() {
+    let page = page();
+
+    assert_eq!(ids(page.get_elements_by_tag_name("p")), ["b", "d", "b"]);
+    // Case-insensitive for HTML elements
+    assert_eq!(ids(page.get_elements_by_tag_name("P")), ["b", "d", "b"]);
+    assert_eq!(ids(page.get_elements_by_tag_name("*")).len(), 6);
+    assert_eq!(ids(page.get_elements_by_tag_name("table")), [] as [&str; 0]);
+}
+
+#[test]
+fn test_get_elements_by_class_name() {
+    let page = page();
+
+    assert_eq!(ids(page.get_elements_by_class_name("box")), ["a", "b", "c"]);
+    // All of the classes, in any order
+    assert_eq!(
+        ids(page.get_elements_by_class_name(" note  box ")),
+        ["b", "c"]
+    );
+    assert_eq!(ids(page.get_elements_by_class_name("")), [] as [&str; 0]);
+}
+
+#[test]
+fn test_get_element_by_id_mut() {
+    let original = page();
+    let mut page = original.clone();
+
+    page.get_element_by_id_mut("c")
+        .unwrap()
+        .class_list_mut()
+        .add("changed");
+
+    assert!(
+        page.get_element_by_id("c")
+            .unwrap()
+            .class_list()
+            .contains("changed")
+    );
+    // Copy-on-write: the clone it came from is unchanged
+    assert!(
+        !original
+            .get_element_by_id("c")
+            .unwrap()
+            .class_list()
+            .contains("changed")
+    );
+    assert!(page.get_element_by_id_mut("missing").is_none());
+}
+
+#[test]
+fn test_for_each_descendant_mut() {
+    let mut page = page();
+    let mut visited = Vec::new();
+
+    page.for_each_descendant_mut(|element| {
+        visited.push(element.id().unwrap_or("-").to_owned());
+        if element.class_list().contains("note") {
+            element.class_list_mut().add("seen");
+        }
+    });
+
+    assert_eq!(visited, ["a", "b", "c", "d", "e", "b"]);
+    assert_eq!(
+        ids(page.get_elements_by_class_name("seen")),
+        ["b", "c", "e"]
+    );
+}
+
+#[test]
+fn test_for_each_descendant_mut_sees_added_children() {
+    // The callback runs before an element's children are visited, so it can add some
+    let mut page = html! { <ul></ul> };
+    let mut tags = Vec::new();
+
+    page.for_each_descendant_mut(|element| {
+        tags.push(element.tag_name.to_string());
+        if element.tag_name == "ul" {
+            element.add_child(Node::Element(ElementData::new("li")));
+        }
+    });
+
+    assert_eq!(tags, ["ul", "li"]);
+}
