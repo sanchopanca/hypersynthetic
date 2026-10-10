@@ -436,8 +436,10 @@ pub use hypersynthetic_macros::component;
 ///
 /// HTML escaping can't make a value safe inside JavaScript or CSS, so `{expression}`,
 /// and `{expression}` inside a string literal, are compile errors there. Insert values
-/// unescaped with `{{expression}}`, after making sure they can't contain `</script>`
-/// (or `</style>`):
+/// unescaped with `{{expression}}`. When rendering, hypersynthetic makes sure the content
+/// can't end the element early (it escapes `</script` and `<script`, or `</style`, the
+/// way React does), but a value is still inserted as code: make sure it's safe as
+/// JavaScript or CSS, for example by JSON-encoding strings.
 /// ```
 /// # use hypersynthetic::html;
 /// let count = 5;
@@ -1023,6 +1025,79 @@ fn is_valid_attribute_name(name: &str) -> bool {
         && (name.is_ascii() || !name.chars().any(|c| c.is_control() || is_noncharacter(c)))
 }
 
+/// Elements whose content is code that ends at the first closing tag: `</script`
+/// or `</style`, in any case. In a script, `<!--<script` also changes how a browser
+/// finds the end.
+#[derive(Clone, Copy)]
+enum RawText {
+    Script,
+    Style,
+}
+
+impl RawText {
+    fn of(tag_name: &str) -> Option<RawText> {
+        if tag_name.eq_ignore_ascii_case("script") {
+            Some(RawText::Script)
+        } else if tag_name.eq_ignore_ascii_case("style") {
+            Some(RawText::Style)
+        } else {
+            None
+        }
+    }
+
+    /// Writes the content guarded. Rendered to a string first, to guard all of it,
+    /// elements included.
+    ///
+    /// Scripts and styles are rare, and this path is kept out of the hot, recursive
+    /// `Display` code: inlined there, it made rendering ordinary elements ~15% slower.
+    #[cold]
+    #[inline(never)]
+    fn write_guarded(self, content: &HtmlFragment, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.guard(&content.to_string()))
+    }
+
+    /// The content, with the `s` of `<script` and `</script` (or of `</style`)
+    /// replaced by the language's escape for it, so it can't end the element early.
+    /// The escape means the same in a JavaScript or CSS string, so the code doesn't
+    /// change. This is what React does.
+    fn guard(self, content: &str) -> Cow<'_, str> {
+        // The rest of the name after `s`, the escapes for `s` and `S`, and whether
+        // an opening tag counts too
+        let (rest, escapes, opening) = match self {
+            RawText::Script => ("cript", [r"\u0073", r"\u0053"], true),
+            RawText::Style => ("tyle", [r"\73", r"\53"], false),
+        };
+        let bytes = content.as_bytes();
+        let mut guarded = String::new();
+        // How much of `content` is already in `guarded`
+        let mut copied = 0;
+        let mut search_from = 0;
+        while let Some(offset) = content[search_from..].find('<') {
+            let lt = search_from + offset;
+            search_from = lt + 1;
+            let closing = bytes.get(lt + 1) == Some(&b'/');
+            let s = if closing { lt + 2 } else { lt + 1 };
+            let is_tag = (closing || opening)
+                && bytes
+                    .get(s)
+                    .is_some_and(|byte| byte.eq_ignore_ascii_case(&b's'))
+                && bytes
+                    .get(s + 1..s + 1 + rest.len())
+                    .is_some_and(|name| name.eq_ignore_ascii_case(rest.as_bytes()));
+            if is_tag {
+                guarded.push_str(&content[copied..s]);
+                guarded.push_str(escapes[usize::from(bytes[s] == b'S')]);
+                copied = s + 1;
+            }
+        }
+        if copied == 0 {
+            return Cow::Borrowed(content);
+        }
+        guarded.push_str(&content[copied..]);
+        Cow::Owned(guarded)
+    }
+}
+
 /// Elements that can't have children, so they have no end tag.
 /// See <https://html.spec.whatwg.org/multipage/syntax.html#void-elements>.
 fn is_void_element(tag_name: &str) -> bool {
@@ -1144,7 +1219,10 @@ impl fmt::Display for ElementData {
         }
 
         f.write_str(">")?;
-        fmt::Display::fmt(&self.children, f)?;
+        match RawText::of(&self.tag_name) {
+            Some(raw_text) => raw_text.write_guarded(&self.children, f)?,
+            None => fmt::Display::fmt(&self.children, f)?,
+        }
         write!(f, "</{}>", self.tag_name)
     }
 }

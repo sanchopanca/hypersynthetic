@@ -241,8 +241,15 @@ fn is_raw_text_element(tag_name: &str) -> bool {
 /// so they become raw text. Values would need JavaScript or CSS escaping, which
 /// `{expression}` can't do, so they must be inserted unescaped with `{{expression}}`.
 fn raw_text_children(tag_name: &str, children: Vec<Node>) -> Result<Vec<Node>> {
+    // The renderer makes sure the content can't close the element, but a value is
+    // still inserted as code
+    let language = if tag_name == "script" {
+        "JavaScript"
+    } else {
+        "CSS"
+    };
     let advice = format!(
-        "insert the value unescaped with `{{{{...}}}}`, and make sure it can't contain `</{tag_name}>`"
+        "insert the value unescaped with `{{{{...}}}}`, and make sure it's safe as {language}"
     );
     children
         .into_iter()
