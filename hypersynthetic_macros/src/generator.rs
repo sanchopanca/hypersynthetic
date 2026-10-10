@@ -44,7 +44,7 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
             let attribute_count = attributes.len();
             let push = quote! {
                 #target.push(::hypersynthetic::Node::Element(::hypersynthetic::ElementData {
-                    tag_name: #tag_name.to_owned(),
+                    tag_name: ::std::borrow::Cow::Borrowed(#tag_name),
                     attributes: {
                         let mut #attributes_target = ::std::vec::Vec::with_capacity(#attribute_count);
                         #(#attributes)*
@@ -169,9 +169,10 @@ fn wrap_in_for_and_if(
 /// A statement that adds the attribute to the `target` vector.
 fn generate_attribute(attr: &RegularAttribute, target: &Ident) -> TokenStream2 {
     let attr_name = match &attr.name {
-        AttrName::Literal(name) => quote! { #name.to_owned() },
+        // Names and values written in the template are borrowed, not copied
+        AttrName::Literal(name) => quote! { ::std::borrow::Cow::Borrowed(#name) },
         // Not escaped: names are validated when rendering instead.
-        AttrName::Expression(expr) => quote! { format!("{}", #expr) },
+        AttrName::Expression(expr) => quote! { ::std::borrow::Cow::Owned(format!("{}", #expr)) },
     };
     let push = |value: TokenStream2| {
         quote! {
@@ -184,10 +185,12 @@ fn generate_attribute(attr: &RegularAttribute, target: &Ident) -> TokenStream2 {
 
     // Values are stored unescaped and escaped when rendering
     match &attr.value {
-        Some(AttrValue::Literal(value)) => push(quote! { Some(#value.to_owned()) }),
+        Some(AttrValue::Literal(value)) => {
+            push(quote! { Some(::std::borrow::Cow::Borrowed(#value)) })
+        }
         Some(AttrValue::Interpolated(string)) => {
             let value = generate_format(string);
-            push(quote! { Some(#value) })
+            push(quote! { Some(::std::borrow::Cow::Owned(#value)) })
         }
         None => push(quote! { None }),
         // A `None`, or `false` on a boolean attribute like `disabled`, leaves the
@@ -204,7 +207,7 @@ fn generate_attribute(attr: &RegularAttribute, target: &Ident) -> TokenStream2 {
                     use ::hypersynthetic::__private::{
                         RenderBool as _, RenderDisplay as _, RenderOption as _,
                     };
-                    let #name: ::std::string::String = #attr_name;
+                    let #name: ::std::borrow::Cow<'static, str> = #attr_name;
                     if let Some(#value) = (&::hypersynthetic::__private::Render(&(#expr)))
                         .#attribute_value(&#name)
                     {

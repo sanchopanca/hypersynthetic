@@ -563,6 +563,7 @@ pub mod prelude {
     pub use crate::{component, html};
 }
 
+use std::borrow::Cow;
 use std::fmt;
 use std::slice::Iter;
 use std::slice::IterMut;
@@ -594,10 +595,14 @@ pub enum Node {
 }
 
 /// An HTML element: `<tag_name attributes...>children</tag_name>`.
+///
+/// Names and values are [Cow]s: the ones written in a template are borrowed
+/// `&'static str`s, so they aren't copied every time the template runs, and the
+/// ones computed at runtime are owned `String`s.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ElementData {
     /// The element's name, like `div` or `my-widget`.
-    pub tag_name: String,
+    pub tag_name: Cow<'static, str>,
     /// The attributes, in the order they are rendered.
     pub attributes: Vec<Attribute>,
     /// The nodes between the opening and the closing tag.
@@ -612,9 +617,9 @@ pub struct ElementData {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Attribute {
     /// The attribute's name. A name that isn't valid HTML is left out when rendering.
-    pub name: String,
+    pub name: Cow<'static, str>,
     /// `None` for an attribute without a value, like `disabled`.
-    pub value: Option<String>,
+    pub value: Option<Cow<'static, str>>,
 }
 
 impl HtmlFragment {
@@ -740,10 +745,11 @@ impl<'a> IntoIterator for &'a mut HtmlFragment {
 }
 
 impl ElementData {
-    /// An element without attributes or children.
-    pub fn new(tag_name: String) -> Self {
+    /// An element without attributes or children. The name can be a `&'static str` or
+    /// a `String`.
+    pub fn new(tag_name: impl Into<Cow<'static, str>>) -> Self {
         ElementData {
-            tag_name,
+            tag_name: tag_name.into(),
             attributes: Vec::new(),
             children: HtmlFragment::new(Vec::new()),
             self_closing: false,
@@ -764,9 +770,15 @@ impl ElementData {
     /// is escaped when rendered, so pass it unescaped.
     /// Like the DOM's `setAttribute`, an existing attribute keeps its position.
     /// Duplicates of it are removed, since browsers only use the first one.
-    pub fn set_attribute(&mut self, name: String, value: String) {
+    /// The name and the value can be `&'static str`s or `String`s.
+    pub fn set_attribute(
+        &mut self,
+        name: impl Into<Cow<'static, str>>,
+        value: impl Into<Cow<'static, str>>,
+    ) {
+        let name = name.into();
         // Moved into the first matching attribute; still `Some` afterwards if there was none
-        let mut value = Some(value);
+        let mut value = Some(value.into());
         self.attributes.retain_mut(|attr| {
             if attr.name != name {
                 return true;
@@ -919,7 +931,9 @@ impl fmt::Display for ElementData {
                 continue;
             }
             match &attr.value {
-                Some(value) => write!(f, " {}=\"{}\"", attr.name, escape_attribute(value))?,
+                Some(value) => {
+                    write!(f, " {}=\"{}\"", attr.name, escape_attribute(value.as_ref()))?
+                }
                 None => write!(f, " {}", attr.name)?,
             }
         }

@@ -19,6 +19,7 @@
 //! attribute is there. [RenderFragment] has no such method, so any other `Display`
 //! value (a fragment too) is formatted, and an `Option` is left out when `None`.
 
+use std::borrow::Cow;
 use std::fmt::Display;
 
 use crate::{HtmlFragment, Node, escape_text, is_boolean_attribute};
@@ -83,35 +84,38 @@ impl RenderFragment for Render<'_, Option<&HtmlFragment>> {
     }
 }
 
+/// The value of an attribute that's there: `None` for one without a value (`disabled`)
+pub type AttributeValue = Option<Cow<'static, str>>;
+
 /// `attr={flag}`: on a boolean attribute, present without a value or left out. On
 /// others, `"true"` or `"false"`, which `aria-expanded` and the like need.
-fn bool_attribute(value: bool, name: &str) -> Option<Option<String>> {
+fn bool_attribute(value: bool, name: &str) -> Option<AttributeValue> {
     if is_boolean_attribute(name) {
         value.then_some(None)
     } else {
-        Some(Some(value.to_string()))
+        Some(Some(Cow::Borrowed(if value { "true" } else { "false" })))
     }
 }
 
 pub trait RenderBool {
-    fn attribute_value(&self, name: &str) -> Option<Option<String>>;
+    fn attribute_value(&self, name: &str) -> Option<AttributeValue>;
 }
 
 impl RenderBool for Render<'_, bool> {
-    fn attribute_value(&self, name: &str) -> Option<Option<String>> {
+    fn attribute_value(&self, name: &str) -> Option<AttributeValue> {
         bool_attribute(*self.0, name)
     }
 }
 
 impl RenderBool for Render<'_, &bool> {
-    fn attribute_value(&self, name: &str) -> Option<Option<String>> {
+    fn attribute_value(&self, name: &str) -> Option<AttributeValue> {
         bool_attribute(**self.0, name)
     }
 }
 
 pub trait RenderDisplay {
     fn render(&self, escape: bool, out: &mut Vec<Node>);
-    fn attribute_value(&self, name: &str) -> Option<Option<String>>;
+    fn attribute_value(&self, name: &str) -> Option<AttributeValue>;
 }
 
 impl<T: Display + ?Sized> RenderDisplay for &Render<'_, T> {
@@ -119,8 +123,8 @@ impl<T: Display + ?Sized> RenderDisplay for &Render<'_, T> {
         text(Some(&self.0), escape, out)
     }
 
-    fn attribute_value(&self, _name: &str) -> Option<Option<String>> {
-        Some(Some(self.0.to_string()))
+    fn attribute_value(&self, _name: &str) -> Option<AttributeValue> {
+        Some(Some(Cow::Owned(self.0.to_string())))
     }
 }
 
@@ -128,7 +132,7 @@ impl<T: Display + ?Sized> RenderDisplay for &Render<'_, T> {
 // and `Option<T>` would conflict, because std could implement Display for Option.
 pub trait RenderOption {
     fn render(&self, escape: bool, out: &mut Vec<Node>);
-    fn attribute_value(&self, name: &str) -> Option<Option<String>>;
+    fn attribute_value(&self, name: &str) -> Option<AttributeValue>;
 }
 
 impl<T: Display> RenderOption for &Render<'_, Option<T>> {
@@ -140,8 +144,10 @@ impl<T: Display> RenderOption for &Render<'_, Option<T>> {
         )
     }
 
-    fn attribute_value(&self, _name: &str) -> Option<Option<String>> {
-        self.0.as_ref().map(|value| Some(value.to_string()))
+    fn attribute_value(&self, _name: &str) -> Option<AttributeValue> {
+        self.0
+            .as_ref()
+            .map(|value| Some(Cow::Owned(value.to_string())))
     }
 }
 
@@ -154,7 +160,9 @@ impl<T: Display> RenderOption for &Render<'_, &Option<T>> {
         )
     }
 
-    fn attribute_value(&self, _name: &str) -> Option<Option<String>> {
-        self.0.as_ref().map(|value| Some(value.to_string()))
+    fn attribute_value(&self, _name: &str) -> Option<AttributeValue> {
+        self.0
+            .as_ref()
+            .map(|value| Some(Cow::Owned(value.to_string())))
     }
 }

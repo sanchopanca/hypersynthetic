@@ -1,5 +1,5 @@
-use hypersynthetic::Node;
 use hypersynthetic::prelude::*;
+use hypersynthetic::{ElementData, Node};
 
 #[test]
 fn test_set_attribute() {
@@ -303,7 +303,7 @@ fn test_fragment_into_iterator() {
     let mut kinds = Vec::new();
     for node in fragment {
         kinds.push(match node {
-            Node::Element(element) => element.tag_name,
+            Node::Element(element) => element.tag_name.into_owned(),
             Node::Text(text) => text,
             Node::DocType => "doctype".to_owned(),
         });
@@ -358,4 +358,19 @@ fn test_into_nodes_of_a_shared_fragment() {
 
     assert_eq!(nodes.len(), 2);
     assert_eq!(fragment.len(), 2);
+}
+
+#[test]
+fn test_element_api_takes_str_and_string() {
+    let mut link = ElementData::new("a");
+    link.set_attribute("href", "/home");
+    link.set_attribute(String::from("data-id"), 7.to_string());
+    link.add_child(Node::Text("Home".to_owned()));
+
+    assert_eq!(link.tag_name, "a");
+    assert_eq!(link.get_attribute("href"), Some("/home"));
+    assert_eq!(
+        Node::Element(link).to_string(),
+        r#"<a href="/home" data-id="7">Home</a>"#
+    );
 }

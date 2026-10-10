@@ -76,15 +76,15 @@ fn nested(depth: usize) -> HtmlFragment {
 /// the cost of those copies.
 fn nested_moved(depth: usize) -> HtmlFragment {
     let mut node = Node::Element({
-        let mut span = ElementData::new("span".to_owned());
+        let mut span = ElementData::new("span");
         span.add_child(Node::Text(
             "A leaf with some text that has to reach the top".to_owned(),
         ));
         span
     });
     for _ in 0..depth {
-        let mut div = ElementData::new("div".to_owned());
-        div.set_attribute("class".to_owned(), "level".to_owned());
+        let mut div = ElementData::new("div");
+        div.set_attribute("class", "level");
         div.add_child(node);
         node = Node::Element(div);
     }
