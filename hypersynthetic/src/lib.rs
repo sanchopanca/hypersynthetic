@@ -173,6 +173,9 @@ pub mod __private;
 /// assert_eq!(html.to_string(), r#"<input type="email" form="signup" />"#);
 /// # }
 /// ```
+/// The `r#` is only for Rust code: the parameter, and the places that use it as a
+/// variable. Inside `html!` the prop is `type`, and `<Field r#type="email" />` is a
+/// compile error.
 ///
 /// # Children
 ///
@@ -456,6 +459,25 @@ pub use hypersynthetic_macros::component;
 ///     r#"<div x-data :class="cls" x-on:click="open = true"></div>"#
 /// );
 /// ```
+///
+/// # Names that are Rust keywords
+/// Element and attribute names in `html!` are HTML names, not Rust identifiers. The ones
+/// that happen to be Rust keywords (`type`, `for`, `loop`, `async`, SVG's `<use>`) are
+/// written as they are, **without `r#`**:
+/// ```
+/// # use hypersynthetic::html;
+/// let form = html! {
+///     <label for="email">"Email"</label>
+///     <input type="email" id="email">
+///     <video loop></video>
+/// };
+/// assert_eq!(
+///     form.to_string(),
+///     r#"<label for="email">Email</label><input type="email" id="email"><video loop></video>"#
+/// );
+/// ```
+/// `r#` is never needed inside the macro, and it isn't removed: `<div r#type="x">` is a
+/// `div` with an attribute called `r#type`.
 ///
 /// # `<script>` and `<style>`
 /// The content of these elements is JavaScript and CSS, not HTML: browsers don't decode
