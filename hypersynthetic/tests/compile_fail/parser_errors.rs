@@ -7,4 +7,5 @@ fn main() {
     let _ = html! { <div> 5 </div> };
     let _ = html! { <p :if={true} :if={false}></p> };
     let _ = html! { <p :for={i in 0..1} :for={j in 0..1}></p> };
+    let _ = html! { <p>"text"</p></div> };
 }

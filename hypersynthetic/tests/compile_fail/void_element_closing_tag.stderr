@@ -1,0 +1,29 @@
+error: `<br>` is a void element, so it has no closing tag: remove `</br>`
+ --> tests/compile_fail/void_element_closing_tag.rs:6:27
+  |
+6 |     let _ = html! { <br></br> };
+  |                           ^^
+
+error: `<br>` is a void element, so it has no closing tag: remove `</br>`
+ --> tests/compile_fail/void_element_closing_tag.rs:7:40
+  |
+7 |     let _ = html! { <p>"one"<br>"two"</br></p> };
+  |                                        ^^
+
+error: `<input>` is a void element, so it has no closing tag: remove `</input>`
+ --> tests/compile_fail/void_element_closing_tag.rs:8:48
+  |
+8 |     let _ = html! { <input type="text">{name}</input> };
+  |                                                ^^^^^
+
+error: `<img>` is a void element, so it has no closing tag: remove `</img>`
+ --> tests/compile_fail/void_element_closing_tag.rs:9:43
+  |
+9 |     let _ = html! { <p><img src="a.png"></img></p> };
+  |                                           ^^^
+
+error: `<bR>` is a void element, so it has no closing tag: remove `</bR>`
+  --> tests/compile_fail/void_element_closing_tag.rs:11:27
+   |
+11 |     let _ = html! { <bR></bR> };
+   |                           ^^

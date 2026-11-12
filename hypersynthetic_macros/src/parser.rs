@@ -28,6 +28,20 @@ impl Parse for Node {
             return Ok(Node::DocType);
         }
 
+        // A closing tag where a node should start. Only at the top level: inside an
+        // element, the check for its closing tag below gets there first.
+        if input.peek(Token![<]) && input.peek2(Token![/]) {
+            let _: Token![<] = input.parse()?;
+            let _: Token![/] = input.parse()?;
+            let span = input.span();
+            let name: TagName = input.parse()?;
+            reject_void_closing_tag(&name, span)?;
+            return Err(syn::Error::new(
+                span,
+                format!("unexpected closing tag `</{name}>`: no `<{name}>` is open here"),
+            ));
+        }
+
         if input.peek(Token![<]) {
             let _: Token![<] = input.parse()?;
             let tag_name_span = input.span();
@@ -73,12 +87,16 @@ impl Parse for Node {
                 validate_prop_names(&attributes)?;
             }
 
-            // Self-closing tag
-            if input.peek(Token![/]) && input.peek2(Token![>]) {
+            if end_of_self_closing_tag {
                 let _: Token![/] = input.parse()?;
-                let _: Token![>] = input.parse()?;
+            }
+            let _: Token![>] = input.parse()?;
 
-                // Self-closing -> no children
+            // A self-closing tag (`<Card />`, `<br />`) and a void element as HTML
+            // writes it (`<br>`) end here: no children, no closing tag. What follows
+            // is the next node.
+            let is_void = matches!(&tag_name, TagName::Element(name) if is_void_element(name));
+            if end_of_self_closing_tag || is_void {
                 return Ok(match tag_name {
                     TagName::Component(name) => Node::Component(Component {
                         name,
@@ -90,16 +108,13 @@ impl Parse for Node {
                         span: tag_name_span,
                         attributes,
                         children: Vec::new(),
-                        self_closing: true,
+                        self_closing: end_of_self_closing_tag,
                     }),
                 });
             }
 
-            let _: Token![>] = input.parse()?;
-
             // A tag name starts with an identifier or, for a component with an
             // absolute path (`<::ui::Card>`), with `::`: what `TagName::parse` accepts
-            let content_span = next_token_span(input);
             let mut children: Vec<Node> = Vec::new();
             while input.peek(Token![<]) && (input.peek2(Ident::peek_any) || input.peek2(Token![::]))
                 || input.peek(LitStr)
@@ -107,21 +122,6 @@ impl Parse for Node {
             {
                 let child: Node = input.parse()?;
                 children.push(child);
-            }
-
-            // Before looking for the closing tag: after `<p>"one"<br>"two"</p>`, with
-            // the `/` of `<br />` forgotten, this is the error that says what's wrong
-            if let TagName::Element(name) = &tag_name
-                && is_void_element(name)
-                && !children.is_empty()
-            {
-                return Err(syn::Error::new(
-                    content_span,
-                    format!(
-                        "`<{name}>` is a void element, so it can't have content: \
-                         end its tag with `/>`"
-                    ),
-                ));
             }
 
             // Check for the closing tag
@@ -133,6 +133,7 @@ impl Parse for Node {
                 let _: Token![/] = input.parse()?;
                 let closing_span = input.span();
                 let closing_tag_name: TagName = input.parse()?;
+                reject_void_closing_tag(&closing_tag_name, closing_span)?;
                 if closing_tag_name != tag_name {
                     Err(syn::Error::new(
                         closing_span,
@@ -198,15 +199,6 @@ impl Parse for Node {
     }
 }
 
-/// The span of the next token, with a `{…}` group as one token: `input.span()` would
-/// give only its `{`.
-fn next_token_span(input: ParseStream) -> Span {
-    match input.cursor().token_tree() {
-        Some((token, _)) => token.span(),
-        None => input.span(),
-    }
-}
-
 const DOCTYPE_ERROR: &str = "expected `<!DOCTYPE html>`";
 
 /// Parses `word` (case-insensitively), as part of `<!DOCTYPE html>`.
@@ -260,7 +252,7 @@ impl Parse for TagName {
     }
 }
 
-/// Elements that can't have content.
+/// Elements that can't have content: they end with their tag, `<br>` or `<br />`.
 /// See <https://html.spec.whatwg.org/multipage/syntax.html#void-elements>.
 ///
 /// This list is a copy. The renderer has the same one, to leave out the closing tag:
@@ -274,6 +266,19 @@ fn is_void_element(tag_name: &str) -> bool {
     VOID_ELEMENTS
         .iter()
         .any(|void| void.eq_ignore_ascii_case(tag_name))
+}
+
+/// `</br>` closes nothing: a void element ended with its own tag. It's an error in
+/// HTML too, which browsers recover from quietly: they ignore `</input>`, and read
+/// `</br>` as one more `<br>`.
+fn reject_void_closing_tag(name: &TagName, span: Span) -> Result<()> {
+    match name {
+        TagName::Element(name) if is_void_element(name) => Err(syn::Error::new(
+            span,
+            format!("`<{name}>` is a void element, so it has no closing tag: remove `</{name}>`"),
+        )),
+        _ => Ok(()),
+    }
 }
 
 /// Elements whose content is JavaScript or CSS, not HTML: browsers don't decode

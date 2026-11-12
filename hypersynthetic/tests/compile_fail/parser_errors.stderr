@@ -33,3 +33,9 @@ error: duplicate `:for`; wrap the element in another one to nest loops
   |
 9 |     let _ = html! { <p :for={i in 0..1} :for={j in 0..1}></p> };
   |                                         ^
+
+error: unexpected closing tag `</div>`: no `<div>` is open here
+  --> tests/compile_fail/parser_errors.rs:10:36
+   |
+10 |     let _ = html! { <p>"text"</p></div> };
+   |                                    ^^^

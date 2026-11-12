@@ -8,9 +8,16 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
 
 - Requires Rust 1.88 or newer (was 1.85): the fix below needs the positions of tokens,
   which the compiler gives to macros since 1.88.
+- A closing tag of a void element is a compile error in `html!`: `<br></br>`,
+  `<input></input>`. It's an error in HTML too, and browsers read `</br>` as a second
+  `<br>`. In 0.10 it compiled and was rendered as written. Write `<br>` or `<br />`.
 
 ### Added
 
+- Void elements (`br`, `img`, `input`, ...) can be written as in HTML, without the `/`:
+  `<p>"one"<br>"two"</p>`, `<input type="text">`. They're rendered the way they're
+  written, so `<br />` still renders `<br />`. `<br>` used to fail with "unclosed `<br>`"
+  or "expected closing tag `br`, found `p`".
 - Component props can be named after Rust keywords: with a parameter `r#type: &str`,
   `<Field type="email" />` sets it. It used to fail with "expected identifier, found
   keyword `type`".
@@ -24,12 +31,11 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   name, as in HTML.
   One consequence: `<div data - test="1">` is now the two attributes `data` and
   `-test`, where it used to be `data-test`.
-- Void elements (`br`, `img`, `input`, ...) never get a closing tag: `<br></br>` in
-  `html!` and `ElementData::new("br")` rendered `<br></br>`, which browsers show as two
-  line breaks, and now render `<br>`. A void element can't have content: in `html!`
-  it's a compile error (`<br>"text"</br>`), and children added to one through
-  `ElementData` aren't rendered. A forgotten `/` gets the same error:
-  `<p>"one"<br>"two"</p>` used to fail with "expected closing tag `br`, found `p`".
+- Void elements never get a closing tag when rendered: `ElementData::new("br")` rendered
+  `<br></br>`, which browsers show as two line breaks, and now renders `<br>`. Children
+  added to a void element aren't rendered.
+- A closing tag with nothing to close, as in `<p>"text"</p></div>`, says so: "unexpected
+  closing tag `</div>`: no `<div>` is open here". It used to be "expected ident".
 - A compile error instead of a panic ("proc macro panicked") for a component prop whose
   name starts with a digit: `<Card 5="x" />`.
 - A component path starting with `::` (`<::my_crate::Card>`) only worked at the top

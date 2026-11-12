@@ -145,17 +145,39 @@ fn test_self_closing_non_void_element_built_manually() {
     assert_eq!(fragment.to_string(), "<span></span>");
 }
 
-// Void elements have no end tag. `</br>` is the dangerous one: browsers read it as
-// another `<br>`, so `<br></br>` would be two line breaks.
+// Void elements are written as in HTML: they end at the `>` of their tag, with or
+// without a `/` before it, and what follows is the next node, not their content.
 
 #[test]
-fn test_void_element_with_closing_tag() {
+fn test_void_element_without_slash() {
     let result = html! {
-        <p>"a"<br></br>"b"</p>
-        <input type="text"></input>
+        <p>"one"<br>"two"</p>
+        <input type="text" disabled>
+        <p><img src="a.png"></p>
+        <hr>
     };
 
-    assert_eq!(result.to_string(), "<p>a<br>b</p><input type=\"text\">");
+    assert_eq!(
+        result.to_string(),
+        "<p>one<br>two</p><input type=\"text\" disabled><p><img src=\"a.png\"></p><hr>"
+    );
+}
+
+#[test]
+fn test_void_element_is_rendered_as_written() {
+    let result = html! { <br><br /><bR> };
+
+    assert_eq!(result.to_string(), "<br><br /><bR>");
+}
+
+#[test]
+fn test_void_element_without_slash_with_if_and_for() {
+    let show = false;
+    let result = html! {
+        <p><br :for={_ in 0..2}>"a"<hr :if={show}>"b"</p>
+    };
+
+    assert_eq!(result.to_string(), "<p><br><br>ab</p>");
 }
 
 #[test]

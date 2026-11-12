@@ -268,10 +268,11 @@ pub use hypersynthetic_macros::component;
 /// The `html` macro allows to construct html fragments in Rust.
 /// It mostly follows the same syntax as HTML with the following exceptions:
 ///
-/// 1. Void tags need to be self-closing. For example `<br>` should be written as `<br />`.
-///    `<br></br>` works too and renders `<br>`, without the closing tag, which isn't
-///    valid HTML. Anything between the two tags is a compile error, since a void
-///    element can't have content.
+/// 1. Only void elements (`br`, `img`, `input`, ...) can be left without a closing tag.
+///    Both `<br>` and `<br />` work, and each is rendered the way it's written.
+///    `</br>` is a compile error: it's an error in HTML too, which browsers hide by
+///    reading it as a second `<br>`. HTML also lets some closing tags be left out, like
+///    `</li>` and `</p>`. Here they're required.
 ///
 /// 2. Bare text is not (yet) allowed. Instead you should put a string literal inside an expression
 ///    like `<span>{"text"}</span>`. Alternatively, for convenience, you can use the string literal
@@ -1137,8 +1138,8 @@ impl RawText {
 /// Elements that can't have children, so they have no end tag.
 /// See <https://html.spec.whatwg.org/multipage/syntax.html#void-elements>.
 ///
-/// This list has a copy. `html!` has the same one, to reject content in these elements
-/// when compiling: `is_void_element` in `hypersynthetic_macros/src/parser.rs`. A
+/// This list has a copy. `html!` has the same one, to know that these elements end
+/// with their tag: `is_void_element` in `hypersynthetic_macros/src/parser.rs`. A
 /// proc-macro crate and the crate that uses it can't share a function, so a change
 /// here has to be made there too.
 fn is_void_element(tag_name: &str) -> bool {
