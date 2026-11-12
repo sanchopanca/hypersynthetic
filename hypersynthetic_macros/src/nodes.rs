@@ -62,7 +62,7 @@ pub struct Component {
 /// The `:for` pseudo-attribute, if there is one. The parser rejects duplicates.
 pub fn for_attribute(attributes: &[Attribute]) -> Option<&ForExpr> {
     attributes.iter().find_map(|attr| match attr {
-        Attribute::For(for_expr) => Some(for_expr),
+        Attribute::For(for_expr) => Some(for_expr.as_ref()),
         _ => None,
     })
 }

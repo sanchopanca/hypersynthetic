@@ -357,7 +357,7 @@ impl Parse for Attribute {
 
                 let content;
                 braced!(content in input);
-                return Ok(Attribute::For(content.parse()?));
+                return Ok(Attribute::For(Box::new(content.parse()?)));
             } else if input.peek2(Token![if]) {
                 let _: Token![:] = input.parse()?;
                 let _: Token![if] = input.parse()?;
@@ -391,49 +391,54 @@ impl Parse for AttrName {
             let content_brackets;
             braced!(content_brackets in input);
             let content_expr: Expr = content_brackets.parse()?;
-            return Ok(AttrName::Expression(content_expr));
+            return Ok(AttrName::Expression(Box::new(content_expr)));
         }
 
         let span = input.span();
 
         let mut name = String::new();
-        let mut saw_word = false;
+        // The last token, if it was a word: a second word starts another attribute,
+        // and so does punctuation that doesn't touch the word (see `starts_new_attribute`)
+        let mut word: Option<Span> = None;
         loop {
+            if word.is_some_and(|word| starts_new_attribute(input, word)) {
+                break;
+            }
             let lookahead = input.lookahead1();
             // Any identifier, including Rust keywords (`type`, `for`, `async`) and
             // `true`/`false`, which are all identifiers at the token level
             if lookahead.peek(Ident::peek_any) {
-                if saw_word {
+                if word.is_some() {
                     break;
                 }
                 let ident = input.call(Ident::parse_any)?;
                 name.push_str(&ident.to_string());
-                saw_word = true;
+                word = Some(ident.span());
             } else if lookahead.peek(Token![-]) {
                 let _: Token![-] = input.parse()?;
                 name.push('-');
-                saw_word = false;
+                word = None;
             } else if lookahead.peek(Token![:]) {
                 let _: Token![:] = input.parse()?;
                 name.push(':');
-                saw_word = false;
+                word = None;
             // Alpine.js: `@click`, `x-on:submit.prevent`
             } else if lookahead.peek(Token![@]) {
                 let _: Token![@] = input.parse()?;
                 name.push('@');
-                saw_word = false;
+                word = None;
             } else if lookahead.peek(Token![.]) {
                 let _: Token![.] = input.parse()?;
                 name.push('.');
-                saw_word = false;
+                word = None;
             // Numbers, with suffixes: `data-2`, `.debounce.500ms`
             } else if lookahead.peek(LitInt) {
-                if saw_word {
+                if word.is_some() {
                     break;
                 }
                 let token: LitInt = input.parse()?;
                 name.push_str(&token.to_string());
-                saw_word = true;
+                word = Some(token.span());
             } else {
                 break;
             }
@@ -445,6 +450,52 @@ impl Parse for AttrName {
             Err(input.error("Expected a valid attribute name"))
         }
     }
+}
+
+/// Whether the punctuation after `word` starts the next attribute, like `:if` in
+/// `<input disabled :if={show} />`, instead of continuing the name, like `:click` in
+/// `x-on:click`. The tokens are the same in both; only whitespace tells them apart.
+fn starts_new_attribute(input: ParseStream, word: Span) -> bool {
+    let is_name_punctuation = input.peek(Token![-])
+        || input.peek(Token![:])
+        || input.peek(Token![@])
+        || input.peek(Token![.]);
+    if !is_name_punctuation {
+        return false;
+    }
+    match whitespace_between(word, input.span()) {
+        Some(whitespace) => whitespace,
+        // Without positions, what can be told from the tokens: `@` only ever starts
+        // a name, and `:if={…}` and `:for={…}` are the pseudo-attributes
+        None => input.peek(Token![@]) || is_if_or_for(input),
+    }
+}
+
+/// `:if={…}` or `:for={…}`, without consuming it.
+fn is_if_or_for(input: ParseStream) -> bool {
+    let input = input.fork();
+    input.parse::<Token![:]>().is_ok()
+        && (input.parse::<Token![if]>().is_ok() || input.parse::<Token![for]>().is_ok())
+        && input.parse::<Token![=]>().is_ok()
+        && input.peek(Brace)
+}
+
+/// Whether there's whitespace (or a comment) between two tokens, `first` being the
+/// earlier one: its end and the start of `second` are different places in the source.
+///
+/// `None` when the positions can't tell:
+/// - Tokens that a `macro_rules!` macro put together were written in different places,
+///   maybe in different files, so the second can even come "before" the first.
+/// - A span without a position has line 0 (lines start at 1). The compiler gives
+///   positions to macros since Rust 1.88, the `rust-version` of this crate.
+fn whitespace_between(first: Span, second: Span) -> Option<bool> {
+    let (end, start) = (first.end(), second.start());
+    let known = end.line > 0 && start.line > 0;
+    let in_order = (end.line, end.column) <= (start.line, start.column);
+    if !known || !in_order || first.file() != second.file() {
+        return None;
+    }
+    Some((end.line, end.column) != (start.line, start.column))
 }
 
 impl Parse for AttrValue {
@@ -529,7 +580,10 @@ impl Parse for InterpolatedString {
                     if !text.is_empty() {
                         segments.push(InterpolatedSegment::Str(std::mem::take(&mut text)));
                     }
-                    segments.push(InterpolatedSegment::Expr { expr, spec });
+                    segments.push(InterpolatedSegment::Expr {
+                        expr: Box::new(expr),
+                        spec,
+                    });
                 }
                 '}' => {
                     return Err(error(

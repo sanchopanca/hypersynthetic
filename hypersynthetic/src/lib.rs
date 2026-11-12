@@ -422,6 +422,21 @@ pub use hypersynthetic_macros::component;
 /// assert_eq!(div.to_string(), r#"<div x-data="{ open: false, count: 5 }"></div>"#);
 /// ```
 ///
+/// # Attribute names
+/// Names can contain `-`, `:`, `@` and `.`, and start with them, as htmx and Alpine.js
+/// need: `hx-on::after-request`, `@click.outside`, `:class`. As in HTML, whitespace
+/// ends a name: `x-on:click` is one attribute, and `x-data :class` is two.
+/// ```
+/// # use hypersynthetic::html;
+/// let div = html! {
+///     <div x-data :class="cls" x-on:click="open = true"></div>
+/// };
+/// assert_eq!(
+///     div.to_string(),
+///     r#"<div x-data :class="cls" x-on:click="open = true"></div>"#
+/// );
+/// ```
+///
 /// # `<script>` and `<style>`
 /// The content of these elements is JavaScript and CSS, not HTML: browsers don't decode
 /// `&lt;` or `&amp;` there. So string literals in them are rendered as written, without

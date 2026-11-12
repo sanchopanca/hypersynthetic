@@ -496,9 +496,10 @@ fn test_colons_in_attr_names() {
 }
 
 #[test]
-fn document_that_whitespace_in_attribute_names_is_ignored() {
+fn document_that_whitespace_after_punctuation_in_attribute_names_is_ignored() {
+    // Whitespace before punctuation ends the name: see test_attribute_boundaries.rs
     let result = html! {
-        <div data - test = "1"></div>
+        <div data- test = "1"></div>
     };
 
     let string_representation = result.to_string();

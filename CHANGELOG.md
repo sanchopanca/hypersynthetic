@@ -2,6 +2,23 @@
 
 Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released together.
 
+## Unreleased
+
+### Changed
+
+- Requires Rust 1.88 or newer (was 1.85): the fix below needs the positions of tokens,
+  which the compiler gives to macros since 1.88.
+
+### Fixed
+
+- An attribute without a value swallowed the next one if its name started with `:`, `@`
+  or `.`: `<button disabled :if={show}>` rendered `<button disabled:if="false">`,
+  ignoring the condition, and `<button disabled @click="go()">` rendered
+  `disabled@click="go()"`. Whitespace before `:`, `@`, `.` or `-` now ends an attribute
+  name, as in HTML.
+  One consequence: `<div data - test="1">` is now the two attributes `data` and
+  `-test`, where it used to be `data-test`.
+
 ## 0.10.0 (2026-10-10)
 
 A large release: safer output, much faster building of pages that use components with

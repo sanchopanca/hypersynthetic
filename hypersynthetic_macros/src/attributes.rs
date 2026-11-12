@@ -4,7 +4,9 @@ use syn::{Expr, LitStr, Pat};
 pub enum Attribute {
     #[allow(clippy::enum_variant_names)]
     RegularAttribute(RegularAttribute),
-    For(ForExpr),
+    // Boxed: an enum is as big as its biggest variant, and a pattern plus an
+    // expression is about twice the size of the other variants
+    For(Box<ForExpr>),
     If(Expr),
 }
 
@@ -17,7 +19,9 @@ pub struct RegularAttribute {
 #[derive(Clone)]
 pub enum AttrName {
     Literal(LitStr),
-    Expression(Expr),
+    // Boxed: an `Expr` is some 30 times bigger than a `LitStr`, and every name
+    // would take that much space
+    Expression(Box<Expr>),
 }
 
 #[derive(Clone)]
@@ -54,7 +58,10 @@ impl InterpolatedString {
 #[derive(Clone)]
 pub enum InterpolatedSegment {
     Str(String),
-    Expr { expr: Expr, spec: Option<String> },
+    Expr {
+        expr: Box<Expr>,
+        spec: Option<String>,
+    },
 }
 
 #[derive(Clone)]

@@ -3,7 +3,7 @@ name = "hypersynthetic_macros"
 version = "0.10.0"
 authors = ["Aleksandr Kovalev <aleksandr@kovalev.engineer>"]
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 description = "Macros for hypersynthetic"
 readme = "README.md"
 homepage = "https://github.com/sanchopanca/hypersynthetic"
@@ -18,5 +18,8 @@ proc-macro = true
 [dependencies]
 syn = { version = "2.0", features = ["full", "extra-traits", "visit", "visit-mut"] }
 quote = "1.0"
-proc-macro2 = "1.0"
+# span-locations: `Span::start()` and `end()`, to see whitespace between attribute names.
+# The compiler provides them since Rust 1.88, which is why that's the `rust-version`.
+# 1.0.101 is known to use them on stable.
+proc-macro2 = { version = "1.0.101", features = ["span-locations"] }
 htmlize = "1.0.5"

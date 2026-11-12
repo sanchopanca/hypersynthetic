@@ -41,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       # Keep in sync with `rust-version` in the crates' Cargo.toml
-      - uses: dtolnay/rust-toolchain@1.85
+      - uses: dtolnay/rust-toolchain@1.88
       - uses: Swatinem/rust-cache@v2
       # Only the libraries: dev-dependencies (criterion, trybuild, ...) may need newer Rust
       - name: Check with the minimum supported Rust version
