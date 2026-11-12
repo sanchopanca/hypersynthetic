@@ -185,7 +185,9 @@ fn generate_attribute(attr: &RegularAttribute, target: &Ident) -> TokenStream2 {
         // Names and values written in the template are borrowed, not copied
         AttrName::Literal(name) => quote! { ::std::borrow::Cow::Borrowed(#name) },
         // Not escaped: names are validated when rendering instead.
-        AttrName::Expression(expr) => quote! { ::std::borrow::Cow::Owned(format!("{}", #expr)) },
+        AttrName::Expression(expr) => {
+            quote! { ::std::borrow::Cow::Owned(::std::format!("{}", #expr)) }
+        }
     };
     let push = |value: TokenStream2| {
         quote! {
@@ -199,13 +201,13 @@ fn generate_attribute(attr: &RegularAttribute, target: &Ident) -> TokenStream2 {
     // Values are stored unescaped and escaped when rendering
     match &attr.value {
         Some(AttrValue::Literal(value)) => {
-            push(quote! { Some(::std::borrow::Cow::Borrowed(#value)) })
+            push(quote! { ::std::option::Option::Some(::std::borrow::Cow::Borrowed(#value)) })
         }
         Some(AttrValue::Interpolated(string)) => {
             let value = generate_format(string);
-            push(quote! { Some(::std::borrow::Cow::Owned(#value)) })
+            push(quote! { ::std::option::Option::Some(::std::borrow::Cow::Owned(#value)) })
         }
-        None => push(quote! { None }),
+        None => push(quote! { ::std::option::Option::None }),
         // A `None`, or `false` on a boolean attribute like `disabled`, leaves the
         // attribute out. See `hypersynthetic::__private` for how values are told apart.
         Some(AttrValue::Expression(expr)) => {
@@ -221,7 +223,8 @@ fn generate_attribute(attr: &RegularAttribute, target: &Ident) -> TokenStream2 {
                         RenderBool as _, RenderDisplay as _, RenderOption as _,
                     };
                     let #name: ::std::borrow::Cow<'static, str> = #attr_name;
-                    if let Some(#value) = (&::hypersynthetic::__private::Render(&(#expr)))
+                    if let ::std::option::Option::Some(#value) =
+                        (&::hypersynthetic::__private::Render(&(#expr)))
                         .#attribute_value(&#name)
                     {
                         #target.push(::hypersynthetic::Attribute {
@@ -256,7 +259,7 @@ fn generate_format(string: &InterpolatedString) -> TokenStream2 {
     // `{name}` inside it, which it can't do for a string we build.
     if string.is_format_string {
         let lit = &string.lit;
-        return quote! { format!(#lit) };
+        return quote! { ::std::format!(#lit) };
     }
 
     let mut format_string = String::new();
@@ -278,5 +281,5 @@ fn generate_format(string: &InterpolatedString) -> TokenStream2 {
         }
     }
     let format_string = LitStr::new(&format_string, string.lit.span());
-    quote! { format!(#format_string, #(#args),*) }
+    quote! { ::std::format!(#format_string, #(#args),*) }
 }

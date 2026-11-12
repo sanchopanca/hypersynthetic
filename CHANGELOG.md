@@ -32,6 +32,8 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
 - A component path starting with `::` (`<::my_crate::Card>`) only worked at the top
   level of `html!` and self-closed. It now works inside other elements and with a
   closing tag.
+- `html!` no longer breaks where `Some`, `None` or `format!` mean something else, for
+  example after `use Filter::*;` for an enum with a `None` variant.
 
 ## 0.10.0 (2026-10-10)
 
