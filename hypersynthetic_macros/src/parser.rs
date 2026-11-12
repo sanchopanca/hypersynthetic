@@ -218,14 +218,14 @@ impl Parse for TagName {
         // Element names can be Rust keywords (SVG's `<use>`), which a path can't
         // be, unless it's a path keyword followed by `::` (`crate::Card`)
         let is_path = input.peek(Ident) || input.peek(Token![::]) || input.peek2(Token![::]);
-        let mut name = if is_path {
+        let first_part = if is_path {
             let path: Path = input.parse()?;
             if is_path_pascal_case(&path) {
                 return Ok(TagName::Component(path));
             }
             // Only components can be paths: `<foo::bar>` isn't an element
             match path.get_ident() {
-                Some(ident) => ident.to_string(),
+                Some(ident) => ident.clone(),
                 None => {
                     return Err(syn::Error::new_spanned(
                         &path,
@@ -238,8 +238,9 @@ impl Parse for TagName {
                 }
             }
         } else {
-            input.call(Ident::parse_any)?.to_string()
+            input.call(Ident::parse_any)?
         };
+        let mut name = first_part.to_string();
 
         // Custom elements have hyphens in their names: `<my-widget>`
         while input.peek(Token![-]) {
@@ -247,6 +248,21 @@ impl Parse for TagName {
             let part = input.call(Ident::parse_any)?;
             name.push('-');
             name.push_str(&part.to_string());
+        }
+
+        // An HTML tag name starts with an ASCII letter: a browser shows `<_foo>` as
+        // text. It's the one rule for tag names that a name made of identifiers and
+        // `-` can break. The renderer checks all of them, for names that only exist
+        // at runtime: `is_valid_tag_name` in `hypersynthetic/src/lib.rs`, which skips
+        // the element. A name refused there has to be refused here.
+        if !name.starts_with(|c: char| c.is_ascii_alphabetic()) {
+            return Err(syn::Error::new(
+                first_part.span(),
+                format!(
+                    "`{name}` isn't a valid tag name: element names start with an ASCII \
+                     letter (`a` to `z`), and component names with an uppercase letter"
+                ),
+            ));
         }
         Ok(TagName::Element(name))
     }

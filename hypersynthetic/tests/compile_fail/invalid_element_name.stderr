@@ -1,0 +1,29 @@
+error: `_foo` isn't a valid tag name: element names start with an ASCII letter (`a` to `z`), and component names with an uppercase letter
+ --> tests/compile_fail/invalid_element_name.rs:6:22
+  |
+6 |     let _ = html! { <_foo>"text"</_foo> };
+  |                      ^^^^
+
+error: `_` isn't a valid tag name: element names start with an ASCII letter (`a` to `z`), and component names with an uppercase letter
+ --> tests/compile_fail/invalid_element_name.rs:7:22
+  |
+7 |     let _ = html! { <_ /> };
+  |                      ^
+
+error: `über` isn't a valid tag name: element names start with an ASCII letter (`a` to `z`), and component names with an uppercase letter
+ --> tests/compile_fail/invalid_element_name.rs:8:22
+  |
+8 |     let _ = html! { <über>"text"</über> };
+  |                      ^^^^
+
+error: `_my-widget` isn't a valid tag name: element names start with an ASCII letter (`a` to `z`), and component names with an uppercase letter
+ --> tests/compile_fail/invalid_element_name.rs:9:25
+  |
+9 |     let _ = html! { <p><_my-widget>"text"</_my-widget></p> };
+  |                         ^^^
+
+error: `_Card` isn't a valid tag name: element names start with an ASCII letter (`a` to `z`), and component names with an uppercase letter
+  --> tests/compile_fail/invalid_element_name.rs:11:22
+   |
+11 |     let _ = html! { <_Card /> };
+   |                      ^^^^^

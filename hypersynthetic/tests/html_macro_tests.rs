@@ -583,6 +583,19 @@ fn test_disable_html_escaping() {
     assert_eq!(string_representation, expected);
 }
 
+// Only the first character has to be an ASCII letter
+#[test]
+fn test_unusual_element_names() {
+    let result = html! {
+        <a_b>"1"</a_b><x1>"2"</x1><café>"3"</café><my-_x>"4"</my-_x>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<a_b>1</a_b><x1>2</x1><café>3</café><my-_x>4</my-_x>"
+    );
+}
+
 #[test]
 fn test_custom_elements() {
     let result = html! {

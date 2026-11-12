@@ -36,6 +36,9 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   added to a void element aren't rendered.
 - A closing tag with nothing to close, as in `<p>"text"</p></div>`, says so: "unexpected
   closing tag `</div>`: no `<div>` is open here". It used to be "expected ident".
+- An element name that doesn't start with an ASCII letter, like `<_foo>` or `<über>`, is
+  a compile error in `html!`. It used to compile and render nothing, without its
+  content: such a name isn't a tag in HTML, so the renderer skipped the element.
 - A compile error instead of a panic ("proc macro panicked") for a component prop whose
   name starts with a digit: `<Card 5="x" />`.
 - A component path starting with `::` (`<::my_crate::Card>`) only worked at the top

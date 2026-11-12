@@ -1040,6 +1040,11 @@ const NAME_BYTES: [bool; 256] = {
 /// other characters rejected here (`<`, `=`, quotes, controls) don't end a name, but
 /// are never intended and could confuse other parsers.
 /// See <https://html.spec.whatwg.org/multipage/parsing.html#tag-name-state>.
+///
+/// `html!` checks the first letter itself, to make `<_foo>` a compile error and not
+/// an element that's silently skipped here: `TagName::parse` in
+/// `hypersynthetic_macros/src/parser.rs`. It has to refuse every name written in
+/// `html!` that this function refuses, so a change here may need one there.
 fn is_valid_tag_name(name: &str) -> bool {
     name.as_bytes().first().is_some_and(u8::is_ascii_alphabetic)
         && name.bytes().all(|byte| NAME_BYTES[byte as usize])
