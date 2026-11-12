@@ -1077,6 +1077,10 @@ enum RawText {
 }
 
 impl RawText {
+    /// `html!` asks the same question when compiling, to leave the text of these
+    /// elements unescaped and to refuse `{value}` in them: `raw_text_language` in
+    /// `hypersynthetic_macros/src/parser.rs`. The two have to give the same answer
+    /// for every name, so a change here has to be made there too.
     fn of(tag_name: &str) -> Option<RawText> {
         if tag_name.eq_ignore_ascii_case("script") {
             Some(RawText::Script)

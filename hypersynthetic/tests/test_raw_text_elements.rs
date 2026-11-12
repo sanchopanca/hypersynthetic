@@ -18,6 +18,23 @@ fn test_script_text_is_not_escaped() {
     );
 }
 
+// Tag names ignore case: a browser runs `<sCRIPT>` as a script, so its text is code too
+
+#[test]
+fn test_mixed_case_script_text_is_not_escaped() {
+    let result = html! { <sCRIPT>"if (a && b < c) {{ go(); }}"</sCRIPT> };
+    assert_eq!(
+        result.to_string(),
+        "<sCRIPT>if (a && b < c) { go(); }</sCRIPT>"
+    );
+}
+
+#[test]
+fn test_mixed_case_style_text_is_not_escaped() {
+    let result = html! { <sTYLE>"a > b {{ color: red }}"</sTYLE> };
+    assert_eq!(result.to_string(), "<sTYLE>a > b { color: red }</sTYLE>");
+}
+
 #[test]
 fn test_unescaped_values_in_script() {
     let count = 5;

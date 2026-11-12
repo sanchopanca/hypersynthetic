@@ -153,10 +153,9 @@ impl Parse for Node {
                             children,
                         }),
                         TagName::Element(tag_name) => Node::Element(Tag {
-                            children: if is_raw_text_element(&tag_name) {
-                                raw_text_children(&tag_name, children)?
-                            } else {
-                                children
+                            children: match raw_text_language(&tag_name) {
+                                Some(language) => raw_text_children(&tag_name, language, children)?,
+                                None => children,
                             },
                             tag_name,
                             span: tag_name_span,
@@ -297,24 +296,30 @@ fn reject_void_closing_tag(name: &TagName, span: Span) -> Result<()> {
     }
 }
 
-/// Elements whose content is JavaScript or CSS, not HTML: browsers don't decode
-/// entities there, so HTML escaping would change the code.
+/// The language of an element whose content is JavaScript or CSS, not HTML: browsers
+/// don't decode entities there, so HTML escaping would change the code.
 /// See <https://html.spec.whatwg.org/multipage/syntax.html#raw-text-elements>.
-fn is_raw_text_element(tag_name: &str) -> bool {
-    matches!(tag_name, "script" | "style")
+///
+/// Tag names ignore case in HTML: `<sCRIPT>` is a script. The renderer asks the same
+/// question, to keep the content from closing the element: `RawText::of` in
+/// `hypersynthetic/src/lib.rs`. The two have to give the same answer for every name,
+/// so a change here has to be made there too.
+fn raw_text_language(tag_name: &str) -> Option<&'static str> {
+    if tag_name.eq_ignore_ascii_case("script") {
+        Some("JavaScript")
+    } else if tag_name.eq_ignore_ascii_case("style") {
+        Some("CSS")
+    } else {
+        None
+    }
 }
 
 /// String literals in a raw text element are code, written by the template's author,
 /// so they become raw text. Values would need JavaScript or CSS escaping, which
 /// `{expression}` can't do, so they must be inserted unescaped with `{{expression}}`.
-fn raw_text_children(tag_name: &str, children: Vec<Node>) -> Result<Vec<Node>> {
+fn raw_text_children(tag_name: &str, language: &str, children: Vec<Node>) -> Result<Vec<Node>> {
     // The renderer makes sure the content can't close the element, but a value is
     // still inserted as code
-    let language = if tag_name == "script" {
-        "JavaScript"
-    } else {
-        "CSS"
-    };
     let advice = format!(
         "insert the value unescaped with `{{{{...}}}}`, and make sure it's safe as {language}"
     );

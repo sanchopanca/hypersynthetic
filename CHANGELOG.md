@@ -36,6 +36,12 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   added to a void element aren't rendered.
 - A closing tag with nothing to close, as in `<p>"text"</p></div>`, says so: "unexpected
   closing tag `</div>`: no `<div>` is open here". It used to be "expected ident".
+- `<script>` and `<style>` written in mixed case (`<sCRIPT>`) were treated as ordinary
+  elements by `html!`, though browsers run them as scripts and styles: their text was
+  HTML-escaped, which breaks the code (`a &lt; b`), and `{value}` was accepted and
+  HTML-escaped, which doesn't make a value safe inside JavaScript. They now get the
+  same treatment as `<script>` and `<style>`: text as written, `{value}` a compile
+  error.
 - An element name that doesn't start with an ASCII letter, like `<_foo>` or `<über>`, is
   a compile error in `html!`. It used to compile and render nothing, without its
   content: such a name isn't a tag in HTML, so the renderer skipped the element.
