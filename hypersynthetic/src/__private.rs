@@ -16,9 +16,10 @@
 //!
 //! An attribute value `attr={expr}` uses the same lookup with `attribute_value(name)`,
 //! which gives `None` to leave the attribute out, or `Some` of its value. [RenderBool]
-//! takes `bool` first: on a boolean attribute (`disabled`) it decides whether the
-//! attribute is there. [RenderFragment] has no such method, so any other `Display`
-//! value (a fragment too) is formatted, and an `Option` is left out when `None`.
+//! takes a `bool` first, however it's wrapped ([AsBool]): on a boolean attribute
+//! (`disabled`) it decides whether the attribute is there. [RenderFragment] has no
+//! such method, so any other `Display` value (a fragment too) is formatted, and an
+//! `Option` is left out when `None`.
 
 use std::borrow::Cow;
 use std::fmt::Display;
@@ -84,24 +85,58 @@ impl<T: AsNodes> AsNodes for Option<T> {
     }
 }
 
-/// The wrappers that only point to a value: they're HTML if the value is.
-macro_rules! as_nodes_through {
+impl<T: AsNodes + ToOwned + ?Sized> AsNodes for Cow<'_, T> {
+    fn push_nodes(&self, out: &mut Vec<Node>) {
+        (**self).push_nodes(out);
+    }
+}
+
+/// Values that are a `bool`. As an attribute's value, `attr={value}`, they're not
+/// formatted like other values: on a boolean attribute they decide whether it's there.
+///
+/// Like [AsNodes], it's implemented for the type itself and for every wrapper around
+/// something that implements it: `&&bool`, `Option<bool>`, `&Option<Box<bool>>`, ...
+pub trait AsBool {
+    /// `None` when there's no value: an `Option` that is `None`, at any depth
+    fn as_bool(&self) -> Option<bool>;
+}
+
+impl AsBool for bool {
+    fn as_bool(&self) -> Option<bool> {
+        Some(*self)
+    }
+}
+
+impl<T: AsBool> AsBool for Option<T> {
+    fn as_bool(&self) -> Option<bool> {
+        self.as_ref()?.as_bool()
+    }
+}
+
+impl<T: AsBool + ToOwned + ?Sized> AsBool for Cow<'_, T> {
+    fn as_bool(&self) -> Option<bool> {
+        (**self).as_bool()
+    }
+}
+
+/// The wrappers that only point to a value are what the value is: HTML, or a `bool`.
+macro_rules! through_pointers {
     ($($pointer:ty),* $(,)?) => {$(
         impl<T: AsNodes + ?Sized> AsNodes for $pointer {
             fn push_nodes(&self, out: &mut Vec<Node>) {
                 (**self).push_nodes(out);
             }
         }
+
+        impl<T: AsBool + ?Sized> AsBool for $pointer {
+            fn as_bool(&self) -> Option<bool> {
+                (**self).as_bool()
+            }
+        }
     )*};
 }
 
-as_nodes_through!(&T, &mut T, Box<T>, Rc<T>, Arc<T>);
-
-impl<T: AsNodes + ToOwned + ?Sized> AsNodes for Cow<'_, T> {
-    fn push_nodes(&self, out: &mut Vec<Node>) {
-        (**self).push_nodes(out);
-    }
-}
+through_pointers!(&T, &mut T, Box<T>, Rc<T>, Arc<T>);
 
 pub trait RenderFragment {
     fn render(&self, escape: bool, out: &mut Vec<Node>);
@@ -130,15 +165,10 @@ pub trait RenderBool {
     fn attribute_value(&self, name: &str) -> Option<AttributeValue>;
 }
 
-impl RenderBool for Render<'_, bool> {
+impl<T: AsBool + ?Sized> RenderBool for Render<'_, T> {
     fn attribute_value(&self, name: &str) -> Option<AttributeValue> {
-        bool_attribute(*self.0, name)
-    }
-}
-
-impl RenderBool for Render<'_, &bool> {
-    fn attribute_value(&self, name: &str) -> Option<AttributeValue> {
-        bool_attribute(**self.0, name)
+        // No value, no attribute: `None` is left out of any attribute
+        bool_attribute(self.0.as_bool()?, name)
     }
 }
 

@@ -380,6 +380,21 @@ pub use hypersynthetic_macros::component;
 /// };
 /// assert_eq!(button.to_string(), r#"<button aria-expanded="false">Menu</button>"#);
 /// ```
+/// An `Option<bool>` is a `bool` that may be missing: `None` leaves the attribute out,
+/// as it does for any value, and `Some(flag)` is rendered like `flag`. So on `disabled`
+/// both `None` and `Some(false)` mean "not there", and on `aria-pressed` they're
+/// different: no attribute, and `aria-pressed="false"`.
+/// ```
+/// # use hypersynthetic::html;
+/// let disabled: Option<bool> = Some(false);
+/// let pressed: Option<bool> = None;
+/// let button = html! {
+///     <button disabled={disabled} aria-pressed={pressed}>"Save"</button>
+/// };
+/// assert_eq!(button.to_string(), "<button>Save</button>");
+/// ```
+/// A `bool` behind a reference, a `Box`, an `Rc` or an `Arc` is treated like the `bool`.
+///
 /// For boolean attributes of custom elements, which hypersynthetic doesn't know about,
 /// use an `Option`: `my-flag={on.then_some("")}`.
 ///

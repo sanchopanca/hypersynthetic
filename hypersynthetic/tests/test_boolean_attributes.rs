@@ -2,7 +2,10 @@
 //! attribute is present or absent, since `disabled="false"` would still disable.
 //! On other attributes a `bool` is rendered as `"true"` or `"false"`.
 
-use hypersynthetic::html;
+use hypersynthetic::prelude::*;
+use std::borrow::Cow;
+use std::rc::Rc;
+use std::sync::Arc;
 
 #[test]
 fn test_bool_on_boolean_attribute() {
@@ -65,4 +68,111 @@ fn test_bool_with_dynamic_attribute_name() {
         result.to_string(),
         r#"<input checked /><input /><input aria-pressed="false" />"#
     );
+}
+
+// An `Option<bool>` is a `bool` that may be missing: `None` leaves the attribute out,
+// like any `None`, and `Some(flag)` is rendered like `flag`.
+
+#[test]
+fn test_optional_bool_on_boolean_attribute() {
+    let render = |disabled: Option<bool>| html! { <input disabled={disabled}> };
+
+    assert_eq!(render(Some(true)).to_string(), "<input disabled>");
+    assert_eq!(render(Some(false)).to_string(), "<input>");
+    assert_eq!(render(None).to_string(), "<input>");
+}
+
+#[test]
+fn test_optional_bool_on_other_attributes_has_three_states() {
+    let render = |open: Option<bool>| html! { <i aria-expanded={open}></i> };
+
+    assert_eq!(
+        render(Some(true)).to_string(),
+        r#"<i aria-expanded="true"></i>"#
+    );
+    assert_eq!(
+        render(Some(false)).to_string(),
+        r#"<i aria-expanded="false"></i>"#
+    );
+    assert_eq!(render(None).to_string(), "<i></i>");
+}
+
+#[component]
+fn Toggle(#[builder(default)] disabled: Option<bool>) -> HtmlFragment {
+    html! { <input type="checkbox" disabled={disabled}> }
+}
+
+#[test]
+fn test_optional_bool_prop_passed_to_a_boolean_attribute() {
+    let result = html! {
+        <Toggle />
+        <Toggle disabled={Some(false)} />
+        <Toggle disabled={Some(true)} />
+    };
+
+    assert_eq!(
+        result.to_string(),
+        r#"<input type="checkbox"><input type="checkbox"><input type="checkbox" disabled>"#
+    );
+}
+
+// A `bool` is a `bool`, however it's wrapped
+
+#[test]
+fn test_references_to_bool_references() {
+    let (on, off) = (true, false);
+    let flags: Vec<&bool> = vec![&on, &off];
+    let result = html! {
+        <input :for={flag in flags.iter()} disabled={flag}>
+    };
+
+    assert_eq!(result.to_string(), "<input disabled><input>");
+}
+
+#[test]
+fn test_bool_behind_pointers() {
+    let mut off = false;
+    let cow: Cow<bool> = Cow::Owned(false);
+    let result = html! {
+        <input disabled={Box::new(false)} hidden={Rc::new(false)} required={Arc::new(false)}
+            checked={&mut off} readonly={cow}>
+        <input disabled={Box::new(true)} hidden={Rc::new(true)} required={Arc::new(true)}>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<input><input disabled hidden required>"
+    );
+}
+
+#[test]
+fn test_bool_behind_several_wrappers() {
+    let off = false;
+    let optional: Option<bool> = Some(false);
+    let boxed: Option<Box<bool>> = Some(Box::new(true));
+    let result = html! {
+        <input disabled={Some(&off)} hidden={&optional} required={boxed}>
+    };
+
+    assert_eq!(result.to_string(), "<input required>");
+}
+
+#[test]
+fn test_optional_bool_with_dynamic_attribute_name() {
+    let name = "disabled";
+    let result = html! {
+        <input {name}={Some(false)}>
+        <input {name}={Some(true)}>
+    };
+
+    assert_eq!(result.to_string(), "<input><input disabled>");
+}
+
+// As content, a `bool` is text in any wrapping
+
+#[test]
+fn test_optional_bool_as_content_is_text() {
+    let result = html! { <p>{Some(false)}{Box::new(true)}</p> };
+
+    assert_eq!(result.to_string(), "<p>falsetrue</p>");
 }

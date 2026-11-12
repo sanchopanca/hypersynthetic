@@ -42,6 +42,12 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   added to a void element aren't rendered.
 - A closing tag with nothing to close, as in `<p>"text"</p></div>`, says so: "unexpected
   closing tag `</div>`: no `<div>` is open here". It used to be "expected ident".
+- `disabled={Some(false)}` rendered `disabled="false"`, which disables: on boolean
+  attributes only a plain `bool` or `&bool` decided whether the attribute is there.
+  An `Option<bool>` does now (`None` and `Some(false)` leave it out, `Some(true)`
+  renders `disabled`), and so does a `bool` behind `&&`, `&mut`, `Box`, `Rc`, `Arc` or
+  `Cow`. On other attributes nothing changes: `aria-expanded={Some(false)}` is still
+  `aria-expanded="false"`.
 - `<script>` and `<style>` written in mixed case (`<sCRIPT>`) were treated as ordinary
   elements by `html!`, though browsers run them as scripts and styles: their text was
   HTML-escaped, which breaks the code (`a &lt; b`), and `{value}` was accepted and
