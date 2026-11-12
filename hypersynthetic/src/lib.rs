@@ -300,6 +300,20 @@ pub use hypersynthetic_macros::component;
 /// assert_eq!(list.to_string(), "<p><b>bold</b></p>");
 /// ```
 ///
+/// The same goes for everything else that is HTML: a [Node], an [ElementData], and any
+/// of the three behind a reference, a `Box`, an `Rc` or an `Arc`. So what the methods
+/// for finding elements return can go straight into another template:
+/// ```
+/// # use hypersynthetic::html;
+/// let page = html! { <main><p id="intro">"Hello"</p><p>"More"</p></main> };
+/// let summary = html! {
+///     <aside>{page.get_element_by_id("intro")}</aside>
+/// };
+/// assert_eq!(summary.to_string(), r#"<aside><p id="intro">Hello</p></aside>"#);
+/// ```
+/// To show markup as text instead, turn it into a string first:
+/// `{fragment.to_string()}` is escaped like any other string.
+///
 /// An [Option] renders the value inside `Some` the same way, and nothing for `None`:
 /// ```
 /// # use hypersynthetic::html;

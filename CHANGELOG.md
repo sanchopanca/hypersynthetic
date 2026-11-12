@@ -11,6 +11,12 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
 - A closing tag of a void element is a compile error in `html!`: `<br></br>`,
   `<input></input>`. It's an error in HTML too, and browsers read `</br>` as a second
   `<br>`. In 0.10 it compiled and was rendered as written. Write `<br>` or `<br />`.
+- `{value}` in `html!` inserts everything that is HTML as HTML: a `Node` and an
+  `ElementData` too, and any of them or an `HtmlFragment` behind `&&`, `&mut`, `Box`,
+  `Rc`, `Arc`, `Cow` or `Option`. Only `HtmlFragment`, `&HtmlFragment` and their
+  `Option`s were; the rest was formatted and escaped, so the markup showed up as text
+  (`&lt;p&gt;...`). That includes what `get_element_by_id` and iterating over a
+  fragment give. To show markup as text, write `{value.to_string()}`.
 
 ### Added
 

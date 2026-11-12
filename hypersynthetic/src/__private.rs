@@ -1,15 +1,16 @@
 //! Support code for the macros, not public API.
 //!
-//! `{expr}` in `html!` inserts `expr` as nodes when it's an [HtmlFragment], and formats
-//! it with [Display] otherwise. Trait impls can't express that on stable Rust, since
-//! `HtmlFragment` implements `Display` too, so the macro uses autoref specialization:
-//! it generates `(&Render(&expr)).render(escape, &mut nodes)`. Method lookup tries the receiver
-//! `&Render<T>` first, which only the [RenderFragment] impls accept, and then
+//! `{expr}` in `html!` inserts `expr` as nodes when it's HTML ([AsNodes]: a fragment,
+//! a node or an element, however it's wrapped), and formats it with [Display]
+//! otherwise. Trait impls can't express that on stable Rust, since the HTML types
+//! implement `Display` too, so the macro uses autoref specialization: it generates
+//! `(&Render(&expr)).render(escape, &mut nodes)`. Method lookup tries the receiver
+//! `&Render<T>` first, which only the [RenderFragment] impl accepts, and then
 //! `&&Render<T>`, which the [RenderDisplay] and [RenderOption] impls accept.
 //!
 //! An `Option` renders its value like the value itself would, and nothing for `None`.
-//! Options of fragments need their own impls next to the fragment ones: a generic
-//! `Option<T: Display>` impl would format a fragment instead of inserting it.
+//! An option of HTML is HTML itself (it's [AsNodes]), so it's taken in the first
+//! step: the generic `Option<T: Display>` impl of the second would format it.
 //!
 //! `Render` holds a reference, so expressions are borrowed like `format!` borrows them.
 //!
@@ -21,8 +22,10 @@
 
 use std::borrow::Cow;
 use std::fmt::Display;
+use std::rc::Rc;
+use std::sync::Arc;
 
-use crate::{HtmlFragment, Node, escape_text, is_boolean_attribute};
+use crate::{ElementData, HtmlFragment, Node, escape_text, is_boolean_attribute};
 
 /// For the `TypedBuilder` derive that `#[component]` generates, since users don't
 /// depend on typed-builder. It's here rather than public so that typed-builder's
@@ -30,12 +33,6 @@ use crate::{HtmlFragment, Node, escape_text, is_boolean_attribute};
 pub use typed_builder;
 
 pub struct Render<'a, T: ?Sized>(pub &'a T);
-
-fn fragment(fragment: Option<&HtmlFragment>, out: &mut Vec<Node>) {
-    if let Some(fragment) = fragment {
-        out.extend(fragment.iter().cloned());
-    }
-}
 
 fn text(value: Option<&dyn Display>, escape: bool, out: &mut Vec<Node>) {
     let Some(value) = value else {
@@ -51,37 +48,68 @@ fn text(value: Option<&dyn Display>, escape: bool, out: &mut Vec<Node>) {
     out.push(Node::Text(text));
 }
 
+/// Values that are HTML. `{value}` inserts their nodes, where any other value is
+/// formatted and escaped.
+///
+/// The three types that hold nodes implement it, and so does every wrapper around
+/// something that does, which covers the combinations without listing them:
+/// `&&HtmlFragment`, `Option<&ElementData>`, `&Option<Arc<HtmlFragment>>`, ...
+pub trait AsNodes {
+    fn push_nodes(&self, out: &mut Vec<Node>);
+}
+
+impl AsNodes for HtmlFragment {
+    fn push_nodes(&self, out: &mut Vec<Node>) {
+        out.extend(self.iter().cloned());
+    }
+}
+
+impl AsNodes for Node {
+    fn push_nodes(&self, out: &mut Vec<Node>) {
+        out.push(self.clone());
+    }
+}
+
+impl AsNodes for ElementData {
+    fn push_nodes(&self, out: &mut Vec<Node>) {
+        out.push(Node::Element(self.clone()));
+    }
+}
+
+impl<T: AsNodes> AsNodes for Option<T> {
+    fn push_nodes(&self, out: &mut Vec<Node>) {
+        if let Some(value) = self {
+            value.push_nodes(out);
+        }
+    }
+}
+
+/// The wrappers that only point to a value: they're HTML if the value is.
+macro_rules! as_nodes_through {
+    ($($pointer:ty),* $(,)?) => {$(
+        impl<T: AsNodes + ?Sized> AsNodes for $pointer {
+            fn push_nodes(&self, out: &mut Vec<Node>) {
+                (**self).push_nodes(out);
+            }
+        }
+    )*};
+}
+
+as_nodes_through!(&T, &mut T, Box<T>, Rc<T>, Arc<T>);
+
+impl<T: AsNodes + ToOwned + ?Sized> AsNodes for Cow<'_, T> {
+    fn push_nodes(&self, out: &mut Vec<Node>) {
+        (**self).push_nodes(out);
+    }
+}
+
 pub trait RenderFragment {
     fn render(&self, escape: bool, out: &mut Vec<Node>);
 }
 
-impl RenderFragment for Render<'_, HtmlFragment> {
+impl<T: AsNodes + ?Sized> RenderFragment for Render<'_, T> {
     fn render(&self, _escape: bool, out: &mut Vec<Node>) {
-        fragment(Some(self.0), out)
-    }
-}
-
-impl RenderFragment for Render<'_, &HtmlFragment> {
-    fn render(&self, _escape: bool, out: &mut Vec<Node>) {
-        fragment(Some(self.0), out)
-    }
-}
-
-impl RenderFragment for Render<'_, Option<HtmlFragment>> {
-    fn render(&self, _escape: bool, out: &mut Vec<Node>) {
-        fragment(self.0.as_ref(), out)
-    }
-}
-
-impl RenderFragment for Render<'_, &Option<HtmlFragment>> {
-    fn render(&self, _escape: bool, out: &mut Vec<Node>) {
-        fragment(self.0.as_ref(), out)
-    }
-}
-
-impl RenderFragment for Render<'_, Option<&HtmlFragment>> {
-    fn render(&self, _escape: bool, out: &mut Vec<Node>) {
-        fragment(*self.0, out)
+        self.0.push_nodes(out);
     }
 }
 
