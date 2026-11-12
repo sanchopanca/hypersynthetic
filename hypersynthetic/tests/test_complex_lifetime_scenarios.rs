@@ -290,3 +290,64 @@ fn test_mut_ref_to_a_vec_of_refs_can_be_used_again() {
     assert_eq!(second.to_string(), "<li>c</li>");
     assert_eq!(items, ["a"]);
 }
+
+// A name the macro gives to an elided lifetime must not be one the function uses
+// itself. `for<'a>` declares `'a` wherever it's written, and a name that's already in
+// scope can't be declared again (E0496).
+
+#[component]
+fn Apply(transform: Box<dyn for<'a> Fn(&'a str) -> &'a str>, text: &str) -> HtmlFragment {
+    html! { <p>{transform(text)}</p> }
+}
+
+#[component]
+fn ApplyGeneric<F>(transform: F, text: &str) -> HtmlFragment
+where
+    F: for<'a> Fn(&'a str) -> &'a str,
+{
+    html! { <p>{transform(text)}</p> }
+}
+
+// `'r#a` is another spelling of `'a`
+#[component]
+fn ApplyRaw(transform: for<'r#a> fn(&'r#a str) -> &'r#a str, text: &str) -> HtmlFragment {
+    html! { <p>{transform(text)}</p> }
+}
+
+#[test]
+fn test_for_lifetime_in_the_signature_and_elided_reference() {
+    let result = html! {
+        <Apply transform={Box::new(str::trim)} text=" a " />
+        <ApplyGeneric transform={str::trim} text=" b " />
+        <ApplyRaw transform={str::trim} text=" c " />
+    };
+    assert_eq!(result.to_string(), "<p>a</p><p>b</p><p>c</p>");
+}
+
+#[component]
+fn Trimmed(text: &str) -> HtmlFragment {
+    let trim: &dyn for<'a> Fn(&'a str) -> &'a str = &str::trim;
+    html! { <p>{trim(text)}</p> }
+}
+
+// Inside a macro's arguments, where the function's syntax tree has only tokens
+#[component]
+fn TrimmedTwice(text: &str) -> HtmlFragment {
+    // An array would do, but the test needs a macro
+    #[allow(clippy::useless_vec)]
+    let steps = vec![
+        Box::new(str::trim_start) as Box<dyn for<'a> Fn(&'a str) -> &'a str>,
+        Box::new(str::trim_end),
+    ];
+    let text = steps.iter().fold(text, |text, step| step(text));
+    html! { <p>{text}</p> }
+}
+
+#[test]
+fn test_for_lifetime_in_the_body_and_elided_reference() {
+    let result = html! {
+        <Trimmed text=" a " />
+        <TrimmedTwice text=" b " />
+    };
+    assert_eq!(result.to_string(), "<p>a</p><p>b</p>");
+}

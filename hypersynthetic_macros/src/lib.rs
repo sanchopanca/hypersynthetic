@@ -9,8 +9,10 @@ extern crate proc_macro;
 use generator::generate_nodes;
 use nodes::NodeCollection;
 use proc_macro::TokenStream;
-use quote::quote;
-use syn::{ItemFn, parse_macro_input, visit::Visit, visit_mut::VisitMut};
+use proc_macro2::TokenTree;
+use quote::{ToTokens, quote};
+use std::collections::HashSet;
+use syn::{ItemFn, ext::IdentExt, parse_macro_input, visit::Visit, visit_mut::VisitMut};
 use utils::is_pascal_case;
 
 #[proc_macro]
@@ -35,7 +37,7 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut function = parse_macro_input!(item as ItemFn);
 
     // Props struct fields can't have elided lifetimes
-    name_elided_lifetimes(&mut function.sig);
+    name_elided_lifetimes(&mut function);
 
     // Check if the function's identifier is PascalCase
     let fn_name = &function.sig.ident;
@@ -256,13 +258,17 @@ fn find_impl_trait(ty: &syn::Type) -> Option<&syn::TypeImplTrait> {
 /// Each one gets its own name, which is what elision means in parameters. One name
 /// for all would tie them together: `&mut Vec<&str>` would become `&'a mut Vec<&'a str>`,
 /// a borrow that has to last as long as the strings do.
-fn name_elided_lifetimes(sig: &mut syn::Signature) {
+///
+/// A new name must be one the function doesn't write anywhere. The declared names
+/// are in scope in the whole function, the body too, and `for<'a>` declares one
+/// wherever it stands, which fails if `'a` is in scope already.
+fn name_elided_lifetimes(function: &mut ItemFn) {
+    let mut taken = HashSet::new();
+    collect_lifetime_names(function.to_token_stream(), &mut taken);
+
+    let sig = &mut function.sig;
     let mut namer = ElidedLifetimeNamer {
-        taken: sig
-            .generics
-            .lifetimes()
-            .map(|param| param.lifetime.to_string())
-            .collect(),
+        taken,
         named: Vec::new(),
     };
     for input in &mut sig.inputs {
@@ -278,9 +284,29 @@ fn name_elided_lifetimes(sig: &mut syn::Signature) {
     }
 }
 
+/// Adds every lifetime name written in `tokens` to `names`: declared or used, at any
+/// depth, in the arguments of a macro too, which a syntax tree keeps as plain tokens.
+fn collect_lifetime_names(tokens: proc_macro2::TokenStream, names: &mut HashSet<String>) {
+    let mut tokens = tokens.into_iter().peekable();
+    while let Some(token) = tokens.next() {
+        match token {
+            TokenTree::Group(group) => collect_lifetime_names(group.stream(), names),
+            // A lifetime is two tokens: the `'` and the name. A character like `'a'`
+            // is a single literal token, so it doesn't get here.
+            TokenTree::Punct(punct) if punct.as_char() == '\'' => {
+                if let Some(TokenTree::Ident(name)) = tokens.peek() {
+                    // `'r#a` is the same lifetime as `'a`
+                    names.insert(format!("'{}", name.unraw()));
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 struct ElidedLifetimeNamer {
-    /// The names the function declares itself
-    taken: Vec<String>,
+    /// The names the function writes itself
+    taken: HashSet<String>,
     /// The names given so far, in the order of the parameters
     named: Vec<syn::Lifetime>,
 }

@@ -40,6 +40,12 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   now gets its own, as in an ordinary function. A component body that only compiled
   because the lifetimes were tied together (`list.push(item)` with `list: &mut Vec<&str>`
   and `item: &str`) now needs them named explicitly, as it would without `#[component]`.
+- `#[component]` failed with "lifetime name `'a` shadows a lifetime name that is already
+  in scope" on a function with a reference parameter (`text: &str`) that also wrote
+  `for<'a>` somewhere: in a parameter type like `Box<dyn for<'a> Fn(&'a str) -> &'a str>`,
+  in a bound, or in the body. The lifetimes that `#[component]` declares now avoid every
+  lifetime name the function uses. For the same reason, a body that uses a lifetime
+  nobody declared no longer compiles by accident.
 
 ## 0.10.0 (2026-10-10)
 
