@@ -9,3 +9,9 @@ error: `::div` isn't a valid tag name: element names can't be paths, and compone
   |
 5 |     let _ = html! { <::div></::div> };
   |                      ^^^^^
+
+error: `::div` isn't a valid tag name: element names can't be paths, and component names start with an uppercase letter
+ --> tests/compile_fail/path_element_name.rs:6:25
+  |
+6 |     let _ = html! { <p><::div></::div></p> };
+  |                         ^^^^^

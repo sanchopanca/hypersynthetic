@@ -23,6 +23,9 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   line breaks, and now render `<br>`. Content of a void element isn't rendered.
 - A compile error instead of a panic ("proc macro panicked") for a component prop whose
   name starts with a digit: `<Card 5="x" />`.
+- A component path starting with `::` (`<::my_crate::Card>`) only worked at the top
+  level of `html!` and self-closed. It now works inside other elements and with a
+  closing tag.
 
 ## 0.10.0 (2026-10-10)
 

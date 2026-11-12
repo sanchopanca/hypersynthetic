@@ -97,8 +97,10 @@ impl Parse for Node {
 
             let _: Token![>] = input.parse()?;
 
+            // A tag name starts with an identifier or, for a component with an
+            // absolute path (`<::ui::Card>`), with `::`: what `TagName::parse` accepts
             let mut children: Vec<Node> = Vec::new();
-            while input.peek(Token![<]) && input.peek2(Ident::peek_any)
+            while input.peek(Token![<]) && (input.peek2(Ident::peek_any) || input.peek2(Token![::]))
                 || input.peek(LitStr)
                 || input.peek(Brace)
             {
@@ -107,7 +109,10 @@ impl Parse for Node {
             }
 
             // Check for the closing tag
-            if input.peek(Token![<]) && input.peek2(Token![/]) && input.peek3(Ident::peek_any) {
+            if input.peek(Token![<])
+                && input.peek2(Token![/])
+                && (input.peek3(Ident::peek_any) || input.peek3(Token![::]))
+            {
                 let _: Token![<] = input.parse()?;
                 let _: Token![/] = input.parse()?;
                 let closing_span = input.span();
