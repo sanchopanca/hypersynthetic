@@ -324,6 +324,17 @@ fn validate_prop_names(props: &[Attribute]) -> Result<()> {
                         ),
                     ));
                 }
+                // Keywords are fine: the setter is called as `r#type`. These are the
+                // ones that can't be raw identifiers, so they can't name a parameter:
+                // https://doc.rust-lang.org/reference/identifiers.html#raw-identifiers
+                if matches!(name_str.as_str(), "self" | "Self" | "super" | "crate" | "_") {
+                    return Err(syn::Error::new(
+                        name.span(),
+                        format!(
+                            "invalid prop name `{name_str}`: it can't be a parameter name, so no component has this prop"
+                        ),
+                    ));
+                }
                 let is_word = |c: char| c.is_alphanumeric() || c == '_';
                 if !name_str.chars().all(is_word) {
                     let words: Vec<&str> = name_str

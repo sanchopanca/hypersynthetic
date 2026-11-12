@@ -98,12 +98,12 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
                 .map(|attr| {
                     // Extract the attribute name
                     let attr_name = match &attr.name {
-                        // `format_ident!` panics if the name isn't an identifier:
-                        // `validate_prop_names` in the parser makes sure it is
-                        AttrName::Literal(name) => {
-                            let name_str = name.value();
-                            quote::format_ident!("{}", name_str, span = name.span())
-                        }
+                        // A raw identifier (`r#type`), so that props can be named
+                        // after keywords: `r#title` is the same name as `title`, and
+                        // which names are keywords depends on the edition, so all of
+                        // them are raw. `new_raw` panics if the name isn't one that
+                        // can be raw: `validate_prop_names` in the parser checks it.
+                        AttrName::Literal(name) => Ident::new_raw(&name.value(), name.span()),
                         AttrName::Expression(_) => {
                             unreachable!("rejected by the parser in validate_prop_names")
                         }

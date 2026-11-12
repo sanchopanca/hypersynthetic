@@ -1,0 +1,29 @@
+error: invalid prop name `self`: it can't be a parameter name, so no component has this prop
+ --> tests/compile_fail/reserved_prop_name.rs:9:27
+  |
+9 |     let _ = html! { <Card self="x" /> };
+  |                           ^^^^
+
+error: invalid prop name `Self`: it can't be a parameter name, so no component has this prop
+  --> tests/compile_fail/reserved_prop_name.rs:10:27
+   |
+10 |     let _ = html! { <Card Self="x" /> };
+   |                           ^^^^
+
+error: invalid prop name `super`: it can't be a parameter name, so no component has this prop
+  --> tests/compile_fail/reserved_prop_name.rs:11:27
+   |
+11 |     let _ = html! { <Card super="x" /> };
+   |                           ^^^^^
+
+error: invalid prop name `crate`: it can't be a parameter name, so no component has this prop
+  --> tests/compile_fail/reserved_prop_name.rs:12:27
+   |
+12 |     let _ = html! { <Card crate="x" /> };
+   |                           ^^^^^
+
+error: invalid prop name `_`: it can't be a parameter name, so no component has this prop
+  --> tests/compile_fail/reserved_prop_name.rs:13:27
+   |
+13 |     let _ = html! { <Card _="x" /> };
+   |                           ^

@@ -9,6 +9,12 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
 - Requires Rust 1.88 or newer (was 1.85): the fix below needs the positions of tokens,
   which the compiler gives to macros since 1.88.
 
+### Added
+
+- Component props can be named after Rust keywords: with a parameter `r#type: &str`,
+  `<Field type="email" />` sets it. It used to fail with "expected identifier, found
+  keyword `type`".
+
 ### Fixed
 
 - An attribute without a value swallowed the next one if its name started with `:`, `@`

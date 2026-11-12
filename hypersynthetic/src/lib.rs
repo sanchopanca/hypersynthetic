@@ -158,6 +158,22 @@ pub mod __private;
 /// # }
 /// ```
 ///
+/// ## Props named like keywords
+/// A prop can have the name of a Rust keyword, like HTML's `type` and `for`. The
+/// parameter is written as a raw identifier (`r#type`), and the prop like the attribute:
+/// ```
+/// # use hypersynthetic::prelude::*;
+/// #[component]
+/// fn Field(r#type: &str, r#for: &str) -> HtmlFragment {
+///     html! { <input type={r#type} form={r#for} /> }
+/// }
+///
+/// # fn main() {
+/// let html = html! { <Field type="email" for="signup" /> };
+/// assert_eq!(html.to_string(), r#"<input type="email" form="signup" />"#);
+/// # }
+/// ```
+///
 /// # Children
 ///
 /// The content between a component's tags is passed to its parameter named `children`,
