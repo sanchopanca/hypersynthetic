@@ -145,6 +145,43 @@ fn test_self_closing_non_void_element_built_manually() {
     assert_eq!(fragment.to_string(), "<span></span>");
 }
 
+// Void elements have no end tag. `</br>` is the dangerous one: browsers read it as
+// another `<br>`, so `<br></br>` would be two line breaks.
+
+#[test]
+fn test_void_element_with_closing_tag() {
+    let result = html! {
+        <p>"a"<br></br>"b"</p>
+        <input type="text"></input>
+    };
+
+    assert_eq!(result.to_string(), "<p>a<br>b</p><input type=\"text\">");
+}
+
+#[test]
+fn test_void_element_built_manually() {
+    let mut img = ElementData::new("img");
+    img.set_attribute("src", "a.png");
+    let fragment = HtmlFragment::new(vec![
+        Node::Element(ElementData::new("br")),
+        Node::Element(img),
+        // Tag names aren't case-sensitive in HTML
+        Node::Element(ElementData::new("HR")),
+    ]);
+
+    assert_eq!(fragment.to_string(), "<br><img src=\"a.png\"><HR>");
+}
+
+#[test]
+fn test_void_element_children_are_not_rendered() {
+    let mut br = ElementData::new("br");
+    br.add_child(Node::text("lost"));
+    assert_eq!(br.to_string(), "<br>");
+
+    br.self_closing = true;
+    assert_eq!(br.to_string(), "<br />");
+}
+
 #[test]
 fn test_mixed_children() {
     let result = html! {

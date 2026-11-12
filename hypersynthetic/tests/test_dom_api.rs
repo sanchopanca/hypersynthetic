@@ -16,10 +16,7 @@ fn test_toggle_attribute() {
     let mut input = ElementData::new("input");
 
     assert!(input.toggle_attribute("disabled", None));
-    assert_eq!(
-        Node::Element(input.clone()).to_string(),
-        "<input disabled></input>"
-    );
+    assert_eq!(Node::Element(input.clone()).to_string(), "<input disabled>");
 
     assert!(!input.toggle_attribute("disabled", None));
     assert!(!input.has_attribute("disabled"));

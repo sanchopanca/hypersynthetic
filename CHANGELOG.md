@@ -18,6 +18,9 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   name, as in HTML.
   One consequence: `<div data - test="1">` is now the two attributes `data` and
   `-test`, where it used to be `data-test`.
+- Void elements (`br`, `img`, `input`, ...) never get a closing tag: `<br></br>` in
+  `html!` and `ElementData::new("br")` rendered `<br></br>`, which browsers show as two
+  line breaks, and now render `<br>`. Content of a void element isn't rendered.
 
 ## 0.10.0 (2026-10-10)
 

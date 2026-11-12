@@ -253,6 +253,8 @@ pub use hypersynthetic_macros::component;
 /// It mostly follows the same syntax as HTML with the following exceptions:
 ///
 /// 1. Void tags need to be self-closing. For example `<br>` should be written as `<br />`.
+///    `<br></br>` works too and renders `<br>`, without the closing tag, which isn't
+///    valid HTML.
 ///
 /// 2. Bare text is not (yet) allowed. Instead you should put a string literal inside an expression
 ///    like `<span>{"text"}</span>`. Alternatively, for convenience, you can use the string literal
@@ -699,10 +701,12 @@ pub struct ElementData {
     /// The attributes, in the order they are rendered.
     pub attributes: Vec<Attribute>,
     /// The nodes between the opening and the closing tag: the DOM's `childNodes`, text
-    /// included, not its `children`, which are only the elements.
+    /// included, not its `children`, which are only the elements. Void elements (`br`,
+    /// `img`, `input`, ...) can't have content in HTML, so theirs isn't rendered.
     pub children: HtmlFragment,
-    /// Written as `<tag />`. Only void elements (`br`, `img`, `input`, ...) are rendered
-    /// that way; other elements get a closing tag, since browsers ignore `/>` on them.
+    /// Written as `<tag />`. Only void elements are rendered that way (`<br />`, or
+    /// `<br>` without it; never with a closing tag). Other elements always get a closing
+    /// tag, since browsers ignore `/>` on them.
     pub self_closing: bool,
 }
 
@@ -1227,10 +1231,12 @@ impl fmt::Display for ElementData {
             }
         }
 
-        // `/>` is only meaningful on void elements: browsers ignore it on
+        // A void element ends here: it can't have content, and an end tag is an
+        // error that browsers ignore, except `</br>`, which they read as another
+        // `<br>`. `/>` is only meaningful on void elements: browsers ignore it on
         // other tags and treat `<div />` as an unclosed `<div>`.
-        if self.self_closing && is_void_element(&self.tag_name) {
-            return f.write_str(" />");
+        if is_void_element(&self.tag_name) {
+            return f.write_str(if self.self_closing { " />" } else { ">" });
         }
 
         f.write_str(">")?;
