@@ -99,6 +99,7 @@ impl Parse for Node {
 
             // A tag name starts with an identifier or, for a component with an
             // absolute path (`<::ui::Card>`), with `::`: what `TagName::parse` accepts
+            let content_span = next_token_span(input);
             let mut children: Vec<Node> = Vec::new();
             while input.peek(Token![<]) && (input.peek2(Ident::peek_any) || input.peek2(Token![::]))
                 || input.peek(LitStr)
@@ -106,6 +107,21 @@ impl Parse for Node {
             {
                 let child: Node = input.parse()?;
                 children.push(child);
+            }
+
+            // Before looking for the closing tag: after `<p>"one"<br>"two"</p>`, with
+            // the `/` of `<br />` forgotten, this is the error that says what's wrong
+            if let TagName::Element(name) = &tag_name
+                && is_void_element(name)
+                && !children.is_empty()
+            {
+                return Err(syn::Error::new(
+                    content_span,
+                    format!(
+                        "`<{name}>` is a void element, so it can't have content: \
+                         end its tag with `/>`"
+                    ),
+                ));
             }
 
             // Check for the closing tag
@@ -182,6 +198,15 @@ impl Parse for Node {
     }
 }
 
+/// The span of the next token, with a `{…}` group as one token: `input.span()` would
+/// give only its `{`.
+fn next_token_span(input: ParseStream) -> Span {
+    match input.cursor().token_tree() {
+        Some((token, _)) => token.span(),
+        None => input.span(),
+    }
+}
+
 const DOCTYPE_ERROR: &str = "expected `<!DOCTYPE html>`";
 
 /// Parses `word` (case-insensitively), as part of `<!DOCTYPE html>`.
@@ -233,6 +258,22 @@ impl Parse for TagName {
         }
         Ok(TagName::Element(name))
     }
+}
+
+/// Elements that can't have content.
+/// See <https://html.spec.whatwg.org/multipage/syntax.html#void-elements>.
+///
+/// This list is a copy. The renderer has the same one, to leave out the closing tag:
+/// `is_void_element` in `hypersynthetic/src/lib.rs`. A proc-macro crate and the crate
+/// that uses it can't share a function, so a change here has to be made there too.
+fn is_void_element(tag_name: &str) -> bool {
+    const VOID_ELEMENTS: [&str; 13] = [
+        "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source",
+        "track", "wbr",
+    ];
+    VOID_ELEMENTS
+        .iter()
+        .any(|void| void.eq_ignore_ascii_case(tag_name))
 }
 
 /// Elements whose content is JavaScript or CSS, not HTML: browsers don't decode

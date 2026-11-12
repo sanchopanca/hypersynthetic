@@ -270,7 +270,8 @@ pub use hypersynthetic_macros::component;
 ///
 /// 1. Void tags need to be self-closing. For example `<br>` should be written as `<br />`.
 ///    `<br></br>` works too and renders `<br>`, without the closing tag, which isn't
-///    valid HTML.
+///    valid HTML. Anything between the two tags is a compile error, since a void
+///    element can't have content.
 ///
 /// 2. Bare text is not (yet) allowed. Instead you should put a string literal inside an expression
 ///    like `<span>{"text"}</span>`. Alternatively, for convenience, you can use the string literal
@@ -1135,6 +1136,11 @@ impl RawText {
 
 /// Elements that can't have children, so they have no end tag.
 /// See <https://html.spec.whatwg.org/multipage/syntax.html#void-elements>.
+///
+/// This list has a copy. `html!` has the same one, to reject content in these elements
+/// when compiling: `is_void_element` in `hypersynthetic_macros/src/parser.rs`. A
+/// proc-macro crate and the crate that uses it can't share a function, so a change
+/// here has to be made there too.
 fn is_void_element(tag_name: &str) -> bool {
     const VOID_ELEMENTS: [&str; 13] = [
         "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source",

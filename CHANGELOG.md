@@ -26,7 +26,10 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   `-test`, where it used to be `data-test`.
 - Void elements (`br`, `img`, `input`, ...) never get a closing tag: `<br></br>` in
   `html!` and `ElementData::new("br")` rendered `<br></br>`, which browsers show as two
-  line breaks, and now render `<br>`. Content of a void element isn't rendered.
+  line breaks, and now render `<br>`. A void element can't have content: in `html!`
+  it's a compile error (`<br>"text"</br>`), and children added to one through
+  `ElementData` aren't rendered. A forgotten `/` gets the same error:
+  `<p>"one"<br>"two"</p>` used to fail with "expected closing tag `br`, found `p`".
 - A compile error instead of a panic ("proc macro panicked") for a component prop whose
   name starts with a digit: `<Card 5="x" />`.
 - A component path starting with `::` (`<::my_crate::Card>`) only worked at the top
