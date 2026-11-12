@@ -34,6 +34,12 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   closing tag.
 - `html!` no longer breaks where `Some`, `None` or `format!` mean something else, for
   example after `use Filter::*;` for an enum with a `None` variant.
+- A value passed to a component as `&mut Vec<&str>`, `&mut Ctx<'_>` or a similar type
+  stayed mutably borrowed after the component returned, so it couldn't be used again:
+  `#[component]` gave all elided lifetimes of the parameters one shared lifetime. Each
+  now gets its own, as in an ordinary function. A component body that only compiled
+  because the lifetimes were tied together (`list.push(item)` with `list: &mut Vec<&str>`
+  and `item: &str`) now needs them named explicitly, as it would without `#[component]`.
 
 ## 0.10.0 (2026-10-10)
 

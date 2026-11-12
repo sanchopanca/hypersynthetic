@@ -251,60 +251,67 @@ fn find_impl_trait(ty: &syn::Type) -> Option<&syn::TypeImplTrait> {
 }
 
 /// Names the lifetimes elided in the parameters (`&T`, `&mut T`, `'_`), declaring
-/// the name on the function, so the parameter types can be Props struct fields.
+/// the names on the function, so the parameter types can be Props struct fields.
+///
+/// Each one gets its own name, which is what elision means in parameters. One name
+/// for all would tie them together: `&mut Vec<&str>` would become `&'a mut Vec<&'a str>`,
+/// a borrow that has to last as long as the strings do.
 fn name_elided_lifetimes(sig: &mut syn::Signature) {
     let mut namer = ElidedLifetimeNamer {
-        lifetime: fresh_lifetime(&sig.generics),
-        found: false,
+        taken: sig
+            .generics
+            .lifetimes()
+            .map(|param| param.lifetime.to_string())
+            .collect(),
+        named: Vec::new(),
     };
     for input in &mut sig.inputs {
         if let syn::FnArg::Typed(pat_type) = input {
             namer.visit_type_mut(&mut pat_type.ty);
         }
     }
-    if namer.found {
-        // Lifetimes go before type and const parameters. syn reorders them when
-        // printing anyway, but the syntax tree shouldn't depend on that.
-        let param = syn::LifetimeParam::new(namer.lifetime);
-        sig.generics
-            .params
-            .insert(0, syn::GenericParam::Lifetime(param));
+    // Lifetimes go before type and const parameters. syn reorders them when
+    // printing anyway, but the syntax tree shouldn't depend on that.
+    for (index, lifetime) in namer.named.into_iter().enumerate() {
+        let param = syn::GenericParam::Lifetime(syn::LifetimeParam::new(lifetime));
+        sig.generics.params.insert(index, param);
     }
-}
-
-/// `'a`, or `'a1`, `'a2`, ... if the function already declares it.
-fn fresh_lifetime(generics: &syn::Generics) -> syn::Lifetime {
-    let taken: Vec<String> = generics
-        .lifetimes()
-        .map(|param| param.lifetime.to_string())
-        .collect();
-    let mut name = "'a".to_owned();
-    let mut suffix = 0;
-    while taken.contains(&name) {
-        suffix += 1;
-        name = format!("'a{suffix}");
-    }
-    syn::Lifetime::new(&name, proc_macro2::Span::call_site())
 }
 
 struct ElidedLifetimeNamer {
-    lifetime: syn::Lifetime,
-    found: bool,
+    /// The names the function declares itself
+    taken: Vec<String>,
+    /// The names given so far, in the order of the parameters
+    named: Vec<syn::Lifetime>,
+}
+
+impl ElidedLifetimeNamer {
+    /// A name nothing else uses: `'a`, `'a1`, `'a2`, ...
+    fn fresh(&mut self) -> syn::Lifetime {
+        let is_free = |name: &String| {
+            !self.taken.contains(name) && !self.named.iter().any(|named| named.to_string() == *name)
+        };
+        let name = std::iter::once("'a".to_owned())
+            .chain((1..).map(|suffix| format!("'a{suffix}")))
+            .find(is_free)
+            .expect("the iterator of names never ends");
+        let lifetime = syn::Lifetime::new(&name, proc_macro2::Span::call_site());
+        self.named.push(lifetime.clone());
+        lifetime
+    }
 }
 
 impl VisitMut for ElidedLifetimeNamer {
     fn visit_type_reference_mut(&mut self, reference: &mut syn::TypeReference) {
         if reference.lifetime.is_none() {
-            reference.lifetime = Some(self.lifetime.clone());
-            self.found = true;
+            reference.lifetime = Some(self.fresh());
         }
         syn::visit_mut::visit_type_reference_mut(self, reference);
     }
 
     fn visit_lifetime_mut(&mut self, lifetime: &mut syn::Lifetime) {
         if lifetime.ident == "_" {
-            *lifetime = self.lifetime.clone();
-            self.found = true;
+            *lifetime = self.fresh();
         }
     }
 

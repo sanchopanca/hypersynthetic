@@ -240,3 +240,53 @@ fn test_closure_with_reference_argument() {
     };
     assert_eq!(result.to_string(), "<p>HELLO</p>");
 }
+
+// Each elided lifetime is its own, as in any function. If they were all the same one,
+// `&mut Counter<'_>` would be `&'a mut Counter<'a>`: a borrow that lasts as long as the
+// counter itself, so it could be passed to a component only once.
+
+struct Counter<'x> {
+    label: &'x str,
+    count: u32,
+}
+
+#[component]
+fn Count(counter: &mut Counter<'_>) -> HtmlFragment {
+    counter.count += 1;
+    html! { <p>{counter.label}": "{counter.count}</p> }
+}
+
+#[test]
+fn test_mut_ref_to_a_type_with_a_lifetime_can_be_used_again() {
+    let label = String::from("clicks");
+    let mut counter = Counter {
+        label: &label,
+        count: 0,
+    };
+
+    let first = html! { <Count counter={&mut counter} /> };
+    let second = html! { <Count counter={&mut counter} /> };
+
+    assert_eq!(first.to_string(), "<p>clicks: 1</p>");
+    assert_eq!(second.to_string(), "<p>clicks: 2</p>");
+    assert_eq!(counter.count, 2);
+}
+
+#[component]
+fn TakeLast(items: &mut Vec<&str>) -> HtmlFragment {
+    let last = items.pop().unwrap_or("nothing");
+    html! { <li>{last}</li> }
+}
+
+#[test]
+fn test_mut_ref_to_a_vec_of_refs_can_be_used_again() {
+    let mut items = vec!["a", "b"];
+
+    let first = html! { <TakeLast items={&mut items} /> };
+    items.push("c");
+    let second = html! { <TakeLast items={&mut items} /> };
+
+    assert_eq!(first.to_string(), "<li>b</li>");
+    assert_eq!(second.to_string(), "<li>c</li>");
+    assert_eq!(items, ["a"]);
+}
