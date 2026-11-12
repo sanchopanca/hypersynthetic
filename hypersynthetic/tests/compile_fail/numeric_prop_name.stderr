@@ -1,0 +1,17 @@
+error: invalid prop name `5`: component props are Rust identifiers, which can't start with a digit
+ --> tests/compile_fail/numeric_prop_name.rs:9:27
+  |
+9 |     let _ = html! { <Card 5="five" /> };
+  |                           ^
+
+error: invalid prop name `2x`: component props are Rust identifiers, which can't start with a digit
+  --> tests/compile_fail/numeric_prop_name.rs:10:27
+   |
+10 |     let _ = html! { <Card 2x="twice" /> };
+   |                           ^^
+
+error: invalid prop name `2-x`: component props are Rust identifiers, which can't start with a digit
+  --> tests/compile_fail/numeric_prop_name.rs:11:27
+   |
+11 |     let _ = html! { <Card 2-x="two" /> };
+   |                           ^

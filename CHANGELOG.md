@@ -21,6 +21,8 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
 - Void elements (`br`, `img`, `input`, ...) never get a closing tag: `<br></br>` in
   `html!` and `ElementData::new("br")` rendered `<br></br>`, which browsers show as two
   line breaks, and now render `<br>`. Content of a void element isn't rendered.
+- A compile error instead of a panic ("proc macro panicked") for a component prop whose
+  name starts with a digit: `<Card 5="x" />`.
 
 ## 0.10.0 (2026-10-10)
 

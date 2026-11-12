@@ -308,6 +308,17 @@ fn validate_prop_names(props: &[Attribute]) -> Result<()> {
             }
             AttrName::Literal(name) => {
                 let name_str = name.value();
+                // Attribute names can be numbers (`data-2`, and so `2` on its own),
+                // identifiers can't: making one from `5` would panic. Checked first,
+                // so that `2-x` doesn't get the suggestion `2_x`.
+                if name_str.starts_with(|c: char| c.is_ascii_digit()) {
+                    return Err(syn::Error::new(
+                        name.span(),
+                        format!(
+                            "invalid prop name `{name_str}`: component props are Rust identifiers, which can't start with a digit"
+                        ),
+                    ));
+                }
                 let is_word = |c: char| c.is_alphanumeric() || c == '_';
                 if !name_str.chars().all(is_word) {
                     let words: Vec<&str> = name_str

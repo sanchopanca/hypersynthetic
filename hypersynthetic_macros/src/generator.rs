@@ -98,6 +98,8 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
                 .map(|attr| {
                     // Extract the attribute name
                     let attr_name = match &attr.name {
+                        // `format_ident!` panics if the name isn't an identifier:
+                        // `validate_prop_names` in the parser makes sure it is
                         AttrName::Literal(name) => {
                             let name_str = name.value();
                             quote::format_ident!("{}", name_str, span = name.span())
