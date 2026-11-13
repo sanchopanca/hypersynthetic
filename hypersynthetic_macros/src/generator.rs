@@ -93,34 +93,39 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
         }
         Node::Component(component) => {
             let component_name = &component.name;
-            // Generate builder method calls
-            let builder_calls: Vec<TokenStream2> = regular_attributes(&component.props)
-                .map(|attr| {
-                    // Extract the attribute name
-                    let attr_name = match &attr.name {
-                        // A raw identifier (`r#type`), so that props can be named
-                        // after keywords: `r#title` is the same name as `title`, and
-                        // which names are keywords depends on the edition, so all of
-                        // them are raw. `new_raw` panics if the name isn't one that
-                        // can be raw: `validate_prop_names` in the parser checks it.
-                        AttrName::Literal(name) => Ident::new_raw(&name.value(), name.span()),
-                        AttrName::Expression(_) => {
-                            unreachable!("rejected by the parser in validate_prop_names")
-                        }
-                    };
+            // The props are set one after another on the builder: each step is an
+            // expression that gives the builder for the next one
+            let mut builder = quote! {
+                ::hypersynthetic::component::component_props_builder(&#component_name)
+            };
+            for attr in regular_attributes(&component.props) {
+                let setter = match &attr.name {
+                    // A raw identifier (`r#type`), so that props can be named
+                    // after keywords: `r#title` is the same name as `title`, and
+                    // which names are keywords depends on the edition, so all of
+                    // them are raw. `new_raw` panics if the name isn't one that
+                    // can be raw: `validate_prop_names` in the parser checks it.
+                    AttrName::Literal(name) => Ident::new_raw(&name.value(), name.span()),
+                    AttrName::Expression(_) => {
+                        unreachable!("rejected by the parser in validate_prop_names")
+                    }
+                };
 
-                    // Extract the attribute value
-                    let attr_value = match &attr.value {
-                        Some(AttrValue::Literal(value)) => quote! { #value },
-                        Some(AttrValue::Expression(expr)) => quote! { #expr },
-                        Some(AttrValue::Interpolated(string)) => generate_format(string),
-                        // `<C disabled />` is short for `<C disabled={true} />`
-                        None => quote::quote_spanned! { attr_name.span()=> true },
-                    };
-
-                    quote! { .#attr_name(#attr_value) }
-                })
-                .collect();
+                builder = match &attr.value {
+                    Some(AttrValue::Literal(value)) => {
+                        set_string_prop(builder, &setter, StringProp::Literal(value))
+                    }
+                    Some(AttrValue::Interpolated(string)) => {
+                        set_string_prop(builder, &setter, StringProp::Interpolated(string))
+                    }
+                    Some(AttrValue::Expression(expr)) => quote! { #builder.#setter(#expr) },
+                    // `<C disabled />` is short for `<C disabled={true} />`
+                    None => {
+                        let value = quote::quote_spanned! { setter.span()=> true };
+                        quote! { #builder.#setter(#value) }
+                    }
+                };
+            }
 
             // Children go to the component's `children` prop. Without children it
             // isn't set and defaults to an empty fragment. A component without a
@@ -137,8 +142,7 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
                 #target.extend(
                     ::hypersynthetic::component::component_view(
                         &#component_name,
-                        ::hypersynthetic::component::component_props_builder(&#component_name)
-                            #(#builder_calls)*
+                        #builder
                             #children_call
                             .build()
                     )
@@ -176,6 +180,77 @@ fn wrap_in_for_and_if(
             }
         },
         None => statements,
+    }
+}
+
+/// A string written in the template as the value of a prop.
+enum StringProp<'a> {
+    /// `text="Hello"`
+    Literal(&'a LitStr),
+    /// `text="Hello {name}"`
+    Interpolated(&'a InterpolatedString),
+}
+
+/// An expression that sets a prop to a string on `builder`, and gives the builder
+/// that comes out.
+///
+/// The string becomes a `&str` or a `String`, whichever the prop's setter takes: see
+/// `PropType` in `hypersynthetic::__private`. The setter is written twice. The first
+/// time in a closure that is never called, which is only there for its type: it says
+/// what the setter takes. The second time for real.
+fn set_string_prop(builder: TokenStream2, setter: &Ident, string: StringProp) -> TokenStream2 {
+    let builder_var = internal_ident("__hs_builder");
+    let source_var = internal_ident("__hs_string");
+    let literal_span = match string {
+        StringProp::Literal(lit) => lit.span(),
+        StringProp::Interpolated(string) => string.lit.span(),
+    };
+    // A value of the wrong type (`count="three"`) is reported where the value is used,
+    // so that place points at the string
+    let value_var = Ident::new("__hs_value", Span::mixed_site().located_at(literal_span));
+    let prop_type = quote! {
+        (&&&::hypersynthetic::__private::prop_type(
+            &#builder_var,
+            |#builder_var, #value_var| #builder_var.#setter(#value_var),
+        ))
+    };
+
+    match string {
+        StringProp::Literal(lit) => quote! {
+            match #builder {
+                #builder_var => {
+                    let #value_var = {
+                        #[allow(unused_imports)]
+                        use ::hypersynthetic::__private::{
+                            LiteralAsGiven as _, LiteralForOther as _, LiteralForString as _,
+                        };
+                        #prop_type.literal(#lit)
+                    };
+                    #builder_var.#setter(#value_var)
+                }
+            }
+        },
+        // The `String` is made where the builder is, in the `match` head, and not in
+        // the arm: what is created there lives until the end of the whole statement,
+        // so a `&str` prop can borrow it while the component runs.
+        StringProp::Interpolated(string) => {
+            let format = generate_format(string);
+            quote! {
+                match (#builder, &mut ::std::option::Option::Some(#format)) {
+                    (#builder_var, #source_var) => {
+                        let #value_var = {
+                            #[allow(unused_imports)]
+                            use ::hypersynthetic::__private::{
+                                InterpolatedAsGiven as _, InterpolatedForStr as _,
+                                InterpolatedForOther as _,
+                            };
+                            #prop_type.interpolated(#source_var)
+                        };
+                        #builder_var.#setter(#value_var)
+                    }
+                }
+            }
+        }
     }
 }
 

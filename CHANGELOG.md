@@ -24,6 +24,12 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   `<p>"one"<br>"two"</p>`, `<input type="text">`. They're rendered the way they're
   written, so `<br />` still renders `<br />`. `<br>` used to fail with "unclosed `<br>`"
   or "expected closing tag `br`, found `p`".
+- A string in the template sets a `&str` prop and a `String` prop alike:
+  `<Card title="Hello {name}" />` works with `title: &str`, and `<Card title="Hello" />`
+  with `title: String`. They used to fail with "expected `&str`, found `String`" and
+  "expected `String`, found `&str`": a string with `{...}` in it was always a `String`,
+  and one without always a `&str`. Setters that take other types get the string as
+  before. The price is compile time: about 1 ms for every string prop in a template.
 - Component props can be named after Rust keywords: with a parameter `r#type: &str`,
   `<Field type="email" />` sets it. It used to fail with "expected identifier, found
   keyword `type`".

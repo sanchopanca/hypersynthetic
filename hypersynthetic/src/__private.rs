@@ -23,6 +23,7 @@
 
 use std::borrow::Cow;
 use std::fmt::Display;
+use std::marker::PhantomData;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -223,5 +224,93 @@ impl<T: Display> RenderOption for &Render<'_, &Option<T>> {
         self.0
             .as_ref()
             .map(|value| Some(Cow::Owned(value.to_string())))
+    }
+}
+
+/// What the setter of a prop takes: `V`. It holds nothing, the type is the information.
+///
+/// A string written in the template, `text="Hello"` or `text="Hello {name}"`, should
+/// do for a `&str` prop and for a `String` prop, and `html!` can't see which one the
+/// component has. So it asks the setter, with [prop_type], and picks what to pass with
+/// autoref specialization again, this time on `V`: `(&&&prop_type).literal("Hello")`
+/// is looked up for `&&PropType<V>` first, then for `&PropType<V>`, then for
+/// `PropType<V>`, and each of the three traits is implemented for one of them.
+///
+/// The first one is for the type the string already has: a `&str` when it's written
+/// out, a `String` when it has `{...}` in it. It's also the one that is taken when `V`
+/// isn't known yet, which is the case for a setter that is generic (`setter(into)`, or
+/// a prop of a generic type `T`). The second converts for the other type. The third
+/// takes any `V` and passes the string as it is, so that a prop that isn't a string
+/// gets the usual error: "expected `i32`, found `&str`".
+pub struct PropType<V>(PhantomData<fn(V)>);
+
+/// The [PropType] of the setter that `set` calls. `set` is never called: it's a
+/// closure `|builder, value| builder.text(value)`, and its second parameter gets its
+/// type from what `text` takes.
+pub fn prop_type<B, V, R>(_builder: &B, _set: impl Fn(B, V) -> R) -> PropType<V> {
+    PropType(PhantomData)
+}
+
+pub trait LiteralAsGiven<'a> {
+    fn literal(&self, string: &'static str) -> &'a str;
+}
+
+impl<'a> LiteralAsGiven<'a> for &&PropType<&'a str> {
+    fn literal(&self, string: &'static str) -> &'a str {
+        string
+    }
+}
+
+pub trait LiteralForString {
+    fn literal(&self, string: &'static str) -> String;
+}
+
+impl LiteralForString for &PropType<String> {
+    fn literal(&self, string: &'static str) -> String {
+        string.to_owned()
+    }
+}
+
+pub trait LiteralForOther {
+    fn literal(&self, string: &'static str) -> &'static str;
+}
+
+impl<V> LiteralForOther for PropType<V> {
+    fn literal(&self, string: &'static str) -> &'static str {
+        string
+    }
+}
+
+// The interpolated string comes in an `Option` behind a `&mut`: the `String` prop
+// takes it out, the `&str` prop borrows it where it is. It's always `Some`: nothing
+// else takes from it.
+
+pub trait InterpolatedAsGiven {
+    fn interpolated(&self, string: &mut Option<String>) -> String;
+}
+
+impl InterpolatedAsGiven for &&PropType<String> {
+    fn interpolated(&self, string: &mut Option<String>) -> String {
+        string.take().unwrap_or_default()
+    }
+}
+
+pub trait InterpolatedForStr<'a> {
+    fn interpolated(&self, string: &'a mut Option<String>) -> &'a str;
+}
+
+impl<'a> InterpolatedForStr<'a> for &PropType<&'a str> {
+    fn interpolated(&self, string: &'a mut Option<String>) -> &'a str {
+        string.as_deref().unwrap_or_default()
+    }
+}
+
+pub trait InterpolatedForOther {
+    fn interpolated(&self, string: &mut Option<String>) -> String;
+}
+
+impl<V> InterpolatedForOther for PropType<V> {
+    fn interpolated(&self, string: &mut Option<String>) -> String {
+        string.take().unwrap_or_default()
     }
 }
