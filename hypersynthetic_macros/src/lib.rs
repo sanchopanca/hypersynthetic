@@ -39,6 +39,10 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
     if let Err(err) = check_qualifiers(&function.sig) {
         return err.to_compile_error().into();
     }
+    let return_type = match return_type(&function.sig) {
+        Ok(ty) => ty.clone(),
+        Err(err) => return err.to_compile_error().into(),
+    };
 
     // Props struct fields can't have elided lifetimes
     name_elided_lifetimes(&mut function);
@@ -153,12 +157,13 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
     let generics = &internal_function.sig.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
+    let call = call_spanned_as(&return_type, &internal_fn_name, &param_names);
     let wrapper_fn = quote! {
         #(#wrapper_attrs)*
         #[allow(non_snake_case)]
         #vis fn #fn_name #impl_generics(props: #props_name #ty_generics) -> ::hypersynthetic::HtmlFragment #where_clause {
             let #props_name { #(#param_names),* } = props;
-            #internal_fn_name(#(#param_names),*)
+            #call
         }
     };
 
@@ -241,6 +246,46 @@ fn check_qualifiers(sig: &syn::Signature) -> syn::Result<()> {
         Some(error) => Err(error),
         None => Ok(()),
     }
+}
+
+/// The type the component is declared to return. Whether it is `HtmlFragment` is
+/// left to the compiler (see [call_spanned_as]): the macro only sees how the type is
+/// written, and an alias is as good. What it can see is that there's none at all.
+fn return_type(sig: &syn::Signature) -> syn::Result<&syn::Type> {
+    match &sig.output {
+        syn::ReturnType::Type(_, ty) => Ok(ty),
+        syn::ReturnType::Default => Err(syn::Error::new(
+            sig.ident.span(),
+            "a component has to return an `HtmlFragment`: add `-> HtmlFragment`",
+        )),
+    }
+}
+
+/// `function(args...)`, placed where `ty` is written in the user's code.
+///
+/// It's the last expression of the wrapper, which returns an `HtmlFragment`. If the
+/// component returns something else, the compiler reports "mismatched types" for
+/// this expression, and an expression is where its tokens say they are: from the
+/// start of its first token to the end of its last. So the first one gets the span
+/// of the type's first token and the last one that of its last, and the error
+/// underlines the whole return type instead of `#[component]`.
+fn call_spanned_as(
+    ty: &syn::Type,
+    function: &syn::Ident,
+    args: &[&syn::Ident],
+) -> proc_macro2::TokenStream {
+    let mut type_spans = ty.to_token_stream().into_iter().map(|token| token.span());
+    let (Some(first), last) = (type_spans.next(), type_spans.last()) else {
+        // A type is never zero tokens
+        return quote! { #function(#(#args),*) };
+    };
+
+    let mut function = function.clone();
+    function.set_span(first);
+    let mut args =
+        proc_macro2::Group::new(proc_macro2::Delimiter::Parenthesis, quote! { #(#args),* });
+    args.set_span(last.unwrap_or(first));
+    quote! { #function #args }
 }
 
 /// The content between a component's tags is passed as its `children` prop.

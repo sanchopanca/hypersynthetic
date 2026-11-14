@@ -246,3 +246,23 @@ async fn test_awaiting_in_a_prop_value() {
 
     assert_eq!(result.to_string(), "<p>Ann: 3</p>");
 }
+
+// The return type is checked by the compiler, not by its name: an alias and a full
+// path are `HtmlFragment` too.
+type Html = HtmlFragment;
+
+#[component]
+fn Aliased(text: &str) -> Html {
+    html! { <i>{text}</i> }
+}
+
+#[component]
+fn FullPath(text: &str) -> ::hypersynthetic::HtmlFragment {
+    html! { <b>{text}</b> }
+}
+
+#[test]
+fn test_return_type_written_another_way() {
+    let result = html! { <Aliased text="a" /><FullPath text="b" /> };
+    assert_eq!(result.to_string(), "<i>a</i><b>b</b>");
+}

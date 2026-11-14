@@ -1,0 +1,5 @@
+error: a component has to return an `HtmlFragment`: add `-> HtmlFragment`
+ --> tests/compile_fail/component_without_return_type.rs:4:4
+  |
+4 | fn Nothing(name: &str) {
+  |    ^^^^^^^

@@ -85,6 +85,10 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   with "call to unsafe function `__Card`", both pointing at `#[component]`. An
   `extern "C" fn` compiled, and so did a `const fn` whose body was const, with the
   keyword doing nothing for the component.
+- A component that returns something other than an `HtmlFragment` gets its
+  "mismatched types" error at the return type (`-> String`, `-> Result<HtmlFragment, E>`),
+  where it used to underline `#[component]`. A component without a return type is "a
+  component has to return an `HtmlFragment`: add `-> HtmlFragment`", at its name.
 - A component path starting with `::` (`<::my_crate::Card>`) only worked at the top
   level of `html!` and self-closed. It now works inside other elements and with a
   closing tag.
