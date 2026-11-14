@@ -119,6 +119,58 @@ fn test_script_guard_covers_elements_built_by_hand() {
     );
 }
 
+// The guard doesn't look at the script's `type`, and neither does a browser when it
+// looks for the end of the script. `\u0073` means `s` in JavaScript and in JSON; a
+// script that holds anything else keeps it as text, which is documented in `html!`.
+
+#[test]
+fn test_script_guard_applies_whatever_the_type() {
+    let result = html! {
+        <script type="text/x-template">"<p>Hi</p><script>track()</script>"</script>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        r#"<script type="text/x-template"><p>Hi</p><\u0073cript>track()</\u0073cript></script>"#
+    );
+}
+
+#[test]
+fn test_script_guard_applies_to_json() {
+    let json = r#"{"html": "</script>"}"#;
+    let result = html! { <script type="application/json">{{json}}</script> };
+
+    assert_eq!(
+        result.to_string(),
+        r#"<script type="application/json">{"html": "</\u0073cript>"}</script>"#
+    );
+}
+
+#[test]
+fn test_script_guard_applies_with_a_type_known_at_runtime() {
+    let kind = "text/x-template";
+    let result = html! { <script type={kind}>"</script>"</script> };
+
+    assert_eq!(
+        result.to_string(),
+        r#"<script type="text/x-template"></\u0073cript></script>"#
+    );
+}
+
+// What the docs point to instead: a `<template>`'s content is HTML, so a script in it
+// is an element and is rendered as written.
+#[test]
+fn test_template_element_holds_a_script_as_written() {
+    let result = html! {
+        <template id="greeting"><p>"Hi"</p><script>"track()"</script></template>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        r#"<template id="greeting"><p>Hi</p><script>track()</script></template>"#
+    );
+}
+
 #[test]
 fn test_guard_only_applies_to_script_and_style() {
     let value = "</script>";

@@ -584,6 +584,37 @@ pub use hypersynthetic_macros::component;
 /// compile errors: a browser reads everything up to `</script>` as code, so tags there
 /// would be JavaScript or CSS syntax errors.
 ///
+/// In a script, the guard replaces the `s` of `<script` and `</script` with `\u0073`,
+/// and it does so in every `<script>`, whatever its `type`: a browser ends a script at
+/// the first `</script` without looking at the type either. In JavaScript and in JSON
+/// (`application/json`, `importmap`) `\u0073` means `s`, so what reads the script gets
+/// back what was written. Other content has no such escape. In a script that holds a
+/// template for a JavaScript library, `<script` and `</script` reach the library with
+/// the `\u0073` in them:
+/// ```
+/// # use hypersynthetic::html;
+/// let template = html! {
+///     <script type="text/x-template">"<p>Hi</p><script>track()</script>"</script>
+/// };
+/// assert_eq!(
+///     template.to_string(),
+///     r#"<script type="text/x-template"><p>Hi</p><\u0073cript>track()</\u0073cript></script>"#
+/// );
+/// ```
+/// HTML has no way to write `</script` inside a script, so nothing could render this
+/// content as written. A template that contains a script belongs in a `<template>`
+/// element, whose content is HTML:
+/// ```
+/// # use hypersynthetic::html;
+/// let template = html! {
+///     <template id="greeting"><p>"Hi"</p><script>"track()"</script></template>
+/// };
+/// assert_eq!(
+///     template.to_string(),
+///     r#"<template id="greeting"><p>Hi</p><script>track()</script></template>"#
+/// );
+/// ```
+///
 /// # Conditionals
 /// A special pseudo-attribute `:if` is used to conditionally render an element.
 /// ```
