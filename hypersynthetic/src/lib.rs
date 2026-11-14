@@ -143,7 +143,7 @@ pub mod __private;
 /// );
 /// # }
 /// ```
-/// A prop of another type that holds a string, like `Cow<str>` or `Box<str>`, takes
+/// A prop of another type that holds a string, like `Cow<'_, str>` or `Box<str>`, takes
 /// them with `#[builder(setter(into))]`, described below.
 ///
 /// ## Optional props
@@ -210,6 +210,37 @@ pub mod __private;
 /// The `r#` is only for Rust code: the parameter, and the places that use it as a
 /// variable. Inside `html!` the prop is `type`, and `<Field r#type="email" />` is a
 /// compile error.
+///
+/// ## Props that borrow
+/// A prop can borrow, as `&str` does, and its lifetime doesn't have to be named. A
+/// type that has a lifetime of its own has to show it, though, with `'_` or a name:
+/// `Cow<'_, str>` and not `Cow<str>`, and `Page<'_>` for a `struct Page<'a>`.
+/// ```
+/// # use hypersynthetic::prelude::*;
+/// use std::borrow::Cow;
+///
+/// struct Page<'a> {
+///     title: &'a str,
+/// }
+///
+/// #[component]
+/// fn Header(page: &Page<'_>, note: Cow<'_, str>) -> HtmlFragment {
+///     html! { <h1>{page.title}</h1><small>{note}</small> }
+/// }
+///
+/// # fn main() {
+/// let page = Page { title: "Home" };
+/// let html = html! { <Header page={&page} note={Cow::Borrowed("draft")} /> };
+/// assert_eq!(html.to_string(), "<h1>Home</h1><small>draft</small>");
+/// # }
+/// ```
+/// A function may leave such a lifetime out (`page: &Page`), but props are the fields
+/// of a struct, where it has to be written, and `#[component]` can only add the ones
+/// it can see: it can't tell that `Page` has one. The compiler reports "implicit
+/// elided lifetime not allowed here" and "missing lifetime specifier", more than once.
+/// Of its suggestions, `Page<'_>` is the one to take. One that has a lifetime `'a`
+/// which isn't in your code is about a name `#[component]` generated: write `'_` there
+/// too.
 ///
 /// ## Generic components
 /// A component can have type, const and lifetime parameters, like any function. A type
