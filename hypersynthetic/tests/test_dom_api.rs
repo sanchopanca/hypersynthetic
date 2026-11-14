@@ -54,6 +54,126 @@ fn test_get_attribute_names() {
     assert_eq!(names, ["href", "class", "download"]);
 }
 
+// Attribute names are matched ignoring ASCII case, as in an HTML document, where
+// the parser lowercases them: `ID`, `Id` and `id` are the same attribute
+
+#[test]
+fn test_attribute_names_ignore_case_when_reading() {
+    let page = html! { <input ID="name" Disabled /> };
+    let input = element(&page);
+
+    assert_eq!(input.get_attribute("id"), Some("name"));
+    assert_eq!(input.get_attribute("iD"), Some("name"));
+    assert_eq!(input.id(), Some("name"));
+    assert!(input.has_attribute("disabled"));
+    assert!(input.has_attribute("DISABLED"));
+    assert!(!input.has_attribute("name"));
+}
+
+#[test]
+fn test_attribute_names_are_kept_as_written() {
+    let page = html! { <svg viewBox="0 0 10 10" ID="logo"></svg> };
+    let svg = element(&page);
+
+    assert_eq!(svg.get_attribute("viewBox"), Some("0 0 10 10"));
+    let names: Vec<&str> = svg.get_attribute_names().collect();
+    assert_eq!(names, ["viewBox", "ID"]);
+    assert_eq!(
+        page.to_string(),
+        r#"<svg viewBox="0 0 10 10" ID="logo"></svg>"#
+    );
+}
+
+#[test]
+fn test_set_attribute_ignores_case_and_keeps_the_spelling() {
+    let mut page = html! { <svg viewBox="0 0 10 10" width="10"></svg> };
+
+    // The attribute that's there is changed: its name stays as it was written
+    element_mut(&mut page).set_attribute("viewbox", "0 0 20 20");
+    assert_eq!(
+        page.to_string(),
+        r#"<svg viewBox="0 0 20 20" width="10"></svg>"#
+    );
+
+    // A new attribute gets the name as given
+    element_mut(&mut page).set_attribute("preserveAspectRatio", "none");
+    assert_eq!(
+        page.to_string(),
+        r#"<svg viewBox="0 0 20 20" width="10" preserveAspectRatio="none"></svg>"#
+    );
+}
+
+#[test]
+fn test_set_attribute_removes_duplicates_in_any_case() {
+    let mut page = html! { <a HREF="/1" title="t" href="/2" Href="/3"></a> };
+
+    element_mut(&mut page).set_attribute("href", "/4");
+    assert_eq!(page.to_string(), r#"<a HREF="/4" title="t"></a>"#);
+}
+
+#[test]
+fn test_remove_attribute_ignores_case() {
+    let mut page = html! { <a HREF="/1" title="t" href="/2"></a> };
+
+    element_mut(&mut page).remove_attribute("Href");
+    assert_eq!(page.to_string(), r#"<a title="t"></a>"#);
+}
+
+#[test]
+fn test_toggle_attribute_ignores_case() {
+    let mut page = html! { <input Disabled /> };
+    let input = element_mut(&mut page);
+
+    // It's there, so it's removed, not added a second time
+    assert!(!input.toggle_attribute("disabled", None));
+    assert_eq!(page.to_string(), "<input />");
+
+    let input = element_mut(&mut page);
+    assert!(input.toggle_attribute("READONLY", None));
+    assert!(input.toggle_attribute("readonly", Some(true)));
+    assert_eq!(page.to_string(), "<input READONLY />");
+}
+
+#[test]
+fn test_attribute_names_only_ignore_ascii_case() {
+    let mut div = ElementData::new("div");
+    div.set_attribute("data-é", "lower");
+
+    // Like the DOM, which only lowercases A to Z
+    assert_eq!(div.get_attribute("data-É"), None);
+    assert_eq!(div.get_attribute("DATA-é"), Some("lower"));
+}
+
+#[test]
+fn test_get_element_by_id_ignores_the_case_of_the_attribute_name() {
+    let mut page = html! { <div ID="x"></div><p Id="y"></p> };
+
+    assert_eq!(page.get_element_by_id("x").unwrap().tag_name, "div");
+    assert_eq!(page.get_element_by_id_mut("y").unwrap().tag_name, "p");
+    // The id itself is compared exactly
+    assert!(page.get_element_by_id("X").is_none());
+}
+
+#[test]
+fn test_class_list_ignores_the_case_of_the_attribute_name() {
+    let mut page = html! { <div Class="a"></div> };
+
+    assert!(element(&page).class_list().contains("a"));
+    assert_eq!(page.get_elements_by_class_name("a").count(), 1);
+    // Class names are compared exactly
+    assert_eq!(page.get_elements_by_class_name("A").count(), 0);
+
+    // Added to the attribute that's there, not to a second `class`
+    element_mut(&mut page).class_list_mut().add("b");
+    assert_eq!(page.to_string(), r#"<div Class="a b"></div>"#);
+
+    element_mut(&mut page)
+        .class_list_mut()
+        .remove("a")
+        .remove("b");
+    assert_eq!(page.to_string(), r#"<div Class=""></div>"#);
+}
+
 #[test]
 fn test_class_list() {
     let page = html! { <p class="  a\tb  a c "></p><p></p> };

@@ -82,6 +82,14 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   in a bound, or in the body. The lifetimes that `#[component]` declares now avoid every
   lifetime name the function uses. For the same reason, a body that uses a lifetime
   nobody declared no longer compiles by accident.
+- The methods of `ElementData` that take an attribute's name find it ignoring ASCII
+  case, as browsers do: `get_attribute`, `has_attribute`, `set_attribute`,
+  `remove_attribute`, `toggle_attribute`, and what's built on them (`id()`, the class
+  list, `get_element_by_id`, `get_elements_by_class_name`). Before, `<div ID="x">`
+  wasn't found by `get_element_by_id("x")`, and `class_list_mut().add("b")` on
+  `<div Class="a">` added a second `class` attribute, which browsers ignore.
+  Names are still stored and rendered as written: `set_attribute("viewbox", …)` changes
+  the value of an existing `viewBox` and leaves its spelling.
 
 ## 0.10.0 (2026-10-10)
 

@@ -737,6 +737,11 @@ use std::sync::Arc;
 ///
 /// Note that [ElementData::children] is the DOM's `childNodes` (text included), not its
 /// `children` (elements only).
+///
+/// Attribute names are found ignoring ASCII case, as in an HTML document:
+/// `get_attribute("id")`, [id()](ElementData::id) and `get_element_by_id` all see
+/// `ID="x"`, and the class list reads `Class="a"`. The names are stored and rendered
+/// as they're written, so SVG's `viewBox` keeps its capital letter.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HtmlFragment(Arc<Vec<Node>>);
 
@@ -808,10 +813,21 @@ pub struct ElementData {
 /// the element is rendered.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Attribute {
-    /// The attribute's name. A name that isn't valid HTML is left out when rendering.
+    /// The attribute's name, rendered as it's written here. A name that isn't valid
+    /// HTML is left out when rendering.
     pub name: Cow<'static, str>,
     /// `None` for an attribute without a value, like `disabled`.
     pub value: Option<Cow<'static, str>>,
+}
+
+impl Attribute {
+    /// Whether this is the attribute called `name`, ignoring ASCII case: a browser
+    /// lowercases the names when it reads the HTML, so `ID` and `id` are one
+    /// attribute to it. Every method of [ElementData] that looks for an attribute
+    /// asks here.
+    fn is_named(&self, name: &str) -> bool {
+        self.name.eq_ignore_ascii_case(name)
+    }
 }
 
 impl HtmlFragment {
@@ -984,13 +1000,19 @@ impl ElementData {
     }
 
     /// Whether the element has an attribute with this name.
+    ///
+    /// Here and in the other methods that take an attribute's name, the name is
+    /// compared ignoring ASCII case, as in an HTML document: `has_attribute("id")`
+    /// finds `ID="x"`.
     pub fn has_attribute(&self, name: &str) -> bool {
-        self.attributes.iter().any(|attr| attr.name == name)
+        self.attributes.iter().any(|attr| attr.is_named(name))
     }
 
     /// Sets the attribute's value, adding the attribute if it doesn't exist. The value
     /// is escaped when rendered, so pass it unescaped.
-    /// Like the DOM's `setAttribute`, an existing attribute keeps its position.
+    /// Like the DOM's `setAttribute`, an existing attribute keeps its position, and
+    /// its name as it was written: `set_attribute("viewbox", …)` changes the value of
+    /// `viewBox`, not its spelling.
     /// Duplicates of it are removed, since browsers only use the first one.
     /// The name and the value can be `&'static str`s or `String`s.
     pub fn set_attribute(
@@ -1002,7 +1024,7 @@ impl ElementData {
         // Moved into the first matching attribute; still `Some` afterwards if there was none
         let mut value = Some(value.into());
         self.attributes.retain_mut(|attr| {
-            if attr.name != name {
+            if !attr.is_named(&name) {
                 return true;
             }
             match value.take() {
@@ -1023,7 +1045,7 @@ impl ElementData {
 
     /// Removes all attributes with this name.
     pub fn remove_attribute(&mut self, name: &str) {
-        self.attributes.retain(|attr| attr.name != name);
+        self.attributes.retain(|attr| !attr.is_named(name));
     }
 
     /// The attribute's value, unescaped. An attribute without a value (`disabled`)
@@ -1031,11 +1053,12 @@ impl ElementData {
     pub fn get_attribute(&self, name: &str) -> Option<&str> {
         self.attributes
             .iter()
-            .find(|attr| attr.name == name)
+            .find(|attr| attr.is_named(name))
             .map(|attr| attr.value.as_deref().unwrap_or(""))
     }
 
-    /// The attributes' names, in order: the DOM's `getAttributeNames()`.
+    /// The attributes' names, in order and as they're written (`ID` stays `ID`): the
+    /// DOM's `getAttributeNames()`.
     pub fn get_attribute_names(&self) -> impl Iterator<Item = &str> {
         self.attributes.iter().map(|attr| &*attr.name)
     }
