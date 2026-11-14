@@ -36,7 +36,7 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut function = parse_macro_input!(item as ItemFn);
 
-    if let Err(err) = check_qualifiers(&function.sig) {
+    if let Err(err) = check_signature(&function.sig) {
         return err.to_compile_error().into();
     }
     let return_type = match return_type(&function.sig) {
@@ -65,6 +65,7 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
     let props_name = quote::format_ident!("{}Props", fn_name);
     let props_builder_name = quote::format_ident!("{}PropsBuilder", fn_name);
 
+    // Every parameter is a typed one: `check_signature` refused `self`
     let params: Vec<_> = function
         .sig
         .inputs
@@ -194,7 +195,8 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
     output.into()
 }
 
-/// A component is a plain `fn`: not `const`, `async`, `unsafe` or `extern`.
+/// A component is a plain `fn`: not `const`, `async`, `unsafe` or `extern`, and not
+/// a method.
 ///
 /// `html!` calls the wrapper generated here, which is always a plain `fn`, and the
 /// qualifiers would stay on the internal function it calls. That either doesn't
@@ -202,8 +204,13 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// found future"; `unsafe`: "call to unsafe function `__Card`"), or compiles and means
 /// nothing (`extern "C"`, and a `const fn` whose body happens to be const).
 ///
+/// A `self` parameter means the function is in an `impl` block, where the props
+/// struct generated next to it isn't allowed: five errors about generated code.
+/// Without `self`, a function in an `impl` block looks like any other from here, so
+/// that case can't be caught.
+///
 /// All of them are reported at once, in the order they're written in.
-fn check_qualifiers(sig: &syn::Signature) -> syn::Result<()> {
+fn check_signature(sig: &syn::Signature) -> syn::Result<()> {
     let errors = [
         sig.constness.map(|token| {
             syn::Error::new_spanned(
@@ -235,6 +242,13 @@ fn check_qualifiers(sig: &syn::Signature) -> syn::Result<()> {
                      function: remove `{}`",
                     abi.to_token_stream()
                 ),
+            )
+        }),
+        sig.receiver().map(|receiver| {
+            syn::Error::new_spanned(
+                receiver,
+                "a component can't take `self`, because it's a function and not a method: \
+                 move it out of the `impl` block and pass what it needs from `self` as a prop",
             )
         }),
     ];

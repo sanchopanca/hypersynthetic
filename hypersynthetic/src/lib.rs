@@ -106,7 +106,9 @@ pub mod __private;
 ///
 /// A component is a plain `fn`: an `async fn`, `unsafe fn`, `const fn` or `extern fn`
 /// is a compile error, since [html] calls a component where its tag is, as an ordinary
-/// function. A component that needs something from async code gets it as a prop:
+/// function. It's also a free function, not one in an `impl` block: `#[component]`
+/// generates a props struct next to the function, and an `impl` block can't hold one.
+/// What a method would read from `self` is passed as a prop. A component that needs something from async code gets it as a prop:
 /// `.await` it before `html!`, or in a prop's value (`<Profile user={load_user(id).await} />`).
 ///
 /// **Note:** Components are designed to be used exclusively within the [html] macro using

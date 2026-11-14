@@ -1,0 +1,11 @@
+error: a component can't take `self`, because it's a function and not a method: move it out of the `impl` block and pass what it needs from `self` as a prop
+ --> tests/compile_fail/component_method.rs:9:15
+  |
+9 |     fn Header(&self, subtitle: &str) -> HtmlFragment {
+  |               ^^^^^
+
+error: a component can't take `self`, because it's a function and not a method: move it out of the `impl` block and pass what it needs from `self` as a prop
+  --> tests/compile_fail/component_method.rs:14:18
+   |
+14 |     fn Consuming(mut self: Box<Self>) -> HtmlFragment {
+   |                  ^^^^^^^^^^^^^^^^^^^

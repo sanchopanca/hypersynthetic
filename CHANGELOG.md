@@ -85,6 +85,12 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   with "call to unsafe function `__Card`", both pointing at `#[component]`. An
   `extern "C" fn` compiled, and so did a `const fn` whose body was const, with the
   keyword doing nothing for the component.
+- `#[component]` on a method (a function with a `self` parameter) is one error: "a
+  component can't take `self`, because it's a function and not a method: move it out
+  of the `impl` block and pass what it needs from `self` as a prop". It used to be five
+  errors about generated code, starting with "struct is not supported in `trait`s or
+  `impl`s". A component in an `impl` block without `self` still gets those: the macro
+  can't see where a function is.
 - A component that returns something other than an `HtmlFragment` gets its
   "mismatched types" error at the return type (`-> String`), where it used to underline
   `#[component]`. A component without a return type is "a component has to return an
