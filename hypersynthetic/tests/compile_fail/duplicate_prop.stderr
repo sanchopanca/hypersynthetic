@@ -1,0 +1,29 @@
+error: prop `title` is given twice: a prop takes one value, so remove one of them
+ --> tests/compile_fail/duplicate_prop.rs:9:37
+  |
+9 |     let _ = html! { <Card title="a" title="b" /> };
+  |                                     ^^^^^
+
+error: prop `wide` is given twice: a prop takes one value, so remove one of them
+  --> tests/compile_fail/duplicate_prop.rs:11:42
+   |
+11 |     let _ = html! { <Card title="a" wide wide /> };
+   |                                          ^^^^
+
+error: prop `title` is given twice: a prop takes one value, so remove one of them
+  --> tests/compile_fail/duplicate_prop.rs:12:53
+   |
+12 |     let _ = html! { <Card title="a" wide :if={true} title={"c"} /> };
+   |                                                     ^^^^^
+
+error: prop `title` is given twice: a prop takes one value, so remove one of them
+  --> tests/compile_fail/duplicate_prop.rs:14:37
+   |
+14 |     let _ = html! { <Card title="a" title="b" title="c" /> };
+   |                                     ^^^^^
+
+error: prop `wide` is given twice: a prop takes one value, so remove one of them
+  --> tests/compile_fail/duplicate_prop.rs:16:49
+   |
+16 |     let _ = html! { <Card wide={true} title="a" wide={false}>"x"</Card> };
+   |                                                 ^^^^

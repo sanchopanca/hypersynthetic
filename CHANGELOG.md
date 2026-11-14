@@ -153,6 +153,11 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
 - A prop written as a raw identifier, `<Field r#type="email" />`, is still an error, but
   the error now says what to write: "write `type`. The `r#` is only for Rust code, and
   `html!` doesn't need it". It used to suggest `r_type`, a prop that doesn't exist.
+- A prop given twice, `<Card title="a" title="b" />`, says so: "prop `title` is given
+  twice: a prop takes one value, so remove one of them", at the second one. It used to
+  be a type error at the second value ("expected
+  `CardPropsBuilder_Error_Repeated_field_title`, found `&str`") and a deprecation
+  warning.
 
 ## 0.10.0 (2026-10-10)
 

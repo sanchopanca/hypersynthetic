@@ -84,7 +84,10 @@ impl Parse for Node {
             }
 
             match tag_name {
-                TagName::Component(_) => validate_prop_names(&attributes)?,
+                TagName::Component(_) => {
+                    validate_prop_names(&attributes)?;
+                    reject_duplicate_props(&attributes)?;
+                }
                 TagName::Element(_) => reject_duplicate_attributes(&attributes)?,
             }
 
@@ -415,8 +418,53 @@ fn raw_text_children(tag_name: &str, language: &str, children: Vec<Node>) -> Res
 /// Only names written in the template are checked. A `{name}="…"` isn't known until
 /// the program runs, and may still repeat another one.
 ///
-/// Not for components: a prop given twice is an error from the builder's types.
+/// Components have their own rule: see [reject_duplicate_props].
 fn reject_duplicate_attributes(attributes: &[Attribute]) -> Result<()> {
+    let Some((first, name)) = find_repeated_name(attributes, str::eq_ignore_ascii_case) else {
+        return Ok(());
+    };
+    let name_str = name.value();
+    let same_as = if first == name_str {
+        String::new()
+    } else {
+        format!("it's `{first}` again, since attribute names ignore case in HTML, and ")
+    };
+    Err(syn::Error::new(
+        name.span(),
+        format!(
+            "duplicate attribute `{name_str}`: {same_as}browsers use the first one and \
+             ignore the rest"
+        ),
+    ))
+}
+
+/// A component takes each prop once. The props builder refuses a second one too, but
+/// the only way it has is a type error: "expected
+/// `CardPropsBuilder_Error_Repeated_field_title`, found `&str`", at the prop's value.
+///
+/// Names are compared exactly: props are Rust identifiers, so `Title` and `title` are
+/// two props. And nothing is missed here, unlike for an element: a component has no
+/// `{name}="…"`, so every prop it gets has its name written in the tag.
+fn reject_duplicate_props(props: &[Attribute]) -> Result<()> {
+    match find_repeated_name(props, |first, name| first == name) {
+        Some((_, name)) => Err(syn::Error::new(
+            name.span(),
+            format!(
+                "prop `{}` is given twice: a prop takes one value, so remove one of them",
+                name.value()
+            ),
+        )),
+        None => Ok(()),
+    }
+}
+
+/// The first name in `attributes` that was written before, for what `is_same` calls
+/// the same name: the earlier name, and the one that repeats it. Names that aren't
+/// written in the template (`{name}="…"`) and `:if`/`:for` are skipped.
+fn find_repeated_name(
+    attributes: &[Attribute],
+    is_same: impl Fn(&str, &str) -> bool,
+) -> Option<(String, &LitStr)> {
     let mut seen: Vec<String> = Vec::new();
     for attribute in attributes {
         let Attribute::RegularAttribute(RegularAttribute {
@@ -427,26 +475,12 @@ fn reject_duplicate_attributes(attributes: &[Attribute]) -> Result<()> {
             continue;
         };
         let name_str = name.value();
-        let first = seen
-            .iter()
-            .find(|first| first.eq_ignore_ascii_case(&name_str));
-        if let Some(first) = first {
-            let same_as = if *first == name_str {
-                String::new()
-            } else {
-                format!("it's `{first}` again, since attribute names ignore case in HTML, and ")
-            };
-            return Err(syn::Error::new(
-                name.span(),
-                format!(
-                    "duplicate attribute `{name_str}`: {same_as}browsers use the first one \
-                     and ignore the rest"
-                ),
-            ));
+        if let Some(first) = seen.iter().find(|first| is_same(first, &name_str)) {
+            return Some((first.clone(), name));
         }
         seen.push(name_str);
     }
-    Ok(())
+    None
 }
 
 /// Props become builder method calls (`.data_id(…)`), so their names must be

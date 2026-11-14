@@ -293,3 +293,18 @@ fn test_prop_named_build() {
          <div data-build=\"7\">x</div>"
     );
 }
+
+// A prop can be given once. Props are Rust identifiers, so names that differ in case
+// are two props (unlike the attributes of an element, where `ID` and `id` are one).
+#[component]
+#[allow(non_snake_case)]
+fn Heading(title: &str, Title: &str) -> HtmlFragment {
+    html! { <h1 title={title}>{Title}</h1> }
+}
+
+#[test]
+fn test_props_that_differ_in_case() {
+    let result = html! { <Heading title="tooltip" Title="Text" /> };
+
+    assert_eq!(result.to_string(), "<h1 title=\"tooltip\">Text</h1>");
+}
