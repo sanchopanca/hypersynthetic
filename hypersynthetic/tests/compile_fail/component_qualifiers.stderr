@@ -1,0 +1,35 @@
+error: a component can't be an `async fn`, because `html!` calls it without `.await`: await what it needs before `html!` and pass the result as a prop
+ --> tests/compile_fail/component_qualifiers.rs:4:1
+  |
+4 | async fn Async(name: &str) -> HtmlFragment {
+  | ^^^^^
+
+error: a component can't be an `unsafe fn`, because `html!` can't call it in an `unsafe` block: remove `unsafe` and write `unsafe { ... }` in the body where it's needed
+ --> tests/compile_fail/component_qualifiers.rs:9:1
+  |
+9 | unsafe fn Unsafe(name: &str) -> HtmlFragment {
+  | ^^^^^^
+
+error: a component can't be a `const fn`, because an `HtmlFragment` can't be built at compile time: remove `const`
+  --> tests/compile_fail/component_qualifiers.rs:14:1
+   |
+14 | const fn Const(name: &str) -> HtmlFragment {
+   | ^^^^^
+
+error: a component can't have an ABI, because only `html!` calls it, as a Rust function: remove `extern "C"`
+  --> tests/compile_fail/component_qualifiers.rs:19:1
+   |
+19 | extern "C" fn Extern(name: &str) -> HtmlFragment {
+   | ^^^^^^^^^^
+
+error: a component can't be an `async fn`, because `html!` calls it without `.await`: await what it needs before `html!` and pass the result as a prop
+  --> tests/compile_fail/component_qualifiers.rs:25:5
+   |
+25 | pub async unsafe fn Both(name: &str) -> HtmlFragment {
+   |     ^^^^^
+
+error: a component can't be an `unsafe fn`, because `html!` can't call it in an `unsafe` block: remove `unsafe` and write `unsafe { ... }` in the body where it's needed
+  --> tests/compile_fail/component_qualifiers.rs:25:11
+   |
+25 | pub async unsafe fn Both(name: &str) -> HtmlFragment {
+   |           ^^^^^^

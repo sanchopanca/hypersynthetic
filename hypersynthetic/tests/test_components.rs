@@ -224,3 +224,25 @@ fn test_generic_props() {
         "<p>1</p><p>two</p><li>3</li><li>4</li><li>five</li>"
     );
 }
+
+// A component can't be an `async fn`. What it needs from async code is awaited where
+// the tag is written, and reaches the component as a prop.
+#[component]
+fn Profile(name: String, visits: u32) -> HtmlFragment {
+    html! { <p>{name}": "{visits}</p> }
+}
+
+#[tokio::test]
+async fn test_awaiting_in_a_prop_value() {
+    async fn load_name() -> String {
+        "Ann".to_owned()
+    }
+    async fn count_visits() -> u32 {
+        3
+    }
+
+    let visits = count_visits().await;
+    let result = html! { <Profile name={load_name().await} visits={visits} /> };
+
+    assert_eq!(result.to_string(), "<p>Ann: 3</p>");
+}

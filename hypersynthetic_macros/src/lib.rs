@@ -36,6 +36,10 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut function = parse_macro_input!(item as ItemFn);
 
+    if let Err(err) = check_qualifiers(&function.sig) {
+        return err.to_compile_error().into();
+    }
+
     // Props struct fields can't have elided lifetimes
     name_elided_lifetimes(&mut function);
 
@@ -183,6 +187,60 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     output.into()
+}
+
+/// A component is a plain `fn`: not `const`, `async`, `unsafe` or `extern`.
+///
+/// `html!` calls the wrapper generated here, which is always a plain `fn`, and the
+/// qualifiers would stay on the internal function it calls. That either doesn't
+/// compile, with an error about generated code (`async`: "expected `HtmlFragment`,
+/// found future"; `unsafe`: "call to unsafe function `__Card`"), or compiles and means
+/// nothing (`extern "C"`, and a `const fn` whose body happens to be const).
+///
+/// All of them are reported at once, in the order they're written in.
+fn check_qualifiers(sig: &syn::Signature) -> syn::Result<()> {
+    let errors = [
+        sig.constness.map(|token| {
+            syn::Error::new_spanned(
+                token,
+                "a component can't be a `const fn`, because an `HtmlFragment` can't be built \
+                 at compile time: remove `const`",
+            )
+        }),
+        sig.asyncness.map(|token| {
+            syn::Error::new_spanned(
+                token,
+                "a component can't be an `async fn`, because `html!` calls it without \
+                 `.await`: await what it needs before `html!` and pass the result as a prop",
+            )
+        }),
+        sig.unsafety.map(|token| {
+            syn::Error::new_spanned(
+                token,
+                "a component can't be an `unsafe fn`, because `html!` can't call it in an \
+                 `unsafe` block: remove `unsafe` and write `unsafe { ... }` in the body where \
+                 it's needed",
+            )
+        }),
+        sig.abi.as_ref().map(|abi| {
+            syn::Error::new_spanned(
+                abi,
+                format!(
+                    "a component can't have an ABI, because only `html!` calls it, as a Rust \
+                     function: remove `{}`",
+                    abi.to_token_stream()
+                ),
+            )
+        }),
+    ];
+    let combined = errors.into_iter().flatten().reduce(|mut all, error| {
+        all.combine(error);
+        all
+    });
+    match combined {
+        Some(error) => Err(error),
+        None => Ok(()),
+    }
 }
 
 /// The content between a component's tags is passed as its `children` prop.

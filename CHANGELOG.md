@@ -78,6 +78,13 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   content: such a name isn't a tag in HTML, so the renderer skipped the element.
 - A compile error instead of a panic ("proc macro panicked") for a component prop whose
   name starts with a digit: `<Card 5="x" />`.
+- `#[component]` on an `async fn`, `unsafe fn`, `const fn` or `extern fn` is an error
+  that says so, at the keyword: "a component can't be an `async fn`, because `html!`
+  calls it without `.await`: await what it needs before `html!` and pass the result as
+  a prop". `async` used to fail with "expected `HtmlFragment`, found future" and `unsafe`
+  with "call to unsafe function `__Card`", both pointing at `#[component]`. An
+  `extern "C" fn` compiled, and so did a `const fn` whose body was const, with the
+  keyword doing nothing for the component.
 - A component path starting with `::` (`<::my_crate::Card>`) only worked at the top
   level of `html!` and self-closed. It now works inside other elements and with a
   closing tag.

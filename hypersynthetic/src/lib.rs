@@ -102,6 +102,11 @@ pub mod __private;
 ///
 /// A component name must start with an uppercase letter and it must return a [HtmlFragment].
 ///
+/// A component is a plain `fn`: an `async fn`, `unsafe fn`, `const fn` or `extern fn`
+/// is a compile error, since [html] calls a component where its tag is, as an ordinary
+/// function. A component that needs something from async code gets it as a prop:
+/// `.await` it before `html!`, or in a prop's value (`<Profile user={load_user(id).await} />`).
+///
 /// **Note:** Components are designed to be used exclusively within the [html] macro using
 /// the `<Component />` syntax. Direct function calls (e.g., `MyComponent(...)`) are not
 /// supported.
