@@ -296,15 +296,22 @@ fn test_prop_named_build() {
 
 // A prop can be given once. Props are Rust identifiers, so names that differ in case
 // are two props (unlike the attributes of an element, where `ID` and `id` are one).
-#[component]
-#[allow(non_snake_case)]
-fn Heading(title: &str, Title: &str) -> HtmlFragment {
-    html! { <h1 title={title}>{Title}</h1> }
-}
+mod props_that_differ_in_case {
+    // For the whole module: an `#[allow]` on the component only reaches the function,
+    // and the prop is also a field of the props struct and a method of its builder
+    #![allow(non_snake_case)]
 
-#[test]
-fn test_props_that_differ_in_case() {
-    let result = html! { <Heading title="tooltip" Title="Text" /> };
+    use hypersynthetic::prelude::*;
 
-    assert_eq!(result.to_string(), "<h1 title=\"tooltip\">Text</h1>");
+    #[component]
+    fn Heading(title: &str, Title: &str) -> HtmlFragment {
+        html! { <h1 title={title}>{Title}</h1> }
+    }
+
+    #[test]
+    fn test_props_that_differ_in_case() {
+        let result = html! { <Heading title="tooltip" Title="Text" /> };
+
+        assert_eq!(result.to_string(), "<h1 title=\"tooltip\">Text</h1>");
+    }
 }
