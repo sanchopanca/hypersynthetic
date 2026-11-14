@@ -641,6 +641,41 @@ fn test_unusual_element_names() {
     );
 }
 
+// HTML finds an element's closing tag ignoring the ASCII case of the name, in SVG
+// too. The element has one name: the one in its opening tag.
+#[test]
+fn test_closing_tag_ignores_the_case_of_the_name() {
+    let result = html! {
+        <div>"a"</dIV>
+        <dIV>"b"</div>
+        <svg><foreignObject>"c"</foreignobject><lineargradient></linearGradient></svg>
+        <my-Widget>"d"</my-widget>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<div>a</div><dIV>b</dIV>\
+         <svg><foreignObject>c</foreignObject><lineargradient></lineargradient></svg>\
+         <my-Widget>d</my-Widget>"
+    );
+}
+
+#[test]
+fn test_closing_tag_ignores_case_with_children_and_directives() {
+    let show = true;
+    let result = html! {
+        <ul>
+            <li :for={n in 1..=2}><b :if={show}>{n}</b></lI>
+        </uL>
+        <script>"if (a < b) {{ go(); }}"</sCRIPT>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<ul><li><b>1</b></li><li><b>2</b></li></ul><script>if (a < b) { go(); }</script>"
+    );
+}
+
 #[test]
 fn test_custom_elements() {
     let result = html! {

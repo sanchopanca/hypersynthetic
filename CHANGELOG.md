@@ -31,6 +31,12 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   `<p>"one"<br>"two"</p>`, `<input type="text">`. They're rendered the way they're
   written, so `<br />` still renders `<br />`. `<br>` used to fail with "unclosed `<br>`"
   or "expected closing tag `br`, found `p`".
+- A closing tag is matched to its opening tag ignoring ASCII case, as in HTML:
+  `<div>...</dIV>` and `<foreignObject>...</foreignobject>` compile. They used to fail
+  with "expected closing tag `div`, found `dIV`". The element is rendered with the name
+  in its opening tag. Component names are still matched exactly, and a name that starts
+  with an uppercase letter is still a component, so `<div>...</DIV>` is an error, which
+  now says why.
 - A string in the template sets a `&str` prop and a `String` prop alike:
   `<Card title="Hello {name}" />` works with `title: &str`, and `<Card title="Hello" />`
   with `title: String`. They used to fail with "expected `&str`, found `String`" and

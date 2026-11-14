@@ -27,10 +27,27 @@ pub enum Node {
 
 /// The name in `<name ...>`: a component path (`Card`, `ui::Card`) or an HTML
 /// element name, which can contain hyphens (`div`, `my-widget`).
-#[derive(PartialEq)]
 pub enum TagName {
     Component(Path),
     Element(String),
+}
+
+impl TagName {
+    /// Whether `</closing>` ends this tag. Element names are compared ignoring ASCII
+    /// case, as an HTML parser does: `</dIV>` closes `<div>`. Component names are
+    /// Rust paths, so they're compared exactly.
+    ///
+    /// There's no `==` for tag names on purpose: it would be the exact comparison,
+    /// which is wrong for elements.
+    pub fn is_closed_by(&self, closing: &TagName) -> bool {
+        match (self, closing) {
+            (TagName::Element(name), TagName::Element(closing)) => {
+                name.eq_ignore_ascii_case(closing)
+            }
+            (TagName::Component(path), TagName::Component(closing)) => path == closing,
+            _ => false,
+        }
+    }
 }
 
 impl fmt::Display for TagName {

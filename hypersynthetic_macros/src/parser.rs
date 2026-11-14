@@ -135,10 +135,10 @@ impl Parse for Node {
                 let closing_span = input.span();
                 let closing_tag_name: TagName = input.parse()?;
                 reject_void_closing_tag(&closing_tag_name, closing_span)?;
-                if closing_tag_name != tag_name {
+                if !tag_name.is_closed_by(&closing_tag_name) {
                     Err(syn::Error::new(
                         closing_span,
-                        format!("expected closing tag `{tag_name}`, found `{closing_tag_name}`"),
+                        mismatched_closing_tag(&tag_name, &closing_tag_name),
                     ))
                 } else {
                     let _: Token![>] = input.parse()?;
@@ -282,6 +282,23 @@ fn is_void_element(tag_name: &str) -> bool {
     VOID_ELEMENTS
         .iter()
         .any(|void| void.eq_ignore_ascii_case(tag_name))
+}
+
+/// The error for a closing tag that doesn't end the tag that is open.
+fn mismatched_closing_tag(open: &TagName, closing: &TagName) -> String {
+    // `</DIV>` closes `<div>` in HTML. Here its first letter makes it a component
+    // name, which never closes an element: without a word about that, "expected
+    // `div`, found `DIV`" would look like a bug next to `</dIV>`, which is accepted
+    if let (TagName::Element(name), TagName::Component(_)) = (open, closing) {
+        let closing = closing.to_string();
+        if closing.eq_ignore_ascii_case(name) {
+            return format!(
+                "`</{closing}>` doesn't close `<{name}>`: `{closing}` starts with an \
+                 uppercase letter, which makes it a component name. Write `</{name}>`"
+            );
+        }
+    }
+    format!("expected closing tag `{open}`, found `{closing}`")
 }
 
 /// `</br>` closes nothing: a void element ended with its own tag. It's an error in

@@ -1,0 +1,29 @@
+error: `</DIV>` doesn't close `<div>`: `DIV` starts with an uppercase letter, which makes it a component name. Write `</div>`
+  --> tests/compile_fail/closing_tag_case.rs:10:31
+   |
+10 |     let _ = html! { <div>"x"</DIV> };
+   |                               ^^^
+
+error: `</Div>` doesn't close `<div>`: `Div` starts with an uppercase letter, which makes it a component name. Write `</div>`
+  --> tests/compile_fail/closing_tag_case.rs:11:31
+   |
+11 |     let _ = html! { <div>"x"</Div> };
+   |                               ^^^
+
+error: expected closing tag `Card`, found `card`
+  --> tests/compile_fail/closing_tag_case.rs:13:32
+   |
+13 |     let _ = html! { <Card>"x"</card> };
+   |                                ^^^^
+
+error: expected closing tag `Card`, found `CARD`
+  --> tests/compile_fail/closing_tag_case.rs:14:32
+   |
+14 |     let _ = html! { <Card>"x"</CARD> };
+   |                                ^^^^
+
+error: expected closing tag `café`, found `cafÉ`
+  --> tests/compile_fail/closing_tag_case.rs:16:32
+   |
+16 |     let _ = html! { <café>"x"</cafÉ> };
+   |                                ^^^^

@@ -307,6 +307,17 @@ pub use hypersynthetic_macros::component;
 ///    directly like `<span>"text"</span>`. But the latter syntax is likely to change in the future.
 ///    See this [github issue](https://github.com/sanchopanca/hypersynthetic/issues/3) for details.
 ///
+/// 3. A tag whose name starts with an uppercase letter is a [component](macro@component),
+///    not an element: `<DIV>` looks for a component named `DIV`, and `</DIV>` doesn't
+///    close a `<div>`. Start element names with a lowercase letter. Apart from that, the
+///    case of a name works as in HTML: a closing tag is matched to its opening tag
+///    ignoring ASCII case, and the element is rendered with the name in its opening tag.
+///    ```
+///    # use hypersynthetic::html;
+///    let svg = html! { <svg><foreignObject>"text"</foreignobject></svg> };
+///    assert_eq!(svg.to_string(), "<svg><foreignObject>text</foreignObject></svg>");
+///    ```
+///
 /// With gotchas out the way, here are the features:
 ///
 /// # Dynamic content
