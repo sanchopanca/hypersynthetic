@@ -7,16 +7,16 @@ error[E0308]: mismatched types
   |                        ^^^^^^ expected `HtmlFragment`, found `String`
 
 error[E0308]: mismatched types
- --> tests/compile_fail/component_return_type.rs:9:28
-  |
-8 | #[component]
-  | ------------ expected `hypersynthetic::HtmlFragment` because of return type
-9 | fn Fallible(name: &str) -> Result<HtmlFragment, String> {
-  |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `HtmlFragment`, found `Result<HtmlFragment, String>`
-  |
-  = note: expected struct `HtmlFragment`
-               found enum `Result<HtmlFragment, String>`
+  --> tests/compile_fail/component_return_type.rs:13:27
+   |
+12 | #[component]
+   | ------------ expected `hypersynthetic::HtmlFragment` because of return type
+13 | fn Aliased(name: &str) -> Fallible {
+   |                           ^^^^^^^^ expected `HtmlFragment`, found `Result<HtmlFragment, String>`
+   |
+   = note: expected struct `HtmlFragment`
+                found enum `Result<HtmlFragment, String>`
 help: consider using `Result::expect` to unwrap the `Result<hypersynthetic::HtmlFragment, String>` value, panicking if the value is a `Result::Err`
-  |
-9 | fn Fallible(name: &str) -> Result<HtmlFragment, String>.expect("REASON") {
-  |                                                        +++++++++++++++++
+   |
+13 | fn Aliased(name: &str) -> Fallible.expect("REASON") {
+   |                                   +++++++++++++++++

@@ -100,7 +100,9 @@ pub mod __private;
 /// # }
 /// ```
 ///
-/// A component name must start with an uppercase letter and it must return a [HtmlFragment].
+/// A component name must start with an uppercase letter and it must return a [HtmlFragment]:
+/// not a `Result` or an `Option` of one. What can fail is done before `html!` and passed
+/// in as a prop, or the component returns a fragment that shows the error.
 ///
 /// A component is a plain `fn`: an `async fn`, `unsafe fn`, `const fn` or `extern fn`
 /// is a compile error, since [html] calls a component where its tag is, as an ordinary

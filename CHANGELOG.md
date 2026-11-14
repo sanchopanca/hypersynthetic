@@ -86,9 +86,14 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   `extern "C" fn` compiled, and so did a `const fn` whose body was const, with the
   keyword doing nothing for the component.
 - A component that returns something other than an `HtmlFragment` gets its
-  "mismatched types" error at the return type (`-> String`, `-> Result<HtmlFragment, E>`),
-  where it used to underline `#[component]`. A component without a return type is "a
-  component has to return an `HtmlFragment`: add `-> HtmlFragment`", at its name.
+  "mismatched types" error at the return type (`-> String`), where it used to underline
+  `#[component]`. A component without a return type is "a component has to return an
+  `HtmlFragment`: add `-> HtmlFragment`", at its name.
+- A component declared to return a `Result` or an `Option` gets an error that says what
+  to do instead: "a component can't return a `Result`, because `html!` has nowhere to
+  pass an error on to: do what can fail before `html!` and pass the result as a prop,
+  or return a fragment that shows the error". The compiler's own error came with a
+  suggestion to add `.expect("REASON")`.
 - A component path starting with `::` (`<::my_crate::Card>`) only worked at the top
   level of `html!` and self-closed. It now works inside other elements and with a
   closing tag.

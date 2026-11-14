@@ -1,0 +1,17 @@
+error: a component can't return a `Result`, because `html!` has nowhere to pass an error on to: do what can fail before `html!` and pass the result as a prop, or return a fragment that shows the error
+ --> tests/compile_fail/component_fallible.rs:4:28
+  |
+4 | fn Fallible(name: &str) -> Result<HtmlFragment, String> {
+  |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: a component can't return an `Option`, because it always renders a fragment: return `html! {}`, an empty one, where there's nothing to show
+ --> tests/compile_fail/component_fallible.rs:9:25
+  |
+9 | fn Maybe(name: &str) -> Option<HtmlFragment> {
+  |                         ^^^^^^^^^^^^^^^^^^^^
+
+error: a component can't return a `Result`, because `html!` has nowhere to pass an error on to: do what can fail before `html!` and pass the result as a prop, or return a fragment that shows the error
+  --> tests/compile_fail/component_fallible.rs:15:22
+   |
+15 | fn Io(name: &str) -> std::io::Result<HtmlFragment> {
+   |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

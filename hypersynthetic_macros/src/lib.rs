@@ -250,14 +250,47 @@ fn check_qualifiers(sig: &syn::Signature) -> syn::Result<()> {
 
 /// The type the component is declared to return. Whether it is `HtmlFragment` is
 /// left to the compiler (see [call_spanned_as]): the macro only sees how the type is
-/// written, and an alias is as good. What it can see is that there's none at all.
+/// written, and an alias is as good. What it can see is that there's none at all,
+/// or that it's written as a `Result` or an `Option`.
 fn return_type(sig: &syn::Signature) -> syn::Result<&syn::Type> {
-    match &sig.output {
-        syn::ReturnType::Type(_, ty) => Ok(ty),
-        syn::ReturnType::Default => Err(syn::Error::new(
-            sig.ident.span(),
-            "a component has to return an `HtmlFragment`: add `-> HtmlFragment`",
-        )),
+    let ty = match &sig.output {
+        syn::ReturnType::Type(_, ty) => &**ty,
+        syn::ReturnType::Default => {
+            return Err(syn::Error::new(
+                sig.ident.span(),
+                "a component has to return an `HtmlFragment`: add `-> HtmlFragment`",
+            ));
+        }
+    };
+
+    // The compiler would refuse these two as well, but with a suggestion to add
+    // `.expect("REASON")`, which ends up in the signature. Here the message can say
+    // what to do. They're found by name, so not behind an alias: that's fine in this
+    // direction, since nobody names a type that is an `HtmlFragment` `Result`.
+    let advice = match last_path_segment(ty) {
+        Some(name) if name == "Result" => {
+            "a component can't return a `Result`, because `html!` has nowhere to pass an \
+             error on to: do what can fail before `html!` and pass the result as a prop, \
+             or return a fragment that shows the error"
+        }
+        Some(name) if name == "Option" => {
+            "a component can't return an `Option`, because it always renders a fragment: \
+             return `html! {}`, an empty one, where there's nothing to show"
+        }
+        _ => return Ok(ty),
+    };
+    Err(syn::Error::new_spanned(ty, advice))
+}
+
+/// The last name of a type written as a path: `Result` for `std::io::Result<T>`.
+/// A type that comes from a `macro_rules!` argument (`$ty`) is wrapped in an
+/// invisible group, and one in parentheses in a visible one: both are looked into.
+fn last_path_segment(ty: &syn::Type) -> Option<&syn::Ident> {
+    match ty {
+        syn::Type::Path(path) => path.path.segments.last().map(|segment| &segment.ident),
+        syn::Type::Group(group) => last_path_segment(&group.elem),
+        syn::Type::Paren(paren) => last_path_segment(&paren.elem),
+        _ => None,
     }
 }
 
