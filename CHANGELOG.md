@@ -150,6 +150,9 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   (`<div id="">`, `<div id>`, or `id={slug}` with an empty `slug`), so a lookup with an
   id that happened to be empty could return, and change, an unrelated element.
   `id()` still gives `Some("")` for such an element.
+- A prop written as a raw identifier, `<Field r#type="email" />`, is still an error, but
+  the error now says what to write: "write `type`. The `r#` is only for Rust code, and
+  `html!` doesn't need it". It used to suggest `r_type`, a prop that doesn't exist.
 
 ## 0.10.0 (2026-10-10)
 

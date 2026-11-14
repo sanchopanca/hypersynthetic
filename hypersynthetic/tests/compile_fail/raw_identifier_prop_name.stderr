@@ -1,0 +1,29 @@
+error: `self` cannot be a raw identifier
+  --> tests/compile_fail/raw_identifier_prop_name.rs:16:28
+   |
+16 |     let _ = html! { <Field r#self="email" /> };
+   |                            ^^^^^^
+
+error: invalid prop name `r#type`: write `type`. The `r#` is only for Rust code, and `html!` doesn't need it
+  --> tests/compile_fail/raw_identifier_prop_name.rs:10:28
+   |
+10 |     let _ = html! { <Field r#type="email" /> };
+   |                            ^^^^^^
+
+error: invalid prop name `r#title`: write `title`. The `r#` is only for Rust code, and `html!` doesn't need it
+  --> tests/compile_fail/raw_identifier_prop_name.rs:12:41
+   |
+12 |     let _ = html! { <Field type="email" r#title="Address" /> };
+   |                                         ^^^^^^^
+
+error: invalid prop name `data-r#type`: component props are Rust identifiers, try `data_type`
+  --> tests/compile_fail/raw_identifier_prop_name.rs:14:28
+   |
+14 |     let _ = html! { <Field data-r#type="email" /> };
+   |                            ^^^^
+
+error: invalid prop name `r#self`: it can't be a parameter name, so no component has this prop
+  --> tests/compile_fail/raw_identifier_prop_name.rs:16:28
+   |
+16 |     let _ = html! { <Field r#self="email" /> };
+   |                            ^^^^^^

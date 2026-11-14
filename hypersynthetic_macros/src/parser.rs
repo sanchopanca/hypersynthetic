@@ -477,10 +477,16 @@ fn validate_prop_names(props: &[Attribute]) -> Result<()> {
                         ),
                     ));
                 }
+                // The name without the `r#` of a raw identifier, if it has one. The
+                // parameter may be written `r#type`, which invites writing the prop
+                // that way too: the errors below are about the name that was meant.
+                let plain = name_str.strip_prefix("r#").unwrap_or(&name_str);
+                let is_word = |c: char| c.is_alphanumeric() || c == '_';
+
                 // Keywords are fine: the setter is called as `r#type`. These are the
                 // ones that can't be raw identifiers, so they can't name a parameter:
                 // https://doc.rust-lang.org/reference/identifiers.html#raw-identifiers
-                if matches!(name_str.as_str(), "self" | "Self" | "super" | "crate" | "_") {
+                if matches!(plain, "self" | "Self" | "super" | "crate" | "_") {
                     return Err(syn::Error::new(
                         name.span(),
                         format!(
@@ -488,10 +494,22 @@ fn validate_prop_names(props: &[Attribute]) -> Result<()> {
                         ),
                     ));
                 }
-                let is_word = |c: char| c.is_alphanumeric() || c == '_';
+                // `r#type` is a Rust identifier, so the message below would be wrong
+                // about it, and its suggestion (`r_type`) about the prop
+                if plain != name_str && plain.chars().all(is_word) {
+                    return Err(syn::Error::new(
+                        name.span(),
+                        format!(
+                            "invalid prop name `{name_str}`: write `{plain}`. The `r#` is only for Rust code, and `html!` doesn't need it"
+                        ),
+                    ));
+                }
                 if !name_str.chars().all(is_word) {
+                    // A `#` only gets into a name with a raw identifier (`data-r#type`):
+                    // it stays in its word, which then loses the `r#` as a whole
                     let words: Vec<&str> = name_str
-                        .split(|c| !is_word(c))
+                        .split(|c| !is_word(c) && c != '#')
+                        .map(|word| word.strip_prefix("r#").unwrap_or(word))
                         .filter(|word| !word.is_empty())
                         .collect();
                     let suggestion = words.join("_");
