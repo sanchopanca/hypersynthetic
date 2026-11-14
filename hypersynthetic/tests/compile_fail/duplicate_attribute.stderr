@@ -32,13 +32,13 @@ error: duplicate attribute `data-x`: browsers use the first one and ignore the r
   --> tests/compile_fail/duplicate_attribute.rs:12:37
    |
 12 |     let _ = html! { <div data-x="1" data-x="2"></div> };
-   |                                     ^^^^
+   |                                     ^^^^^^
 
 error: duplicate attribute `@click`: browsers use the first one and ignore the rest
   --> tests/compile_fail/duplicate_attribute.rs:13:42
    |
 13 |     let _ = html! { <button @click="a()" @click="b()"></button> };
-   |                                          ^
+   |                                          ^^^^^^
 
 error: duplicate attribute `id`: it's `ID` again, since attribute names ignore case in HTML, and browsers use the first one and ignore the rest
   --> tests/compile_fail/duplicate_attribute.rs:15:33

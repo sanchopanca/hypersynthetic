@@ -106,7 +106,7 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
                     // which names are keywords depends on the edition, so all of
                     // them are raw. `new_raw` panics if the name isn't one that
                     // can be raw: `validate_prop_names` in the parser checks it.
-                    AttrName::Literal(name) => Ident::new_raw(&name.value(), name.span()),
+                    AttrName::Literal(name) => Ident::new_raw(&name.value(), name.lit.span()),
                     AttrName::Expression(_) => {
                         unreachable!("rejected by the parser in validate_prop_names")
                     }
@@ -260,7 +260,10 @@ fn set_string_prop(builder: TokenStream2, setter: &Ident, string: StringProp) ->
 fn generate_attribute(attr: &RegularAttribute, target: &Ident) -> TokenStream2 {
     let attr_name = match &attr.name {
         // Names and values written in the template are borrowed, not copied
-        AttrName::Literal(name) => quote! { ::std::borrow::Cow::Borrowed(#name) },
+        AttrName::Literal(name) => {
+            let name = &name.lit;
+            quote! { ::std::borrow::Cow::Borrowed(#name) }
+        }
         // Not escaped: names are validated when rendering instead.
         AttrName::Expression(expr) => {
             quote! { ::std::borrow::Cow::Owned(::std::format!("{}", #expr)) }

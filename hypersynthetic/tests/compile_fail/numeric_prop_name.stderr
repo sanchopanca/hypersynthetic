@@ -14,4 +14,4 @@ error: invalid prop name `2-x`: component props are Rust identifiers, which can'
   --> tests/compile_fail/numeric_prop_name.rs:11:27
    |
 11 |     let _ = html! { <Card 2-x="two" /> };
-   |                           ^
+   |                           ^^^

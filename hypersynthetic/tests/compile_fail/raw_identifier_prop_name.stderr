@@ -20,7 +20,7 @@ error: invalid prop name `data-r#type`: component props are Rust identifiers, tr
   --> tests/compile_fail/raw_identifier_prop_name.rs:14:28
    |
 14 |     let _ = html! { <Field data-r#type="email" /> };
-   |                            ^^^^
+   |                            ^^^^^^^^^^^
 
 error: invalid prop name `r#self`: it can't be a parameter name, so no component has this prop
   --> tests/compile_fail/raw_identifier_prop_name.rs:16:28

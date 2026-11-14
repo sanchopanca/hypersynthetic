@@ -158,6 +158,9 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   be a type error at the second value ("expected
   `CardPropsBuilder_Error_Repeated_field_title`, found `&str`") and a deprecation
   warning.
+- Errors about an attribute or prop name underline the whole name. For a name of more
+  than one token they underlined the first: `data` in `data-x`, and only the `@` in
+  `@click`.
 
 ## 0.10.0 (2026-10-10)
 

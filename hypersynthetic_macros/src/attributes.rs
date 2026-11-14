@@ -1,3 +1,7 @@
+use std::fmt::Display;
+
+use proc_macro2::Span;
+use quote::quote;
 use syn::{Expr, LitStr, Pat};
 
 #[derive(Clone)]
@@ -18,10 +22,47 @@ pub struct RegularAttribute {
 
 #[derive(Clone)]
 pub enum AttrName {
-    Literal(LitStr),
+    Literal(LiteralName),
     // Boxed: an `Expr` is some 30 times bigger than a `LitStr`, and every name
     // would take that much space
     Expression(Box<Expr>),
+}
+
+/// A name written in the template: `class`, `data-id`, `@click`, `x-on:click.prevent`.
+///
+/// For Rust it's several tokens (`data`, `-`, `id`), which the parser puts together
+/// into one string. Where the name is in the source is kept as its two ends.
+#[derive(Clone)]
+pub struct LiteralName {
+    /// The name, placed at its first token
+    pub lit: LitStr,
+    /// Where its last token is
+    end: Span,
+}
+
+impl LiteralName {
+    pub fn new(name: &str, start: Span, end: Span) -> Self {
+        LiteralName {
+            lit: LitStr::new(name, start),
+            end,
+        }
+    }
+
+    pub fn value(&self) -> String {
+        self.lit.value()
+    }
+
+    /// An error about this name, underlining all of it.
+    ///
+    /// Two spans can't be joined into one on stable Rust. An error can still cover
+    /// both: `new_spanned` places it from the first of the tokens it's given to the
+    /// last, so it gets the name twice, once at each end.
+    pub fn error(&self, message: impl Display) -> syn::Error {
+        let start = &self.lit;
+        let mut end = self.lit.clone();
+        end.set_span(self.end);
+        syn::Error::new_spanned(quote! { #start #end }, message)
+    }
 }
 
 #[derive(Clone)]

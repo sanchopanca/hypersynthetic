@@ -9,7 +9,7 @@ use syn::{
 use crate::{
     attributes::{
         AttrName, AttrValue, Attribute, ForExpr, InterpolatedSegment, InterpolatedString,
-        RegularAttribute,
+        LiteralName, RegularAttribute,
     },
     nodes::{Component, Node, NodeCollection, Tag, TagName},
     utils::{is_path_pascal_case, path_to_string},
@@ -429,13 +429,10 @@ fn reject_duplicate_attributes(attributes: &[Attribute]) -> Result<()> {
     } else {
         format!("it's `{first}` again, since attribute names ignore case in HTML, and ")
     };
-    Err(syn::Error::new(
-        name.span(),
-        format!(
-            "duplicate attribute `{name_str}`: {same_as}browsers use the first one and \
+    Err(name.error(format!(
+        "duplicate attribute `{name_str}`: {same_as}browsers use the first one and \
              ignore the rest"
-        ),
-    ))
+    )))
 }
 
 /// A component takes each prop once. The props builder refuses a second one too, but
@@ -447,13 +444,10 @@ fn reject_duplicate_attributes(attributes: &[Attribute]) -> Result<()> {
 /// `{name}="…"`, so every prop it gets has its name written in the tag.
 fn reject_duplicate_props(props: &[Attribute]) -> Result<()> {
     match find_repeated_name(props, |first, name| first == name) {
-        Some((_, name)) => Err(syn::Error::new(
-            name.span(),
-            format!(
-                "prop `{}` is given twice: a prop takes one value, so remove one of them",
-                name.value()
-            ),
-        )),
+        Some((_, name)) => Err(name.error(format!(
+            "prop `{}` is given twice: a prop takes one value, so remove one of them",
+            name.value()
+        ))),
         None => Ok(()),
     }
 }
@@ -464,7 +458,7 @@ fn reject_duplicate_props(props: &[Attribute]) -> Result<()> {
 fn find_repeated_name(
     attributes: &[Attribute],
     is_same: impl Fn(&str, &str) -> bool,
-) -> Option<(String, &LitStr)> {
+) -> Option<(String, &LiteralName)> {
     let mut seen: Vec<String> = Vec::new();
     for attribute in attributes {
         let Attribute::RegularAttribute(RegularAttribute {
@@ -504,9 +498,7 @@ fn validate_prop_names(props: &[Attribute]) -> Result<()> {
                 // identifiers can't: making one from `5` would panic. Checked first,
                 // so that `2-x` doesn't get the suggestion `2_x`.
                 if name_str.starts_with(|c: char| c.is_ascii_digit()) {
-                    return Err(syn::Error::new(
-                        name.span(),
-                        format!(
+                    return Err(name.error(format!(
                             "invalid prop name `{name_str}`: component props are Rust identifiers, which can't start with a digit"
                         ),
                     ));
@@ -521,9 +513,7 @@ fn validate_prop_names(props: &[Attribute]) -> Result<()> {
                 // ones that can't be raw identifiers, so they can't name a parameter:
                 // https://doc.rust-lang.org/reference/identifiers.html#raw-identifiers
                 if matches!(plain, "self" | "Self" | "super" | "crate" | "_") {
-                    return Err(syn::Error::new(
-                        name.span(),
-                        format!(
+                    return Err(name.error(format!(
                             "invalid prop name `{name_str}`: it can't be a parameter name, so no component has this prop"
                         ),
                     ));
@@ -531,9 +521,7 @@ fn validate_prop_names(props: &[Attribute]) -> Result<()> {
                 // `r#type` is a Rust identifier, so the message below would be wrong
                 // about it, and its suggestion (`r_type`) about the prop
                 if plain != name_str && plain.chars().all(is_word) {
-                    return Err(syn::Error::new(
-                        name.span(),
-                        format!(
+                    return Err(name.error(format!(
                             "invalid prop name `{name_str}`: write `{plain}`. The `r#` is only for Rust code, and `html!` doesn't need it"
                         ),
                     ));
@@ -547,9 +535,7 @@ fn validate_prop_names(props: &[Attribute]) -> Result<()> {
                         .filter(|word| !word.is_empty())
                         .collect();
                     let suggestion = words.join("_");
-                    return Err(syn::Error::new(
-                        name.span(),
-                        format!(
+                    return Err(name.error(format!(
                             "invalid prop name `{name_str}`: component props are Rust identifiers, try `{suggestion}`"
                         ),
                     ));
@@ -571,8 +557,7 @@ fn reject_children_attribute(props: &[Attribute]) -> Result<()> {
         _ => None,
     });
     match children_attribute {
-        Some(name) => Err(syn::Error::new(
-            name.span(),
+        Some(name) => Err(name.error(
             "`children` is given twice: as an attribute and as the content between the tags",
         )),
         None => Ok(()),
@@ -626,7 +611,9 @@ impl Parse for AttrName {
             return Ok(AttrName::Expression(Box::new(content_expr)));
         }
 
-        let span = input.span();
+        let start = input.span();
+        // The last token that went into the name
+        let mut end = start;
 
         let mut name = String::new();
         // The last token, if it was a word: a second word starts another attribute,
@@ -636,6 +623,7 @@ impl Parse for AttrName {
             if word.is_some_and(|word| starts_new_attribute(input, word)) {
                 break;
             }
+            let next = input.span();
             let lookahead = input.lookahead1();
             // Any identifier, including Rust keywords (`type`, `for`, `async`) and
             // `true`/`false`, which are all identifiers at the token level
@@ -674,10 +662,12 @@ impl Parse for AttrName {
             } else {
                 break;
             }
+            // Every branch that didn't leave the loop took one token: the one at `next`
+            end = next;
         }
 
         if !name.is_empty() {
-            Ok(AttrName::Literal(LitStr::new(&name, span)))
+            Ok(AttrName::Literal(LiteralName::new(&name, start, end)))
         } else {
             Err(input.error("Expected a valid attribute name"))
         }
