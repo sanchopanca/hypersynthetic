@@ -97,6 +97,11 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   `<div Class="a">` added a second `class` attribute, which browsers ignore.
   Names are still stored and rendered as written: `set_attribute("viewbox", …)` changes
   the value of an existing `viewBox` and leaves its spelling.
+- `get_element_by_id("")` and `get_element_by_id_mut("")` find nothing, like the DOM's
+  `getElementById("")`. They used to give the first element with an empty `id`
+  (`<div id="">`, `<div id>`, or `id={slug}` with an empty `slug`), so a lookup with an
+  id that happened to be empty could return, and change, an unrelated element.
+  `id()` still gives `Some("")` for such an element.
 
 ## 0.10.0 (2026-10-10)
 

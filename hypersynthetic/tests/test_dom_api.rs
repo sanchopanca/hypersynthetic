@@ -311,6 +311,37 @@ fn test_get_element_by_id() {
     assert!(page.get_element_by_id("missing").is_none());
 }
 
+// In the DOM an element with an empty `id` has no id, so `getElementById("")` finds
+// nothing. Otherwise an id and a lookup that both turned out empty would meet.
+#[test]
+fn test_get_element_by_id_never_finds_an_empty_id() {
+    let slug = "";
+    let mut page = html! {
+        <section>
+            <div id></div>
+            <p id=""></p>
+            <span id={slug}></span>
+            <b id="x"></b>
+        </section>
+    };
+
+    assert!(page.get_element_by_id("").is_none());
+    assert!(page.get_element_by_id_mut("").is_none());
+
+    // The same below an element
+    let section = element_mut(&mut page);
+    assert!(section.get_element_by_id("").is_none());
+    assert!(section.get_element_by_id_mut("").is_none());
+
+    // Other ids are found as before, and the empty attribute can still be read
+    assert_eq!(page.get_element_by_id("x").unwrap().tag_name, "b");
+    assert_eq!(
+        ids(page.descendants()),
+        ["-", "", "", "", "x"],
+        "`id()` reports the attribute"
+    );
+}
+
 #[test]
 fn test_get_elements_by_tag_name() {
     let page = page();

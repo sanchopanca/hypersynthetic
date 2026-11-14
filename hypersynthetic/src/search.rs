@@ -46,8 +46,17 @@ impl HtmlFragment {
 
     /// The first element with this `id`, in tree order. Like the DOM's
     /// `getElementById()`.
+    ///
+    /// An empty `id` finds nothing, as in the DOM, where an element with `id=""` has
+    /// no id:
+    /// ```
+    /// # use hypersynthetic::prelude::*;
+    /// let page = html! { <div id=""></div><p id="intro"></p> };
+    /// assert!(page.get_element_by_id("").is_none());
+    /// assert!(page.get_element_by_id("intro").is_some());
+    /// ```
     pub fn get_element_by_id(&self, id: &str) -> Option<&ElementData> {
-        self.descendants().find(|element| element.id() == Some(id))
+        self.descendants().find(|element| has_id(element, id))
     }
 
     /// The elements with this tag name, compared ignoring ASCII case, or all
@@ -75,7 +84,7 @@ impl HtmlFragment {
         // Find it first, without changing anything, then walk to it with `&mut`:
         // a search with `&mut` all the way would copy every shared fragment it
         // looks through
-        let path = path_to(self.child_nodes(), &|element| element.id() == Some(id))?;
+        let path = path_to(self.child_nodes(), &|element| has_id(element, id))?;
         Some(element_at_mut(self, &path))
     }
 
@@ -137,6 +146,13 @@ impl ElementData {
     pub fn for_each_descendant_mut(&mut self, f: impl FnMut(&mut ElementData)) {
         self.children.for_each_descendant_mut(f);
     }
+}
+
+/// Whether a search for `id` finds this element. An empty `id` finds none: an
+/// element whose `id` attribute is empty has no id in the DOM, though
+/// [ElementData::id] still gives `Some("")` for it.
+fn has_id(element: &ElementData, id: &str) -> bool {
+    !id.is_empty() && element.id() == Some(id)
 }
 
 /// Whether the element has all the `wanted` classes. Reads the attribute directly,

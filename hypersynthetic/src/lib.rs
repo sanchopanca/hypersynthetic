@@ -1133,7 +1133,9 @@ impl ElementData {
     }
 
     /// The `id` attribute, if there is one. Like the DOM's `id`, but `None` instead of
-    /// an empty string when it's missing.
+    /// an empty string when it's missing. An attribute that is there but empty (`id=""`,
+    /// or `id` without a value) gives `Some("")`; `get_element_by_id("")` doesn't find
+    /// such an element.
     pub fn id(&self) -> Option<&str> {
         self.get_attribute("id")
     }
