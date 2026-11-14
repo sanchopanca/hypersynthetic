@@ -53,6 +53,10 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   defined, with "type parameter `T` is never used" or "type annotations needed". A tag
   could have type arguments before (`<Shows::<u64> value={5} />`), which is now tested
   and documented.
+- A closing tag can leave a component's type arguments out:
+  `<Frame::<u8> label={1}>...</Frame>`. It used to fail with "expected closing tag
+  `Frame::<u8>`, found `Frame`". Repeating them (`</Frame::<u8>>`) still works, and
+  different ones are still an error.
 
 ### Fixed
 

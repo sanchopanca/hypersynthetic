@@ -15,7 +15,7 @@ fn Frame<T: Display>(label: T, children: HtmlFragment) -> HtmlFragment {
 }
 
 mod ui {
-    pub(crate) use super::Shows;
+    pub(crate) use super::{Frame, Shows};
 }
 
 #[test]
@@ -33,6 +33,28 @@ fn test_type_arguments_in_a_tag() {
         result.to_string(),
         "<b>5</b><b>6</b><b>boxed</b><b>owned</b><p><b>1.5</b></p>\
          <fieldset><legend>a</legend>content</fieldset>"
+    );
+}
+
+// A closing tag says which tag it closes, and the name does that: the type
+// arguments can be left out, like the props.
+#[test]
+fn test_closing_tag_without_type_arguments() {
+    let result = html! {
+        <Frame::<char> label={'a'}>"short"</Frame>
+        <Frame::<char> label={'b'}>"long"</Frame::<char>>
+        <ui::Frame::<Box<Box<&str>>> label={Box::new(Box::new("c"))} :if={true}>"path"</ui::Frame>
+        <Frame::<u8> label={1}>
+            <Frame::<u8> label={2}>"nested"</Frame>
+        </Frame>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<fieldset><legend>a</legend>short</fieldset>\
+         <fieldset><legend>b</legend>long</fieldset>\
+         <fieldset><legend>c</legend>path</fieldset>\
+         <fieldset><legend>1</legend><fieldset><legend>2</legend>nested</fieldset></fieldset>"
     );
 }
 

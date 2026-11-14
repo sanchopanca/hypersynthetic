@@ -1,0 +1,41 @@
+error: expected closing tag `Frame::<char>`, found `Frame::<u8>`
+  --> tests/compile_fail/closing_tag_type_arguments.rs:17:53
+   |
+17 |     let _ = html! { <Frame::<char> label={'a'}>"x"</Frame::<u8>> };
+   |                                                     ^^^^^
+
+error: expected closing tag `Frame`, found `Frame::<char>`
+  --> tests/compile_fail/closing_tag_type_arguments.rs:19:45
+   |
+19 |     let _ = html! { <Frame label={'a'}>"x"</Frame::<char>> };
+   |                                             ^^^^^
+
+error: expected closing tag `ui::Frame::<char>`, found `Frame`
+  --> tests/compile_fail/closing_tag_type_arguments.rs:21:57
+   |
+21 |     let _ = html! { <ui::Frame::<char> label={'a'}>"x"</Frame> };
+   |                                                         ^^^^^
+
+error: expected closing tag `Frame::<char>`, found `ui::Frame`
+  --> tests/compile_fail/closing_tag_type_arguments.rs:22:53
+   |
+22 |     let _ = html! { <Frame::<char> label={'a'}>"x"</ui::Frame> };
+   |                                                     ^^
+
+error: expected closing tag `Ui::Frame::<char>`, found `Ui`
+  --> tests/compile_fail/closing_tag_type_arguments.rs:24:57
+   |
+24 |     let _ = html! { <Ui::Frame::<char> label={'a'}>"x"</Ui> };
+   |                                                         ^^
+
+error: expected closing tag `Frame::<char>`, found `Frame::Inner`
+  --> tests/compile_fail/closing_tag_type_arguments.rs:25:53
+   |
+25 |     let _ = html! { <Frame::<char> label={'a'}>"x"</Frame::Inner> };
+   |                                                     ^^^^^
+
+error: expected closing tag `Frame::<char>`, found `Shows`
+  --> tests/compile_fail/closing_tag_type_arguments.rs:27:53
+   |
+27 |     let _ = html! { <Frame::<char> label={'a'}>"x"</Shows> };
+   |                                                     ^^^^^

@@ -243,9 +243,10 @@ pub mod __private;
 /// assert_eq!(html.to_string(), "<b>1.5</b><i>0</i><span>***</span>");
 /// # }
 /// ```
-/// The `::` before `<` is required, as it is in a call. A closing tag repeats the
-/// arguments: `<Frame::<u32>>"content"</Frame::<u32>>`. Without them, `<Zero />` is the
-/// compiler's "type annotations needed".
+/// The `::` before `<` is required, as it is in a call. Without the arguments,
+/// `<Zero />` is the compiler's "type annotations needed". A closing tag doesn't need
+/// them: `<Frame::<u32>>"content"</Frame>`. It can repeat them (`</Frame::<u32>>`), and
+/// then they have to be the same.
 ///
 /// # Children
 ///
