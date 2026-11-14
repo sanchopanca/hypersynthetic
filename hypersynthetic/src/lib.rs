@@ -211,6 +211,42 @@ pub mod __private;
 /// variable. Inside `html!` the prop is `type`, and `<Field r#type="email" />` is a
 /// compile error.
 ///
+/// ## Generic components
+/// A component can have type, const and lifetime parameters, like any function. A type
+/// that a prop has is known from the prop's value. One that no value can tell is
+/// written in the tag, the way a function call would give it (`zero::<u32>()`):
+/// ```
+/// # use hypersynthetic::prelude::*;
+/// use std::fmt::Display;
+///
+/// #[component]
+/// fn Shows<T: Display>(value: T) -> HtmlFragment {
+///     html! { <b>{value}</b> }
+/// }
+///
+/// #[component]
+/// fn Zero<T: Default + Display>() -> HtmlFragment {
+///     html! { <i>{T::default()}</i> }
+/// }
+///
+/// #[component]
+/// fn Stars<const N: usize>() -> HtmlFragment {
+///     html! { <span>{"*".repeat(N)}</span> }
+/// }
+///
+/// # fn main() {
+/// let html = html! {
+///     <Shows value={1.5} />
+///     <Zero::<u32> />
+///     <Stars::<3> />
+/// };
+/// assert_eq!(html.to_string(), "<b>1.5</b><i>0</i><span>***</span>");
+/// # }
+/// ```
+/// The `::` before `<` is required, as it is in a call. A closing tag repeats the
+/// arguments: `<Frame::<u32>>"content"</Frame::<u32>>`. Without them, `<Zero />` is the
+/// compiler's "type annotations needed".
+///
 /// # Children
 ///
 /// The content between a component's tags is passed to its parameter named `children`,

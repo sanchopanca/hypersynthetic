@@ -44,6 +44,11 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
         Err(err) => return err.to_compile_error().into(),
     };
 
+    // Looked at before the elided lifetimes get names: those are named where a prop
+    // uses them, so the props struct uses them already
+    let marker_type = marker_type(&function.sig.generics);
+    let type_arguments = type_arguments(&function.sig.generics);
+
     // Props struct fields can't have elided lifetimes
     name_elided_lifetimes(&mut function);
 
@@ -125,6 +130,16 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     });
 
+    // The field that uses the function's parameters, under a name no prop has
+    let marker_name = marker_name(&param_names);
+    let marker_field = marker_type.as_ref().map(|marker_type| {
+        quote! {
+            #[builder(default, setter(skip))]
+            #marker_name: #marker_type,
+        }
+    });
+    let marker_pattern = marker_type.as_ref().map(|_| quote! { #marker_name: _ });
+
     // Generate the internal function name
     let internal_fn_name = quote::format_ident!("__{}", fn_name);
 
@@ -158,12 +173,17 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
     let generics = &internal_function.sig.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-    let call = call_spanned_as(&return_type, &internal_fn_name, &param_names);
+    let call = call_spanned_as(
+        &return_type,
+        &internal_fn_name,
+        type_arguments,
+        &param_names,
+    );
     let wrapper_fn = quote! {
         #(#wrapper_attrs)*
         #[allow(non_snake_case)]
         #vis fn #fn_name #impl_generics(props: #props_name #ty_generics) -> ::hypersynthetic::HtmlFragment #where_clause {
-            let #props_name { #(#param_names),* } = props;
+            let #props_name { #(#param_names,)* #marker_pattern } = props;
             #call
         }
     };
@@ -181,6 +201,7 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
         #[builder(build_method(name = #build_method))]
         #vis struct #props_name #impl_generics #where_clause {
             #(#struct_fields,)*
+            #marker_field
         }
 
         impl #impl_generics ::hypersynthetic::component::Props for #props_name #ty_generics #where_clause {
@@ -320,15 +341,19 @@ fn last_path_segment(ty: &syn::Type) -> Option<&syn::Ident> {
 /// start of its first token to the end of its last. So the first one gets the span
 /// of the type's first token and the last one that of its last, and the error
 /// underlines the whole return type instead of `#[component]`.
+///
+/// The tokens between those two can be anywhere: `type_arguments` is the function's
+/// `::<T, N>`, if it has one (see [type_arguments]).
 fn call_spanned_as(
     ty: &syn::Type,
     function: &syn::Ident,
+    type_arguments: Option<proc_macro2::TokenStream>,
     args: &[&syn::Ident],
 ) -> proc_macro2::TokenStream {
     let mut type_spans = ty.to_token_stream().into_iter().map(|token| token.span());
     let (Some(first), last) = (type_spans.next(), type_spans.last()) else {
         // A type is never zero tokens
-        return quote! { #function(#(#args),*) };
+        return quote! { #function #type_arguments (#(#args),*) };
     };
 
     let mut function = function.clone();
@@ -336,7 +361,75 @@ fn call_spanned_as(
     let mut args =
         proc_macro2::Group::new(proc_macro2::Delimiter::Parenthesis, quote! { #(#args),* });
     args.set_span(last.unwrap_or(first));
-    quote! { #function #args }
+    quote! { #function #type_arguments #args }
+}
+
+/// The type of a field that uses the lifetime and type parameters the function
+/// declares: `PhantomData<(fn() -> &'x (), fn() -> T,)>` for `<'x, T, const N: usize>`.
+/// `None` if it declares neither.
+///
+/// The parameters become the parameters of the props struct, and a struct has to use
+/// each of its lifetimes and types in a field (E0392), which a function doesn't:
+/// `fn Zero<T: Default>()` is fine, `struct ZeroProps<T: Default> {}` isn't. So the
+/// struct gets a field that names them all. Which of them the props use already
+/// doesn't matter then, and couldn't be found out for sure: a prop's type can be a
+/// macro call.
+///
+/// A `PhantomData` is a field without a value, and `fn() -> T` in it is the form that
+/// changes nothing else about the struct: there's no `T` in a function pointer, so
+/// the struct is `Send` and `Sync` if its props are, and `T` can be unsized.
+///
+/// Const parameters aren't in it: a struct may leave those unused.
+fn marker_type(generics: &syn::Generics) -> Option<proc_macro2::TokenStream> {
+    let uses: Vec<_> = generics
+        .params
+        .iter()
+        .filter_map(|param| match param {
+            syn::GenericParam::Lifetime(param) => {
+                let lifetime = &param.lifetime;
+                Some(quote! { fn() -> &#lifetime () })
+            }
+            syn::GenericParam::Type(param) => {
+                let name = &param.ident;
+                Some(quote! { fn() -> #name })
+            }
+            syn::GenericParam::Const(_) => None,
+        })
+        .collect();
+    (!uses.is_empty()).then(|| quote! { ::std::marker::PhantomData<(#(#uses,)*)> })
+}
+
+/// A name for the field of [marker_type] that no prop has: a prop is a field of the
+/// same struct.
+fn marker_name(props: &[&syn::Ident]) -> syn::Ident {
+    let mut name = String::from("__hs_marker");
+    while props.iter().any(|prop| prop.unraw() == name) {
+        name.push('_');
+    }
+    syn::Ident::new(&name, proc_macro2::Span::call_site())
+}
+
+/// The function's type and const parameters as arguments, `::<T, N>`, for the
+/// wrapper's call to the internal function. `None` if it has neither.
+///
+/// Both functions have the same parameters, and the wrapper's are known when it runs,
+/// but a call only gets them across where an argument's type says what they are. For
+/// a parameter that no prop's type names, none does. Nor for `T` in `item: T::Item`:
+/// knowing the `Item` doesn't say whose it is.
+///
+/// Lifetimes are left to inference. They can't be given this way anyway when some of
+/// them are only in the parameters' types ("late bound"), which is the usual case.
+fn type_arguments(generics: &syn::Generics) -> Option<proc_macro2::TokenStream> {
+    let arguments: Vec<_> = generics
+        .params
+        .iter()
+        .filter_map(|param| match param {
+            syn::GenericParam::Type(param) => Some(&param.ident),
+            syn::GenericParam::Const(param) => Some(&param.ident),
+            syn::GenericParam::Lifetime(_) => None,
+        })
+        .collect();
+    (!arguments.is_empty()).then(|| quote! { ::<#(#arguments),*> })
 }
 
 /// The content between a component's tags is passed as its `children` prop.

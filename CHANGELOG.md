@@ -46,6 +46,13 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
 - Component props can be named after Rust keywords: with a parameter `r#type: &str`,
   `<Field type="email" />` sets it. It used to fail with "expected identifier, found
   keyword `type`".
+- A component can have a generic parameter that no prop's type says:
+  `fn Zero<T: Default + Display>()`, `fn Stars<const N: usize>()`, or `T` in
+  `fn Sample<T: Iterator>(item: T::Item)`. The tag gives it, as a function call would:
+  `<Zero::<u32> />`, `<Stars::<3> />`. Such a component used to fail where it's
+  defined, with "type parameter `T` is never used" or "type annotations needed". A tag
+  could have type arguments before (`<Shows::<u64> value={5} />`), which is now tested
+  and documented.
 
 ### Fixed
 
