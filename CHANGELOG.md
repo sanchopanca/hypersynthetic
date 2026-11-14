@@ -57,6 +57,9 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   `<Frame::<u8> label={1}>...</Frame>`. It used to fail with "expected closing tag
   `Frame::<u8>`, found `Frame`". Repeating them (`</Frame::<u8>>`) still works, and
   different ones are still an error.
+- A component's type arguments can be written without the `::` in a tag:
+  `<Zero<u32> />` is `<Zero::<u32> />`. It used to fail with "comparison operators
+  cannot be chained".
 
 ### Fixed
 

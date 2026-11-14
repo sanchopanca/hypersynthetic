@@ -239,14 +239,17 @@ pub mod __private;
 ///     <Shows value={1.5} />
 ///     <Zero::<u32> />
 ///     <Stars::<3> />
+///     <Zero<bool> />
 /// };
-/// assert_eq!(html.to_string(), "<b>1.5</b><i>0</i><span>***</span>");
+/// assert_eq!(html.to_string(), "<b>1.5</b><i>0</i><span>***</span><i>false</i>");
 /// # }
 /// ```
-/// The `::` before `<` is required, as it is in a call. Without the arguments,
-/// `<Zero />` is the compiler's "type annotations needed". A closing tag doesn't need
-/// them: `<Frame::<u32>>"content"</Frame>`. It can repeat them (`</Frame::<u32>>`), and
-/// then they have to be the same.
+/// The `::` before `<` can be left out, as in the last tag: Rust needs it in a call to
+/// tell type arguments from comparisons, and a tag has no comparisons. Without the
+/// arguments, `<Zero />` is the compiler's "type annotations needed".
+///
+/// A closing tag doesn't need the arguments: `<Frame::<u32>>"content"</Frame>`. It can
+/// repeat them (`</Frame::<u32>>`), and then they have to be the same.
 ///
 /// # Children
 ///

@@ -58,6 +58,32 @@ fn test_closing_tag_without_type_arguments() {
     );
 }
 
+// In Rust code the `::` keeps `Shows<u64>` from being read as two comparisons. A tag
+// can't be read that way, so it can be left out there, in any tag and in any mix.
+#[test]
+fn test_type_arguments_without_the_path_separator() {
+    let result = html! {
+        <Shows<u64> value={5} />
+        <Shows<_> value={6u8} />
+        <Shows<Box<&str>> value={Box::new("boxed")} />
+        <ui::Shows<String> value="owned" />
+        <p><Shows<f32> value={1.5} :if={true} /></p>
+        <Frame<char> label={'a'}>"short"</Frame>
+        <Frame<char> label={'b'}>"same"</Frame<char>>
+        <Frame<char> label={'c'}>"mixed"</Frame::<char>>
+        <Frame::<char> label={'d'}>"mixed"</Frame<char>>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<b>5</b><b>6</b><b>boxed</b><b>owned</b><p><b>1.5</b></p>\
+         <fieldset><legend>a</legend>short</fieldset>\
+         <fieldset><legend>b</legend>same</fieldset>\
+         <fieldset><legend>c</legend>mixed</fieldset>\
+         <fieldset><legend>d</legend>mixed</fieldset>"
+    );
+}
+
 // The parameters below aren't the type of any prop, so no value can say what they
 // are: the tag has to.
 
@@ -93,11 +119,14 @@ fn test_type_parameter_no_prop_uses() {
         <Amount::<Litres> value={0.5} />
         <Zero::<u32> />
         <Zero::<bool> />
+        <Amount<Litres> value={1.5} />
+        <Zero<u8> />
     };
 
     assert_eq!(
         result.to_string(),
-        "<span>2.5 kg</span><span>0.5 l</span><i>0</i><i>false</i>"
+        "<span>2.5 kg</span><span>0.5 l</span><i>0</i><i>false</i>\
+         <span>1.5 l</span><i>0</i>"
     );
 }
 
@@ -112,11 +141,13 @@ fn test_unused_type_parameter_with_children() {
         <Named::<u8>>
             <Named::<str>>"inside"</Named::<str>>
         </Named::<u8>>
+        <Named<i8>><Named<Vec<i8>>>"short"</Named></Named<i8>>
     };
 
     assert_eq!(
         result.to_string(),
-        "<section data-type=\"u8\"><section data-type=\"str\">inside</section></section>"
+        "<section data-type=\"u8\"><section data-type=\"str\">inside</section></section>\
+         <section data-type=\"i8\"><section data-type=\"alloc::vec::Vec&lt;i8&gt;\">short</section></section>"
     );
 }
 
@@ -151,11 +182,14 @@ fn test_const_parameter() {
         <Stars::<3> />
         <Stars::<{ 1 + 1 }> />
         <Columns cells={["a", "b"]} />
+        <Stars<1> />
+        <Stars<{ 2 * 2 }> />
     };
 
     assert_eq!(
         result.to_string(),
-        "<span>***</span><span>**</span><tr data-columns=\"2\"><td>a</td><td>b</td></tr>"
+        "<span>***</span><span>**</span><tr data-columns=\"2\"><td>a</td><td>b</td></tr>\
+         <span>*</span><span>****</span>"
     );
 }
 

@@ -15,6 +15,8 @@ mod ui {
 fn main() {
     // A closing tag can leave the type arguments out, but not get them wrong
     let _ = html! { <Frame::<char> label={'a'}>"x"</Frame::<u8>> };
+    // ... with or without the `::`, which the message adds
+    let _ = html! { <Frame<char> label={'a'}>"x"</Frame<u8>> };
     // ... or have ones the opening tag doesn't
     let _ = html! { <Frame label={'a'}>"x"</Frame::<char>> };
     // Only the arguments can be left out: the path is still needed

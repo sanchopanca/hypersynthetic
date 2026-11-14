@@ -219,8 +219,9 @@ impl Parse for TagName {
         // be, unless it's a path keyword followed by `::` (`crate::Card`)
         let is_path = input.peek(Ident) || input.peek(Token![::]) || input.peek2(Token![::]);
         let first_part = if is_path {
-            let path: Path = input.parse()?;
+            let mut path: Path = input.parse()?;
             if is_path_pascal_case(&path) {
+                add_path_separators(&mut path);
                 return Ok(TagName::Component(path));
             }
             // Only components can be paths: `<foo::bar>` isn't an element
@@ -265,6 +266,28 @@ impl Parse for TagName {
             ));
         }
         Ok(TagName::Element(name))
+    }
+}
+
+/// Writes a component's type arguments the way an expression needs them:
+/// `Shows<u64>` becomes `Shows::<u64>`.
+///
+/// A tag can have them either way. `Path`'s parser reads a path as it's written in a
+/// type, where both are allowed, but `html!` writes the path into an expression,
+/// where `Shows < u64 > ...` is two comparisons: the `::` is what tells them apart
+/// there. In a tag nothing else can follow the name and start with `<`, so there's
+/// nothing to tell apart, and the `::` doesn't have to be asked for.
+///
+/// Done here, so that there's one form from here on: a closing tag matches whichever
+/// way each of the two is written, and errors show the name with `::`.
+fn add_path_separators(path: &mut Path) {
+    for segment in &mut path.segments {
+        if let syn::PathArguments::AngleBracketed(arguments) = &mut segment.arguments {
+            // The new token is where the `<` is: there's no token of its own to point at
+            arguments
+                .colon2_token
+                .get_or_insert_with(|| Token![::](arguments.lt_token.span));
+        }
     }
 }
 
