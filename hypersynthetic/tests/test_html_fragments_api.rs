@@ -156,7 +156,9 @@ fn test_set_attribute_keeps_the_position() {
 
 #[test]
 fn test_set_attribute_removes_duplicates() {
-    let mut link = html! { <a href="/1" title="t" href="/2"></a> };
+    // `html!` refuses a name written twice, but not one that's only known at runtime
+    let name = "href";
+    let mut link = html! { <a href="/1" title="t" {name}="/2"></a> };
     let element = link.iter_elements_mut().next().unwrap();
 
     element.set_attribute("href".to_owned(), "/3".to_owned());

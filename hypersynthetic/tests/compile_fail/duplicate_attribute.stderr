@@ -1,0 +1,59 @@
+error: duplicate attribute `class`: browsers use the first one and ignore the rest
+ --> tests/compile_fail/duplicate_attribute.rs:6:36
+  |
+6 |     let _ = html! { <div class="a" class="b"></div> };
+  |                                    ^^^^^
+
+error: duplicate attribute `class`: browsers use the first one and ignore the rest
+ --> tests/compile_fail/duplicate_attribute.rs:7:36
+  |
+7 |     let _ = html! { <div class="a" class={extra}></div> };
+  |                                    ^^^^^
+
+error: duplicate attribute `disabled`: browsers use the first one and ignore the rest
+ --> tests/compile_fail/duplicate_attribute.rs:8:37
+  |
+8 |     let _ = html! { <input disabled disabled /> };
+  |                                     ^^^^^^^^
+
+error: duplicate attribute `hidden`: browsers use the first one and ignore the rest
+ --> tests/compile_fail/duplicate_attribute.rs:9:33
+  |
+9 |     let _ = html! { <div hidden hidden="until-found"></div> };
+  |                                 ^^^^^^
+
+error: duplicate attribute `href`: browsers use the first one and ignore the rest
+  --> tests/compile_fail/duplicate_attribute.rs:11:55
+   |
+11 |     let _ = html! { <a href="/1" title="t" :if={show} href="/2"></a> };
+   |                                                       ^^^^
+
+error: duplicate attribute `data-x`: browsers use the first one and ignore the rest
+  --> tests/compile_fail/duplicate_attribute.rs:12:37
+   |
+12 |     let _ = html! { <div data-x="1" data-x="2"></div> };
+   |                                     ^^^^
+
+error: duplicate attribute `@click`: browsers use the first one and ignore the rest
+  --> tests/compile_fail/duplicate_attribute.rs:13:42
+   |
+13 |     let _ = html! { <button @click="a()" @click="b()"></button> };
+   |                                          ^
+
+error: duplicate attribute `id`: it's `ID` again, since attribute names ignore case in HTML, and browsers use the first one and ignore the rest
+  --> tests/compile_fail/duplicate_attribute.rs:15:33
+   |
+15 |     let _ = html! { <div ID="a" id="b"></div> };
+   |                                 ^^
+
+error: duplicate attribute `viewbox`: it's `viewBox` again, since attribute names ignore case in HTML, and browsers use the first one and ignore the rest
+  --> tests/compile_fail/duplicate_attribute.rs:16:44
+   |
+16 |     let _ = html! { <svg viewBox="0 0 1 1" viewbox="0 0 2 2"></svg> };
+   |                                            ^^^^^^^
+
+error: duplicate attribute `class`: browsers use the first one and ignore the rest
+  --> tests/compile_fail/duplicate_attribute.rs:18:39
+   |
+18 |     let _ = html! { <ul><li class="a" class="b">"x"</li></ul> };
+   |                                       ^^^^^

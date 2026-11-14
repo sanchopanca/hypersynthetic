@@ -105,7 +105,9 @@ fn test_set_attribute_ignores_case_and_keeps_the_spelling() {
 
 #[test]
 fn test_set_attribute_removes_duplicates_in_any_case() {
-    let mut page = html! { <a HREF="/1" title="t" href="/2" Href="/3"></a> };
+    // Names that `html!` can't see are the same: they're only known at runtime
+    let (lower, mixed) = ("href", "Href");
+    let mut page = html! { <a HREF="/1" title="t" {lower}="/2" {mixed}="/3"></a> };
 
     element_mut(&mut page).set_attribute("href", "/4");
     assert_eq!(page.to_string(), r#"<a HREF="/4" title="t"></a>"#);
@@ -113,7 +115,8 @@ fn test_set_attribute_removes_duplicates_in_any_case() {
 
 #[test]
 fn test_remove_attribute_ignores_case() {
-    let mut page = html! { <a HREF="/1" title="t" href="/2"></a> };
+    let lower = "href";
+    let mut page = html! { <a HREF="/1" title="t" {lower}="/2"></a> };
 
     element_mut(&mut page).remove_attribute("Href");
     assert_eq!(page.to_string(), r#"<a title="t"></a>"#);

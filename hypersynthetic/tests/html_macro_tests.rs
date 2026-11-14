@@ -356,6 +356,51 @@ fn test_attribute_name_substitution_cannot_inject_attributes() {
     assert_eq!(result.to_string(), "<div class=\"c\"></div>");
 }
 
+// A name written twice on an element is a compile error
+// (compile_fail/duplicate_attribute.rs). These aren't duplicates:
+
+#[test]
+fn test_attribute_names_that_share_a_part_are_different_attributes() {
+    let result = html! {
+        <div class="a" :class="b" x-bind:class="c" data-class="d"></div>
+        <button x-on:click="a()" @click="b()" @click.prevent="c()"></button>
+        <p data-x="1" data-y="2" data="3" x="4"></p>
+    };
+
+    let expected = concat!(
+        r#"<div class="a" :class="b" x-bind:class="c" data-class="d"></div>"#,
+        r#"<button x-on:click="a()" @click="b()" @click.prevent="c()"></button>"#,
+        r#"<p data-x="1" data-y="2" data="3" x="4"></p>"#,
+    );
+    assert_eq!(result.to_string(), expected);
+}
+
+#[test]
+fn test_the_same_attribute_on_different_elements() {
+    let result = html! {
+        <div class="a"><p class="b"></p></div><p class="c"></p>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        r#"<div class="a"><p class="b"></p></div><p class="c"></p>"#
+    );
+}
+
+#[test]
+fn test_attribute_names_known_at_runtime_can_repeat() {
+    // `html!` can't compare what it can't see, so these are rendered as given
+    let name = "title";
+    let result = html! {
+        <div title="a" {name}="b" {name}="c"></div>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        r#"<div title="a" title="b" title="c"></div>"#
+    );
+}
+
 #[test]
 fn test_attribute_name_substitution_cannot_break_out_of_tag() {
     let names = [

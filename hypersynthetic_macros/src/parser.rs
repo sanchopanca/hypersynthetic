@@ -83,8 +83,9 @@ impl Parse for Node {
                 end_of_tag = end_of_regular_tag || end_of_self_closing_tag;
             }
 
-            if matches!(tag_name, TagName::Component(_)) {
-                validate_prop_names(&attributes)?;
+            match tag_name {
+                TagName::Component(_) => validate_prop_names(&attributes)?,
+                TagName::Element(_) => reject_duplicate_attributes(&attributes)?,
             }
 
             if end_of_self_closing_tag {
@@ -361,6 +362,51 @@ fn raw_text_children(tag_name: &str, language: &str, children: Vec<Node>) -> Res
             other => Ok(other),
         })
         .collect()
+}
+
+/// An element can have an attribute once. A second one with the same name is an
+/// error in HTML, which browsers recover from quietly: they use the first and ignore
+/// the rest, so in `<div class="a" class="b">` the class is `a`. See
+/// <https://html.spec.whatwg.org/multipage/parsing.html#parse-error-duplicate-attribute>.
+///
+/// Names are compared ignoring ASCII case, since an HTML parser lowercases them
+/// before it compares them, in SVG too: `ID` and `id` are one attribute.
+///
+/// Only names written in the template are checked. A `{name}="…"` isn't known until
+/// the program runs, and may still repeat another one.
+///
+/// Not for components: a prop given twice is an error from the builder's types.
+fn reject_duplicate_attributes(attributes: &[Attribute]) -> Result<()> {
+    let mut seen: Vec<String> = Vec::new();
+    for attribute in attributes {
+        let Attribute::RegularAttribute(RegularAttribute {
+            name: AttrName::Literal(name),
+            ..
+        }) = attribute
+        else {
+            continue;
+        };
+        let name_str = name.value();
+        let first = seen
+            .iter()
+            .find(|first| first.eq_ignore_ascii_case(&name_str));
+        if let Some(first) = first {
+            let same_as = if *first == name_str {
+                String::new()
+            } else {
+                format!("it's `{first}` again, since attribute names ignore case in HTML, and ")
+            };
+            return Err(syn::Error::new(
+                name.span(),
+                format!(
+                    "duplicate attribute `{name_str}`: {same_as}browsers use the first one \
+                     and ignore the rest"
+                ),
+            ));
+        }
+        seen.push(name_str);
+    }
+    Ok(())
 }
 
 /// Props become builder method calls (`.data_id(…)`), so their names must be

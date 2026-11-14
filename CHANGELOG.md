@@ -17,6 +17,13 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   `Option`s were; the rest was formatted and escaped, so the markup showed up as text
   (`&lt;p&gt;...`). That includes what `get_element_by_id` and iterating over a
   fragment give. To show markup as text, write `{value.to_string()}`.
+- An attribute written twice on an element is a compile error in `html!`:
+  `<div class="a" class="b">` is "duplicate attribute `class`: browsers use the first
+  one and ignore the rest". It's an error in HTML too, one that browsers pass over in
+  silence, so the second attribute never did anything. In 0.10 both were rendered.
+  Names are compared ignoring ASCII case, as browsers do: `ID` and `id` are duplicates.
+  Write one attribute with the whole value: `class="a {extra}"`. Names that are only
+  known at runtime (`{name}="value"`) aren't checked.
 
 ### Added
 

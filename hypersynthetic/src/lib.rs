@@ -514,6 +514,19 @@ pub use hypersynthetic_macros::component;
 /// );
 /// ```
 ///
+/// An element can have an attribute only once. In HTML a second one is an error that
+/// browsers pass over in silence: they use the first and ignore the rest. Here it's a
+/// compile error:
+/// ```compile_fail
+/// # use hypersynthetic::html;
+/// // error: duplicate attribute `class`
+/// let div = html! { <div class="card" class="wide"></div> };
+/// ```
+/// Write one attribute with the whole value instead: `class="card wide"`, or
+/// `class="card {extra}"` when a part of it is computed. As in HTML, the case of a name
+/// doesn't make it a different attribute: `ID` and `id` are duplicates too. Names that
+/// are only known when the program runs (`{name}="value"`) aren't checked.
+///
 /// # Names that are Rust keywords
 /// Element and attribute names in `html!` are HTML names, not Rust identifiers. The ones
 /// that happen to be Rust keywords (`type`, `for`, `loop`, `async`, SVG's `<use>`) are
