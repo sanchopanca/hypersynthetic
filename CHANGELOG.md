@@ -85,6 +85,12 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   with "call to unsafe function `__Card`", both pointing at `#[component]`. An
   `extern "C" fn` compiled, and so did a `const fn` whose body was const, with the
   keyword doing nothing for the component.
+- A component prop can be named `build`. It used to fail with "duplicate definitions
+  with name `build`": the props builder has a method for every prop, and its final
+  method had that name. `html!` now ends the builder with a method called `__hs_build`,
+  which is the one name a prop can't have (a clear error says so). Code that builds a
+  props struct by hand, which isn't a supported use, has to call that instead of
+  `build()`.
 - `#[component]` on a method (a function with a `self` parameter) is one error: "a
   component can't take `self`, because it's a function and not a method: move it out
   of the `impl` block and pass what it needs from `self` as a prop". It used to be five

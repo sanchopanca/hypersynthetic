@@ -13,7 +13,7 @@ use proc_macro2::TokenTree;
 use quote::{ToTokens, quote};
 use std::collections::HashSet;
 use syn::{ItemFn, ext::IdentExt, parse_macro_input, visit::Visit, visit_mut::VisitMut};
-use utils::is_pascal_case;
+use utils::{BUILD_METHOD, is_pascal_case};
 
 #[proc_macro]
 pub fn html(input: TokenStream) -> TokenStream {
@@ -168,6 +168,8 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     };
 
+    let build_method = syn::Ident::new(BUILD_METHOD, proc_macro2::Span::call_site());
+
     // Generate the final output - always generate Props struct
     let output = quote! {
         #[doc = #props_doc]
@@ -175,6 +177,8 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
         // The generated builder code refers to typed_builder, which users don't
         // depend on directly
         #[builder(crate_module_path = ::hypersynthetic::__private::typed_builder)]
+        // Not typed-builder's `build`, so that a prop can have that name
+        #[builder(build_method(name = #build_method))]
         #vis struct #props_name #impl_generics #where_clause {
             #(#struct_fields,)*
         }
@@ -375,8 +379,20 @@ fn is_html_fragment(ty: &syn::Type) -> bool {
 
 /// The name a prop parameter binds. `mut`, `ref` and `name @ pattern` still
 /// bind one name, so they're allowed; other patterns have no name to use.
+///
+/// One name is taken: the props builder has a method for every prop, and one more
+/// that `html!` ends with.
 fn prop_name(pat: &syn::Pat) -> syn::Result<&syn::Ident> {
     match pat {
+        syn::Pat::Ident(pat_ident) if pat_ident.ident.unraw() == BUILD_METHOD => {
+            Err(syn::Error::new(
+                pat_ident.ident.span(),
+                format!(
+                    "`{BUILD_METHOD}` can't be a prop name: `html!` calls a method with this \
+                     name to finish a component's props"
+                ),
+            ))
+        }
         syn::Pat::Ident(pat_ident) => Ok(&pat_ident.ident),
         _ => Err(syn::Error::new_spanned(
             pat,

@@ -1,6 +1,12 @@
 use quote::ToTokens as _;
 use syn::{Ident, Path};
 
+/// The method that turns a props builder into the props. `#[component]` gives it this
+/// name and `html!` calls it. typed-builder's own name for it is `build`, which a
+/// prop couldn't be called then: a prop's setter is a method of the builder too.
+/// Any name takes one away from props; this one nobody will miss.
+pub const BUILD_METHOD: &str = "__hs_build";
+
 pub fn is_path_pascal_case(path: &Path) -> bool {
     is_pascal_case(extract_ident_from_path(path))
 }

@@ -1,0 +1,11 @@
+error: `__hs_build` can't be a prop name: `html!` calls a method with this name to finish a component's props
+ --> tests/compile_fail/reserved_prop_parameter.rs:4:8
+  |
+4 | fn Job(__hs_build: &str) -> HtmlFragment {
+  |        ^^^^^^^^^^
+
+error: `__hs_build` can't be a prop name: `html!` calls a method with this name to finish a component's props
+ --> tests/compile_fail/reserved_prop_parameter.rs:9:8
+  |
+9 | fn Raw(r#__hs_build: &str) -> HtmlFragment {
+  |        ^^^^^^^^^^^^

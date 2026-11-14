@@ -266,3 +266,30 @@ fn test_return_type_written_another_way() {
     let result = html! { <Aliased text="a" /><FullPath text="b" /> };
     assert_eq!(result.to_string(), "<i>a</i><b>b</b>");
 }
+
+// `html!` ends a component's props with a method of the props builder. It used to be
+// called `build`, which a prop couldn't be named then; `builder` never collided.
+#[component]
+fn Job(build: &str, #[builder(default = 1)] builder: u32) -> HtmlFragment {
+    html! { <p>"build "{build}" on builder "{builder}</p> }
+}
+
+#[component]
+fn Wrapped(build: u32, children: HtmlFragment) -> HtmlFragment {
+    html! { <div data-build={build}>{children}</div> }
+}
+
+#[test]
+fn test_prop_named_build() {
+    let result = html! {
+        <Job build="1234" builder={2} />
+        <Job build="1235" />
+        <Wrapped build={7}>"x"</Wrapped>
+    };
+
+    assert_eq!(
+        result.to_string(),
+        "<p>build 1234 on builder 2</p><p>build 1235 on builder 1</p>\
+         <div data-build=\"7\">x</div>"
+    );
+}

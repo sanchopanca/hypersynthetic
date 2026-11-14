@@ -7,6 +7,7 @@ use crate::{
         AttrName, AttrValue, ForExpr, InterpolatedSegment, InterpolatedString, RegularAttribute,
     },
     nodes::{Node, NodeCollection, for_attribute, if_attribute, regular_attributes},
+    utils::BUILD_METHOD,
 };
 
 /// Identifier for a variable declared by the generated code.
@@ -138,13 +139,14 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
                 quote! { .#setter(#children) }
             };
 
+            let build = Ident::new(BUILD_METHOD, Span::call_site());
             let extend = quote! {
                 #target.extend(
                     ::hypersynthetic::component::component_view(
                         &#component_name,
                         #builder
                             #children_call
-                            .build()
+                            .#build()
                     )
                     .into_nodes()
                 );
