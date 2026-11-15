@@ -2,19 +2,19 @@ error: expected closing tag `Frame::<char>`, found `Frame::<u8>`
   --> tests/compile_fail/closing_tag_type_arguments.rs:17:53
    |
 17 |     let _ = html! { <Frame::<char> label={'a'}>"x"</Frame::<u8>> };
-   |                                                     ^^^^^
+   |                                                     ^^^^^^^^^^^
 
 error: expected closing tag `Frame::<char>`, found `Frame::<u8>`
   --> tests/compile_fail/closing_tag_type_arguments.rs:19:51
    |
 19 |     let _ = html! { <Frame<char> label={'a'}>"x"</Frame<u8>> };
-   |                                                   ^^^^^
+   |                                                   ^^^^^^^^^
 
 error: expected closing tag `Frame`, found `Frame::<char>`
   --> tests/compile_fail/closing_tag_type_arguments.rs:21:45
    |
 21 |     let _ = html! { <Frame label={'a'}>"x"</Frame::<char>> };
-   |                                             ^^^^^
+   |                                             ^^^^^^^^^^^^^
 
 error: expected closing tag `ui::Frame::<char>`, found `Frame`
   --> tests/compile_fail/closing_tag_type_arguments.rs:23:57
@@ -26,7 +26,7 @@ error: expected closing tag `Frame::<char>`, found `ui::Frame`
   --> tests/compile_fail/closing_tag_type_arguments.rs:24:53
    |
 24 |     let _ = html! { <Frame::<char> label={'a'}>"x"</ui::Frame> };
-   |                                                     ^^
+   |                                                     ^^^^^^^^^
 
 error: expected closing tag `Ui::Frame::<char>`, found `Ui`
   --> tests/compile_fail/closing_tag_type_arguments.rs:26:57
@@ -38,7 +38,7 @@ error: expected closing tag `Frame::<char>`, found `Frame::Inner`
   --> tests/compile_fail/closing_tag_type_arguments.rs:27:53
    |
 27 |     let _ = html! { <Frame::<char> label={'a'}>"x"</Frame::Inner> };
-   |                                                     ^^^^^
+   |                                                     ^^^^^^^^^^^^
 
 error: expected closing tag `Frame::<char>`, found `Shows`
   --> tests/compile_fail/closing_tag_type_arguments.rs:29:53

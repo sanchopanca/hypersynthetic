@@ -39,3 +39,21 @@ error: unexpected closing tag `</div>`: no `<div>` is open here
    |
 10 |     let _ = html! { <p>"text"</p></div> };
    |                                    ^^^
+
+error: unclosed `<my-widget>`
+  --> tests/compile_fail/parser_errors.rs:12:22
+   |
+12 |     let _ = html! { <my-widget> "text" };
+   |                      ^^^^^^^^^
+
+error: unclosed `<ui::Card>`
+  --> tests/compile_fail/parser_errors.rs:13:22
+   |
+13 |     let _ = html! { <ui::Card> "text" };
+   |                      ^^^^^^^^
+
+error: unexpected closing tag `</my-widget>`: no `<my-widget>` is open here
+  --> tests/compile_fail/parser_errors.rs:14:36
+   |
+14 |     let _ = html! { <p>"text"</p></my-widget> };
+   |                                    ^^^^^^^^^

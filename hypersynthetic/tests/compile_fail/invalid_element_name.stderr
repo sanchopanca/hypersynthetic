@@ -20,7 +20,7 @@ error: `_my-widget` isn't a valid tag name: element names start with an ASCII le
  --> tests/compile_fail/invalid_element_name.rs:9:25
   |
 9 |     let _ = html! { <p><_my-widget>"text"</_my-widget></p> };
-  |                         ^^^
+  |                         ^^^^^^^^^^
 
 error: `_Card` isn't a valid tag name: element names start with an ASCII letter (`a` to `z`), and component names with an uppercase letter
   --> tests/compile_fail/invalid_element_name.rs:11:22

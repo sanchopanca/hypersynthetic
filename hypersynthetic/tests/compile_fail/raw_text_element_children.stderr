@@ -9,3 +9,9 @@ error: `<style>` content isn't HTML, so it can't contain components, which rende
    |
 10 |     let _ = html! { <style><Rule /></style> };
    |                             ^^^^
+
+error: `<script>` content isn't HTML, so it can't contain elements: write the code as a string literal
+  --> tests/compile_fail/raw_text_element_children.rs:11:30
+   |
+11 |     let _ = html! { <script><my-widget>"x"</my-widget></script> };
+   |                              ^^^^^^^^^

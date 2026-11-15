@@ -8,4 +8,8 @@ fn main() {
     let _ = html! { <p :if={true} :if={false}></p> };
     let _ = html! { <p :for={i in 0..1} :for={j in 0..1}></p> };
     let _ = html! { <p>"text"</p></div> };
+    // A name of several tokens is underlined as a whole
+    let _ = html! { <my-widget> "text" };
+    let _ = html! { <ui::Card> "text" };
+    let _ = html! { <p>"text"</p></my-widget> };
 }

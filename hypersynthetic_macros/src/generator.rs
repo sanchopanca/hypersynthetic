@@ -35,7 +35,7 @@ pub fn generate_nodes(NodeCollection::Nodes(nodes): NodeCollection) -> TokenStre
 fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
     match node {
         Node::Element(element) => {
-            let tag_name = element.tag_name.to_string();
+            let tag_name = element.name.value();
             let self_closing = element.self_closing;
             let children: TokenStream2 = generate_nodes(NodeCollection::Nodes(element.children));
             let attributes_target = internal_ident("__hs_attributes");

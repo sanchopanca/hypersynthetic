@@ -168,9 +168,9 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   be a type error at the second value ("expected
   `CardPropsBuilder_Error_Repeated_field_title`, found `&str`") and a deprecation
   warning.
-- Errors about an attribute or prop name underline the whole name. For a name of more
-  than one token they underlined the first: `data` in `data-x`, and only the `@` in
-  `@click`.
+- Errors about an attribute, prop or tag name underline the whole name. For a name of
+  more than one token they underlined the first: `data` in `data-x`, only the `@` in
+  `@click`, `my` in `</my-widget>`, and `ui` in `</ui::Frame>`.
 - A lint attribute on a component covers everything `#[component]` makes of it.
   `#[allow(dead_code)]` did nothing for a component that isn't used, and
   `#[expect(dead_code)]` added a second warning, "this lint expectation is unfulfilled":

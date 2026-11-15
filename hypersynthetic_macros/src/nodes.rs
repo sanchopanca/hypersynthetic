@@ -1,10 +1,9 @@
 use std::fmt;
 
-use proc_macro2::Span;
 use syn::{Expr, Path};
 
 use crate::{
-    attributes::{Attribute, ForExpr, InterpolatedString, RegularAttribute},
+    attributes::{Attribute, ForExpr, InterpolatedString, LiteralName, RegularAttribute},
     utils::path_to_string,
 };
 
@@ -29,7 +28,7 @@ pub enum Node {
 /// element name, which can contain hyphens (`div`, `my-widget`).
 pub enum TagName {
     Component(Path),
-    Element(String),
+    Element(LiteralName),
 }
 
 impl TagName {
@@ -43,12 +42,24 @@ impl TagName {
     pub fn is_closed_by(&self, closing: &TagName) -> bool {
         match (self, closing) {
             (TagName::Element(name), TagName::Element(closing)) => {
-                name.eq_ignore_ascii_case(closing)
+                name.value().eq_ignore_ascii_case(&closing.value())
             }
             (TagName::Component(path), TagName::Component(closing)) => {
                 is_same_component(path, closing)
             }
             _ => false,
+        }
+    }
+
+    /// An error about this name, underlining all of it: `my-widget` and `ui::Card`
+    /// are several tokens. Every error about a tag's name is made here, so that
+    /// none of them has to know where a name ends.
+    pub fn error(&self, message: impl fmt::Display) -> syn::Error {
+        match self {
+            // A path has its tokens, and `new_spanned` covers them from the first
+            // to the last
+            TagName::Component(path) => syn::Error::new_spanned(path, message),
+            TagName::Element(name) => name.error(message),
         }
     }
 }
@@ -79,16 +90,14 @@ impl fmt::Display for TagName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TagName::Component(path) => f.write_str(&path_to_string(path)),
-            TagName::Element(name) => f.write_str(name),
+            TagName::Element(name) => f.write_str(&name.value()),
         }
     }
 }
 
 #[derive(Clone)]
 pub struct Tag {
-    pub tag_name: String,
-    /// Where the tag name is, for errors about the element
-    pub span: Span,
+    pub name: LiteralName,
     pub attributes: Vec<Attribute>,
     pub children: Vec<Node>,
     pub self_closing: bool,

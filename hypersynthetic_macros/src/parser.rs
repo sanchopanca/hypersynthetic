@@ -33,18 +33,15 @@ impl Parse for Node {
         if input.peek(Token![<]) && input.peek2(Token![/]) {
             let _: Token![<] = input.parse()?;
             let _: Token![/] = input.parse()?;
-            let span = input.span();
             let name: TagName = input.parse()?;
-            reject_void_closing_tag(&name, span)?;
-            return Err(syn::Error::new(
-                span,
-                format!("unexpected closing tag `</{name}>`: no `<{name}>` is open here"),
-            ));
+            reject_void_closing_tag(&name)?;
+            return Err(name.error(format!(
+                "unexpected closing tag `</{name}>`: no `<{name}>` is open here"
+            )));
         }
 
         if input.peek(Token![<]) {
             let _: Token![<] = input.parse()?;
-            let tag_name_span = input.span();
             let tag_name: TagName = input.parse()?;
 
             let mut attributes = Vec::new();
@@ -99,7 +96,8 @@ impl Parse for Node {
             // A self-closing tag (`<Card />`, `<br />`) and a void element as HTML
             // writes it (`<br>`) end here: no children, no closing tag. What follows
             // is the next node.
-            let is_void = matches!(&tag_name, TagName::Element(name) if is_void_element(name));
+            let is_void =
+                matches!(&tag_name, TagName::Element(name) if is_void_element(&name.value()));
             if end_of_self_closing_tag || is_void {
                 return Ok(match tag_name {
                     TagName::Component(name) => Node::Component(Component {
@@ -107,9 +105,8 @@ impl Parse for Node {
                         props: attributes,
                         children: Vec::new(),
                     }),
-                    TagName::Element(tag_name) => Node::Element(Tag {
-                        tag_name,
-                        span: tag_name_span,
+                    TagName::Element(name) => Node::Element(Tag {
+                        name,
                         attributes,
                         children: Vec::new(),
                         self_closing: end_of_self_closing_tag,
@@ -135,14 +132,11 @@ impl Parse for Node {
             {
                 let _: Token![<] = input.parse()?;
                 let _: Token![/] = input.parse()?;
-                let closing_span = input.span();
                 let closing_tag_name: TagName = input.parse()?;
-                reject_void_closing_tag(&closing_tag_name, closing_span)?;
+                reject_void_closing_tag(&closing_tag_name)?;
                 if !tag_name.is_closed_by(&closing_tag_name) {
-                    Err(syn::Error::new(
-                        closing_span,
-                        mismatched_closing_tag(&tag_name, &closing_tag_name),
-                    ))
+                    Err(closing_tag_name
+                        .error(mismatched_closing_tag(&tag_name, &closing_tag_name)))
                 } else {
                     let _: Token![>] = input.parse()?;
 
@@ -156,23 +150,21 @@ impl Parse for Node {
                             props: attributes,
                             children,
                         }),
-                        TagName::Element(tag_name) => Node::Element(Tag {
-                            children: match raw_text_language(&tag_name) {
-                                Some(language) => raw_text_children(&tag_name, language, children)?,
+                        TagName::Element(name) => Node::Element(Tag {
+                            children: match raw_text_language(&name.value()) {
+                                Some(language) => {
+                                    raw_text_children(&name.value(), language, children)?
+                                }
                                 None => children,
                             },
-                            tag_name,
-                            span: tag_name_span,
+                            name,
                             attributes,
                             self_closing: false,
                         }),
                     })
                 }
             } else if input.is_empty() {
-                Err(syn::Error::new(
-                    tag_name_span,
-                    format!("unclosed `<{tag_name}>`"),
-                ))
+                Err(tag_name.error(format!("unclosed `<{tag_name}>`")))
             } else {
                 Err(input.error(format!(
                     "expected a string, `{{expression}}`, a tag, or `</{tag_name}>`"
@@ -245,6 +237,8 @@ impl Parse for TagName {
             input.call(Ident::parse_any)?
         };
         let mut name = first_part.to_string();
+        // The last token that went into the name
+        let mut end = first_part.span();
 
         // Custom elements have hyphens in their names: `<my-widget>`
         while input.peek(Token![-]) {
@@ -252,21 +246,21 @@ impl Parse for TagName {
             let part = input.call(Ident::parse_any)?;
             name.push('-');
             name.push_str(&part.to_string());
+            end = part.span();
         }
+        let name = LiteralName::new(&name, first_part.span(), end);
 
         // An HTML tag name starts with an ASCII letter: a browser shows `<_foo>` as
         // text. It's the one rule for tag names that a name made of identifiers and
         // `-` can break. The renderer checks all of them, for names that only exist
         // at runtime: `is_valid_tag_name` in `hypersynthetic/src/lib.rs`, which skips
         // the element. A name refused there has to be refused here.
-        if !name.starts_with(|c: char| c.is_ascii_alphabetic()) {
-            return Err(syn::Error::new(
-                first_part.span(),
-                format!(
-                    "`{name}` isn't a valid tag name: element names start with an ASCII \
-                     letter (`a` to `z`), and component names with an uppercase letter"
-                ),
-            ));
+        if !name.value().starts_with(|c: char| c.is_ascii_alphabetic()) {
+            return Err(name.error(format!(
+                "`{}` isn't a valid tag name: element names start with an ASCII \
+                 letter (`a` to `z`), and component names with an uppercase letter",
+                name.value()
+            )));
         }
         Ok(TagName::Element(name))
     }
@@ -316,8 +310,9 @@ fn mismatched_closing_tag(open: &TagName, closing: &TagName) -> String {
     // name, which never closes an element: without a word about that, "expected
     // `div`, found `DIV`" would look like a bug next to `</dIV>`, which is accepted
     if let (TagName::Element(name), TagName::Component(_)) = (open, closing) {
+        let name = name.value();
         let closing = closing.to_string();
-        if closing.eq_ignore_ascii_case(name) {
+        if closing.eq_ignore_ascii_case(&name) {
             return format!(
                 "`</{closing}>` doesn't close `<{name}>`: `{closing}` starts with an \
                  uppercase letter, which makes it a component name. Write `</{name}>`"
@@ -330,12 +325,11 @@ fn mismatched_closing_tag(open: &TagName, closing: &TagName) -> String {
 /// `</br>` closes nothing: a void element ended with its own tag. It's an error in
 /// HTML too, which browsers recover from quietly: they ignore `</input>`, and read
 /// `</br>` as one more `<br>`.
-fn reject_void_closing_tag(name: &TagName, span: Span) -> Result<()> {
-    match name {
-        TagName::Element(name) if is_void_element(name) => Err(syn::Error::new(
-            span,
-            format!("`<{name}>` is a void element, so it has no closing tag: remove `</{name}>`"),
-        )),
+fn reject_void_closing_tag(tag_name: &TagName) -> Result<()> {
+    match tag_name {
+        TagName::Element(name) if is_void_element(&name.value()) => Err(tag_name.error(format!(
+            "`<{tag_name}>` is a void element, so it has no closing tag: remove `</{tag_name}>`"
+        ))),
         _ => Ok(()),
     }
 }
@@ -388,13 +382,10 @@ fn raw_text_children(tag_name: &str, language: &str, children: Vec<Node>) -> Res
             )),
             // A browser reads everything up to the closing tag as code, so tags in
             // it would be JavaScript or CSS syntax errors
-            Node::Element(element) => Err(syn::Error::new(
-                element.span,
-                format!(
-                    "`<{tag_name}>` content isn't HTML, so it can't contain elements: \
-                     write the code as a string literal"
-                ),
-            )),
+            Node::Element(element) => Err(element.name.error(format!(
+                "`<{tag_name}>` content isn't HTML, so it can't contain elements: \
+                 write the code as a string literal"
+            ))),
             Node::Component(component) => Err(syn::Error::new_spanned(
                 &component.name,
                 format!(

@@ -28,7 +28,8 @@ pub enum AttrName {
     Expression(Box<Expr>),
 }
 
-/// A name written in the template: `class`, `data-id`, `@click`, `x-on:click.prevent`.
+/// A name written in the template: an attribute's (`class`, `data-id`, `@click`,
+/// `x-on:click.prevent`) or an element's (`div`, `my-widget`).
 ///
 /// For Rust it's several tokens (`data`, `-`, `id`), which the parser puts together
 /// into one string. Where the name is in the source is kept as its two ends.
