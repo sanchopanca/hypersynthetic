@@ -24,6 +24,16 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   Names are compared ignoring ASCII case, as browsers do: `ID` and `id` are duplicates.
   Write one attribute with the whole value: `class="a {extra}"`. Names that are only
   known at runtime (`{name}="value"`) aren't checked.
+- The compiler and clippy treat a component as the function it's written as, where
+  they used to see mostly generated code and skip it. This can bring new warnings:
+  - A component that nothing uses is "function `Card` is never used", at its name. It
+    used to be "fields `title` and `count` are never read" if it had props, and no
+    warning at all if it had none.
+  - With clippy's `pedantic` group, a public component gets `must_use_candidate`, as
+    any public function that returns a value does. `#[must_use]` on the component
+    answers it: the attribute now goes on the function that `html!` calls.
+  - In rustdoc a component's signature reads `fn Card(_: CardProps)`, where it was
+    `fn Card(props: CardProps)`.
 
 ### Added
 
@@ -161,6 +171,18 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
 - Errors about an attribute or prop name underline the whole name. For a name of more
   than one token they underlined the first: `data` in `data-x`, and only the `@` in
   `@click`.
+- A lint attribute on a component covers everything `#[component]` makes of it.
+  `#[allow(dead_code)]` did nothing for a component that isn't used, and
+  `#[expect(dead_code)]` added a second warning, "this lint expectation is unfulfilled":
+  the attribute stayed on the function, and the warning was about the props struct.
+  Lint levels now go on the function that has the component's name, with the function
+  as written inside it, and what the component allows is allowed for its props struct.
+  `#[allow(non_snake_case)]` silences one more of the three warnings for a prop like
+  `Title`; the other two are about the generated setter, which no attribute reaches.
+- The `single_use_lifetimes` lint (off by default) isn't reported for a lifetime
+  parameter that the component needs, like `'x` in
+  `fn Pair<'x>(first: &'x str, second: &'x str)`: it was about the generated function,
+  which uses it once.
 
 ## 0.10.0 (2026-10-10)
 

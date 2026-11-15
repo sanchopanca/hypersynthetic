@@ -1,0 +1,17 @@
+error: method `Title` should have a snake case name
+  --> tests/compile_fail/non_snake_case_prop.rs:10:12
+   |
+10 | fn Heading(Title: &str) -> HtmlFragment {
+   |            ^^^^^ help: convert the identifier to snake case: `title`
+   |
+note: the lint level is defined here
+  --> tests/compile_fail/non_snake_case_prop.rs:1:9
+   |
+ 1 | #![deny(non_snake_case)]
+   |         ^^^^^^^^^^^^^^
+
+error: variable `Title` should have a snake case name
+  --> tests/compile_fail/non_snake_case_prop.rs:10:12
+   |
+10 | fn Heading(Title: &str) -> HtmlFragment {
+   |            ^^^^^ help: convert the identifier to snake case: `title`

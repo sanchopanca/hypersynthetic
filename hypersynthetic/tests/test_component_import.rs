@@ -59,3 +59,13 @@ fn test_absolute_path_with_a_closing_tag() {
         "<div class=\"box\">text<h1>nested</h1></div>"
     );
 }
+
+#[test]
+fn test_imported_component_with_a_lifetime_parameter() {
+    use hypersynthetic::prelude::*;
+    use test_component_lib::Pair;
+
+    let result = html! { <Pair first="a" second="bc" /> };
+
+    assert_eq!(result.to_string(), "<span>a bc</span><b>bc</b>");
+}

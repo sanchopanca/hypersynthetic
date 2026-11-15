@@ -155,23 +155,27 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     }
 
-    // Docs and deprecation describe the public component, so they move to the
-    // wrapper. The rest (`#[allow]`, `#[inline]`, ...) is about the body and stays.
-    // `#[cfg]` never gets here: the compiler evaluates it before calling the macro.
-    let (wrapper_attrs, internal_attrs): (Vec<_>, Vec<_>) =
-        std::mem::take(&mut internal_function.attrs)
-            .into_iter()
-            .partition(|attr| attr.path().is_ident("doc") || attr.path().is_ident("deprecated"));
+    // Each attribute goes where it means something (see [AttributeTarget]). The
+    // lint levels the component allows are allowed for the props struct too, which
+    // is made of its parameters.
+    let mut wrapper_attrs = Vec::new();
+    let mut internal_attrs = Vec::new();
+    for attr in std::mem::take(&mut internal_function.attrs) {
+        match AttributeTarget::of(&attr) {
+            AttributeTarget::Wrapper => wrapper_attrs.push(attr),
+            AttributeTarget::InternalFunction => internal_attrs.push(attr),
+        }
+    }
     internal_function.attrs = internal_attrs;
+    let props_allows = wrapper_attrs.iter().filter_map(allow_for_props);
     let props_doc = format!("Props for the [`{fn_name}`] component.");
-
-    // Add allow directive for snake_case to the internal function
-    let allow_attr: syn::Attribute = syn::parse_quote!(#[allow(non_snake_case)]);
-    internal_function.attrs.push(allow_attr);
 
     // Extract lifetimes and generics from the updated internal function
     let generics = &internal_function.sig.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let wrapper_generics = wrapper_generics(generics);
+    let (wrapper_impl_generics, wrapper_ty_generics, wrapper_where_clause) =
+        wrapper_generics.split_for_impl();
 
     let call = call_spanned_as(
         &return_type,
@@ -179,13 +183,28 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
         type_arguments,
         &param_names,
     );
+
+    // The wrapper is what the user's function becomes: it has its name, and the
+    // function itself is inside. For the compiler to treat it as code the user
+    // wrote, and warn if nothing uses it, the item has to start and end in the
+    // user's code: with the user's `fn` (or `pub`) and the braces of the user's body.
+    let fn_token = function.sig.fn_token;
+    let mut wrapper_body = proc_macro2::Group::new(
+        proc_macro2::Delimiter::Brace,
+        quote! {
+            #internal_function
+            #call
+        },
+    );
+    wrapper_body.set_span(function.block.brace_token.span.join());
     let wrapper_fn = quote! {
         #(#wrapper_attrs)*
+        // For the component's name, and the function's inside
         #[allow(non_snake_case)]
-        #vis fn #fn_name #impl_generics(props: #props_name #ty_generics) -> ::hypersynthetic::HtmlFragment #where_clause {
-            let #props_name { #(#param_names,)* #marker_pattern } = props;
-            #call
-        }
+        #vis #fn_token #fn_name #wrapper_impl_generics(
+            #props_name { #(#param_names,)* #marker_pattern }: #props_name #wrapper_ty_generics
+        ) -> ::hypersynthetic::HtmlFragment #wrapper_where_clause
+        #wrapper_body
     };
 
     let build_method = syn::Ident::new(BUILD_METHOD, proc_macro2::Span::call_site());
@@ -199,6 +218,10 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
         #[builder(crate_module_path = ::hypersynthetic::__private::typed_builder)]
         // Not typed-builder's `build`, so that a prop can have that name
         #[builder(build_method(name = #build_method))]
+        // Only `html!` reads the props, through the wrapper: if nothing uses the
+        // component, it's the function that is reported, not each field
+        #[allow(dead_code)]
+        #(#props_allows)*
         #vis struct #props_name #impl_generics #where_clause {
             #(#struct_fields,)*
             #marker_field
@@ -212,12 +235,80 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
 
-        #internal_function
-
         #wrapper_fn
     };
 
     output.into()
+}
+
+/// The function's generics for the wrapper: the same, with the lifetime parameters
+/// moved out of the user's code, to where `#[component]` is written.
+///
+/// The wrapper has one parameter, the props struct, so each lifetime is used once in
+/// its signature: `fn Pair<'x>(props: PairProps<'x>)` for `a: &'x str, b: &'x str`.
+/// A lifetime used once can be left out, and clippy says so
+/// (`elidable_lifetime_names`), about a signature the user didn't write and with a
+/// suggestion for the one they did. Lints skip code that comes from a macro, and
+/// they tell by the span.
+///
+/// Only the names where they're declared are moved, which moves them in the
+/// parameter's `PairProps<'x>` too, since that is written out from the declarations.
+/// Bounds and the `where` clause stay: an error in them is reported once for all the
+/// items that repeat them only while it's at the same place in each.
+fn wrapper_generics(generics: &syn::Generics) -> syn::Generics {
+    let mut generics = generics.clone();
+    for lifetime in generics.lifetimes_mut() {
+        lifetime.lifetime.set_span(proc_macro2::Span::call_site());
+    }
+    generics
+}
+
+/// Which of the two functions an attribute of the component goes to: the wrapper,
+/// which has the component's name and is what `html!` calls, or the user's function
+/// inside it.
+enum AttributeTarget {
+    Wrapper,
+    InternalFunction,
+}
+
+impl AttributeTarget {
+    fn of(attr: &syn::Attribute) -> Self {
+        // Docs, deprecation and `#[must_use]` are for whoever uses the component.
+        // `#[cfg]` never gets here: the compiler evaluates it before calling the macro.
+        const FOR_CALLERS: [&str; 3] = ["doc", "deprecated", "must_use"];
+        let path = attr.path();
+        if is_lint_level(attr) || FOR_CALLERS.iter().any(|name| path.is_ident(name)) {
+            Self::Wrapper
+        } else {
+            // `#[inline]`, `#[cold]`, ...: about the body
+            Self::InternalFunction
+        }
+    }
+}
+
+/// `#[allow(...)]` and its siblings. They go on the wrapper, the outer of the two
+/// functions: a lint level covers everything inside the item it's on, so one
+/// attribute reaches the component's name, its parameters and its body. An `#[expect]`
+/// has to be in one place only: a second copy, where the lint doesn't fire, would be
+/// reported as unfulfilled.
+fn is_lint_level(attr: &syn::Attribute) -> bool {
+    const LEVELS: [&str; 5] = ["allow", "expect", "warn", "deny", "forbid"];
+    LEVELS.iter().any(|level| attr.path().is_ident(level))
+}
+
+/// `#[allow(lints)]` for the props struct, if `attr` is the component's
+/// `#[allow(lints)]` or `#[expect(lints)]`.
+///
+/// The struct is a separate item, so a level on the function doesn't cover it, and
+/// its fields are the parameters: `#[allow(non_snake_case)]` for a parameter is meant
+/// for the field as well. An `#[expect]` becomes an `#[allow]` here: whether the lint
+/// fires is the function's business.
+fn allow_for_props(attr: &syn::Attribute) -> Option<proc_macro2::TokenStream> {
+    if !(attr.path().is_ident("allow") || attr.path().is_ident("expect")) {
+        return None;
+    }
+    let lints = &attr.meta.require_list().ok()?.tokens;
+    Some(quote! { #[allow(#lints)] })
 }
 
 /// A component is a plain `fn`: not `const`, `async`, `unsafe` or `extern`, and not

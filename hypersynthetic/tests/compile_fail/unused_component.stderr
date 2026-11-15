@@ -1,0 +1,35 @@
+error: function `WithProps` is never used
+ --> tests/compile_fail/unused_component.rs:6:4
+  |
+6 | fn WithProps(title: &str, count: u32) -> HtmlFragment {
+  |    ^^^^^^^^^
+  |
+note: the lint level is defined here
+ --> tests/compile_fail/unused_component.rs:1:9
+  |
+1 | #![deny(dead_code)]
+  |         ^^^^^^^^^
+
+error: function `WithoutProps` is never used
+  --> tests/compile_fail/unused_component.rs:11:4
+   |
+11 | fn WithoutProps() -> HtmlFragment {
+   |    ^^^^^^^^^^^^
+
+error: function `WithChildren` is never used
+  --> tests/compile_fail/unused_component.rs:16:4
+   |
+16 | fn WithChildren(children: HtmlFragment) -> HtmlFragment {
+   |    ^^^^^^^^^^^^
+
+error: function `Inner` is never used
+  --> tests/compile_fail/unused_component.rs:22:4
+   |
+22 | fn Inner(text: &str) -> HtmlFragment {
+   |    ^^^^^
+
+error: function `Outer` is never used
+  --> tests/compile_fail/unused_component.rs:27:4
+   |
+27 | fn Outer() -> HtmlFragment {
+   |    ^^^^^

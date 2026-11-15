@@ -371,6 +371,38 @@ pub mod __private;
 ///
 /// `children` is only special for components. On HTML elements, `<div children="...">`
 /// is an ordinary attribute.
+///
+/// # Attributes and lints
+///
+/// `#[component]` makes two things of the function: a function with the same name,
+/// which [html] calls, and a struct that holds its props. Attributes written on the
+/// component go where they mean something:
+///
+/// - Doc comments, `#[deprecated]` and `#[must_use]` describe the component.
+/// - Lint levels (`#[allow]`, `#[expect]`, `#[warn]`, `#[deny]`, `#[forbid]`) cover
+///   all of it: the name, the parameters, the body and the props.
+/// - The rest (`#[inline]`, ...) is about the body.
+///
+/// To the compiler and to clippy a component is the function you wrote. One that
+/// nothing uses is reported as "function `Banner` is never used", and an attribute
+/// answers that as it would on any function:
+/// ```
+/// # #![deny(dead_code, unfulfilled_lint_expectations)]
+/// # use hypersynthetic::prelude::*;
+/// #[component]
+/// #[expect(dead_code, reason = "for the next release")]
+/// fn Banner(text: &str) -> HtmlFragment {
+///     html! { <aside>{text}</aside> }
+/// }
+/// # fn main() {}
+/// ```
+/// Clippy's `must_use_candidate`, from its `pedantic` group, asks for `#[must_use]` on
+/// a public component, as on any public function that returns a value.
+///
+/// One thing no attribute on a component reaches: a prop whose name isn't snake case
+/// (`Title: &str`) gets two warnings about the setter generated for it, "method
+/// `Title` should have a snake case name" and the same for "variable `Title`".
+/// `#![allow(non_snake_case)]` in the module silences them.
 pub use hypersynthetic_macros::component;
 
 /// The `html` macro allows to construct html fragments in Rust.
