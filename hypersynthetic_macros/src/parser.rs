@@ -215,7 +215,11 @@ impl Parse for TagName {
         let is_path = input.peek(Ident) || input.peek(Token![::]) || input.peek2(Token![::]);
         let first_part = if is_path {
             let mut path: Path = input.parse()?;
-            if is_path_pascal_case(&path) {
+            // A path can't have a hyphen, so `My-widget` can't be a component's name,
+            // whatever its first letter: it's a custom element's, as in HTML. The
+            // hyphens are read below, with the element names' rules
+            let is_custom_element = path.get_ident().is_some() && input.peek(Token![-]);
+            if is_path_pascal_case(&path) && !is_custom_element {
                 add_path_separators(&mut path);
                 return Ok(TagName::Component(path));
             }
@@ -319,6 +323,17 @@ fn mismatched_closing_tag(open: &TagName, closing: &TagName) -> String {
             );
         }
     }
+    // `</BR>` is a component's closing tag too, but where it closes nothing, it was
+    // meant for a `<br>`, and gets what `</br>` gets. Unless it was meant for the
+    // tag that is open: `<Br>` is a component's name like any other
+    if let TagName::Component(path) = closing
+        && let Some(ident) = path.get_ident()
+    {
+        let closing = ident.to_string();
+        if is_void_element(&closing) && !open.to_string().eq_ignore_ascii_case(&closing) {
+            return void_closing_tag(&closing.to_ascii_lowercase(), &closing);
+        }
+    }
     format!("expected closing tag `{open}`, found `{closing}`")
 }
 
@@ -327,11 +342,18 @@ fn mismatched_closing_tag(open: &TagName, closing: &TagName) -> String {
 /// `</br>` as one more `<br>`.
 fn reject_void_closing_tag(tag_name: &TagName) -> Result<()> {
     match tag_name {
-        TagName::Element(name) if is_void_element(&name.value()) => Err(tag_name.error(format!(
-            "`<{tag_name}>` is a void element, so it has no closing tag: remove `</{tag_name}>`"
-        ))),
+        TagName::Element(name) if is_void_element(&name.value()) => {
+            let name = name.value();
+            Err(tag_name.error(void_closing_tag(&name, &name)))
+        }
         _ => Ok(()),
     }
+}
+
+/// The error for `</closing>`, written where nothing is open but the void element
+/// `<element>`, which has no closing tag.
+fn void_closing_tag(element: &str, closing: &str) -> String {
+    format!("`<{element}>` is a void element, so it has no closing tag: remove `</{closing}>`")
 }
 
 /// The language of an element whose content is JavaScript or CSS, not HTML: browsers

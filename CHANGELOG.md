@@ -47,6 +47,10 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   in its opening tag. Component names are still matched exactly, and a name that starts
   with an uppercase letter is still a component, so `<div>...</DIV>` is an error, which
   now says why.
+- A custom element's name can start with an uppercase letter, as in HTML: `<My-widget>`
+  is the element `my-widget`, and `</My-widget>` closes `<my-widget>`. A component's
+  name can't have a hyphen, so there's nothing else it could be. They used to fail with
+  "invalid prop name `-widget`" and "expected closing tag `my-widget`, found `My`".
 - A string in the template sets a `&str` prop and a `String` prop alike:
   `<Card title="Hello {name}" />` works with `title: &str`, and `<Card title="Hello" />`
   with `title: String`. They used to fail with "expected `&str`, found `String`" and
@@ -183,6 +187,9 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   parameter that the component needs, like `'x` in
   `fn Pair<'x>(first: &'x str, second: &'x str)`: it was about the generated function,
   which uses it once.
+- `</BR>` after a `<br>` gets the error that `</br>` gets: "`<br>` is a void element,
+  so it has no closing tag: remove `</BR>`". It used to be "expected closing tag `p`,
+  found `BR`", about the tag around it. A component named `Br` still closes with `</Br>`.
 
 ## 0.10.0 (2026-10-10)
 

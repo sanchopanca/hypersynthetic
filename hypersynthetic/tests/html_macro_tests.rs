@@ -660,6 +660,23 @@ fn test_closing_tag_ignores_the_case_of_the_name() {
     );
 }
 
+// An uppercase first letter makes a name a component's, but a component's name is a
+// Rust path, which can't have a hyphen: a name with one is a custom element's, whatever
+// its case, as in HTML
+#[test]
+fn test_hyphenated_name_with_an_uppercase_first_letter_is_an_element() {
+    let result = html! {
+        <my-widget>"a"</My-widget>
+        <My-Widget class="b">"b"</my-widget>
+        <X-y />
+    };
+
+    assert_eq!(
+        result.to_string(),
+        r#"<my-widget>a</my-widget><My-Widget class="b">b</My-Widget><X-y></X-y>"#
+    );
+}
+
 #[test]
 fn test_closing_tag_ignores_case_with_children_and_directives() {
     let show = true;

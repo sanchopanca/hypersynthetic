@@ -1,29 +1,47 @@
 error: `</DIV>` doesn't close `<div>`: `DIV` starts with an uppercase letter, which makes it a component name. Write `</div>`
-  --> tests/compile_fail/closing_tag_case.rs:10:31
+  --> tests/compile_fail/closing_tag_case.rs:15:31
    |
-10 |     let _ = html! { <div>"x"</DIV> };
+15 |     let _ = html! { <div>"x"</DIV> };
    |                               ^^^
 
 error: `</Div>` doesn't close `<div>`: `Div` starts with an uppercase letter, which makes it a component name. Write `</div>`
-  --> tests/compile_fail/closing_tag_case.rs:11:31
+  --> tests/compile_fail/closing_tag_case.rs:16:31
    |
-11 |     let _ = html! { <div>"x"</Div> };
+16 |     let _ = html! { <div>"x"</Div> };
    |                               ^^^
 
-error: expected closing tag `Card`, found `card`
-  --> tests/compile_fail/closing_tag_case.rs:13:32
+error: `<br>` is a void element, so it has no closing tag: remove `</BR>`
+  --> tests/compile_fail/closing_tag_case.rs:18:33
    |
-13 |     let _ = html! { <Card>"x"</card> };
+18 |     let _ = html! { <p>"a"<br></BR></p> };
+   |                                 ^^
+
+error: `<br>` is a void element, so it has no closing tag: remove `</Br>`
+  --> tests/compile_fail/closing_tag_case.rs:19:33
+   |
+19 |     let _ = html! { <Card><br></Br></Card> };
+   |                                 ^^
+
+error: expected closing tag `Br`, found `BR`
+  --> tests/compile_fail/closing_tag_case.rs:21:30
+   |
+21 |     let _ = html! { <Br>"x"</BR> };
+   |                              ^^
+
+error: expected closing tag `Card`, found `card`
+  --> tests/compile_fail/closing_tag_case.rs:23:32
+   |
+23 |     let _ = html! { <Card>"x"</card> };
    |                                ^^^^
 
 error: expected closing tag `Card`, found `CARD`
-  --> tests/compile_fail/closing_tag_case.rs:14:32
+  --> tests/compile_fail/closing_tag_case.rs:24:32
    |
-14 |     let _ = html! { <Card>"x"</CARD> };
+24 |     let _ = html! { <Card>"x"</CARD> };
    |                                ^^^^
 
 error: expected closing tag `café`, found `cafÉ`
-  --> tests/compile_fail/closing_tag_case.rs:16:32
+  --> tests/compile_fail/closing_tag_case.rs:26:32
    |
-16 |     let _ = html! { <café>"x"</cafÉ> };
+26 |     let _ = html! { <café>"x"</cafÉ> };
    |                                ^^^^
