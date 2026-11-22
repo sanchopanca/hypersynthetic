@@ -1,0 +1,129 @@
+warning: use of deprecated method `ui::JobPropsBuilder::<'a, ((&'a str,), ())>::__hs_build`: Missing required field count
+  --> tests/compile_fail/missing_prop.rs:17:27
+   |
+17 |     let _ = html! { <div><Job title="x" /></div> };
+   |                           ^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+   = note: this warning originates in the macro `html` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0061]: this method takes 1 argument but 0 arguments were supplied
+  --> tests/compile_fail/missing_prop.rs:17:27
+   |
+17 |     let _ = html! { <div><Job title="x" /></div> };
+   |                           ^^^ argument #1 of type `JobPropsBuilder_Error_Missing_required_field_count` is missing
+   |
+note: method defined here
+  --> tests/compile_fail/missing_prop.rs:6:5
+   |
+ 6 |     #[component]
+   |     ^^^^^^^^^^^^
+   = note: this error originates in the macro `html` which comes from the expansion of the attribute macro `component` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unreachable call
+  --> tests/compile_fail/missing_prop.rs:17:27
+   |
+17 |     let _ = html! { <div><Job title="x" /></div> };
+   |                           ^^^
+   |                           |
+   |                           unreachable call
+   |                           any code following this expression is unreachable
+   |
+   = note: `#[warn(unreachable_code)]` (part of `#[warn(unused)]`) on by default
+   = note: this warning originates in the macro `html` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of deprecated method `ui::JobPropsBuilder::<'a, ((&'a str,), ())>::__hs_build`: Missing required field count
+  --> tests/compile_fail/missing_prop.rs:18:27
+   |
+18 |     let _ = html! { <div><Job title="x{n}" /></div> };
+   |                           ^^^
+   |
+   = note: this warning originates in the macro `html` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0061]: this method takes 1 argument but 0 arguments were supplied
+  --> tests/compile_fail/missing_prop.rs:18:27
+   |
+18 |     let _ = html! { <div><Job title="x{n}" /></div> };
+   |                           ^^^ argument #1 of type `JobPropsBuilder_Error_Missing_required_field_count` is missing
+   |
+note: method defined here
+  --> tests/compile_fail/missing_prop.rs:6:5
+   |
+ 6 |     #[component]
+   |     ^^^^^^^^^^^^
+   = note: this error originates in the macro `html` which comes from the expansion of the attribute macro `component` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unreachable call
+  --> tests/compile_fail/missing_prop.rs:18:27
+   |
+18 |     let _ = html! { <div><Job title="x{n}" /></div> };
+   |                           ^^^
+   |                           |
+   |                           unreachable call
+   |                           any code following this expression is unreachable
+   |
+   = note: this warning originates in the macro `html` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of deprecated method `ui::JobPropsBuilder::<'a, ((), __count)>::__hs_build`: Missing required field title
+  --> tests/compile_fail/missing_prop.rs:19:27
+   |
+19 |     let _ = html! { <div><Job count={n} /></div> };
+   |                           ^^^
+   |
+   = note: this warning originates in the macro `html` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0061]: this method takes 1 argument but 0 arguments were supplied
+  --> tests/compile_fail/missing_prop.rs:19:27
+   |
+19 |     let _ = html! { <div><Job count={n} /></div> };
+   |                           ^^^ argument #1 of type `JobPropsBuilder_Error_Missing_required_field_title` is missing
+   |
+note: method defined here
+  --> tests/compile_fail/missing_prop.rs:6:5
+   |
+ 6 |     #[component]
+   |     ^^^^^^^^^^^^
+   = note: this error originates in the macro `html` which comes from the expansion of the attribute macro `component` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unreachable call
+  --> tests/compile_fail/missing_prop.rs:19:27
+   |
+19 |     let _ = html! { <div><Job count={n} /></div> };
+   |                           ^^^
+   |                           |
+   |                           unreachable call
+   |                           any code following this expression is unreachable
+   |
+   = note: this warning originates in the macro `html` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: use of deprecated method `ui::JobPropsBuilder::<'a, ((&'a str,), ())>::__hs_build`: Missing required field count
+  --> tests/compile_fail/missing_prop.rs:21:26
+   |
+21 |     let _ = html! { <ui::Job title="x" /> };
+   |                          ^^^
+   |
+   = note: this warning originates in the macro `html` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0061]: this method takes 1 argument but 0 arguments were supplied
+  --> tests/compile_fail/missing_prop.rs:21:26
+   |
+21 |     let _ = html! { <ui::Job title="x" /> };
+   |                          ^^^ argument #1 of type `JobPropsBuilder_Error_Missing_required_field_count` is missing
+   |
+note: method defined here
+  --> tests/compile_fail/missing_prop.rs:6:5
+   |
+ 6 |     #[component]
+   |     ^^^^^^^^^^^^
+   = note: this error originates in the macro `html` which comes from the expansion of the attribute macro `component` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unreachable call
+  --> tests/compile_fail/missing_prop.rs:21:26
+   |
+21 |     let _ = html! { <ui::Job title="x" /> };
+   |                          ^^^
+   |                          |
+   |                          unreachable call
+   |                          any code following this expression is unreachable
+   |
+   = note: this warning originates in the macro `html` (in Nightly builds, run with -Z macro-backtrace for more info)

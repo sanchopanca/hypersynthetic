@@ -1,5 +1,5 @@
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
-use quote::quote;
+use quote::{quote, quote_spanned};
 use syn::{LitStr, spanned::Spanned};
 
 use crate::{
@@ -7,7 +7,7 @@ use crate::{
         AttrName, AttrValue, ForExpr, InterpolatedSegment, InterpolatedString, RegularAttribute,
     },
     nodes::{Node, NodeCollection, for_attribute, if_attribute, regular_attributes},
-    utils::BUILD_METHOD,
+    utils::{BUILD_METHOD, extract_ident_from_path},
 };
 
 /// Identifier for a variable declared by the generated code.
@@ -94,9 +94,23 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
         }
         Node::Component(component) => {
             let component_name = &component.name;
+            // Where rustc reports what's wrong with the component call as a whole: a
+            // prop that is missing is an error at the `.build()` call (typed-builder
+            // gives that method a parameter of an error type), and `.build()` has no
+            // token in the template. Without a span of its own it would be the whole
+            // `html!`. This one is at the component's name, the last one in a path,
+            // since a method's error underlines one token.
+            // The tokens' expression has to start and end there too: rustc puts some
+            // labels on the call and its receiver, from the first token to the last.
+            // `resolved_at` makes them the macro's tokens again, only located at the
+            // name: rustc doesn't suggest edits to code from a macro, and its
+            // suggestion here would be `<Card(/* … */)>`.
+            let span = extract_ident_from_path(component_name)
+                .span()
+                .resolved_at(Span::mixed_site());
             // The props are set one after another on the builder: each step is an
             // expression that gives the builder for the next one
-            let mut builder = quote! {
+            let mut builder = quote_spanned! { span=>
                 ::hypersynthetic::component::component_props_builder(&#component_name)
             };
             for attr in regular_attributes(&component.props) {
@@ -114,10 +128,10 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
 
                 builder = match &attr.value {
                     Some(AttrValue::Literal(value)) => {
-                        set_string_prop(builder, &setter, StringProp::Literal(value))
+                        set_string_prop(builder, &setter, StringProp::Literal(value), span)
                     }
                     Some(AttrValue::Interpolated(string)) => {
-                        set_string_prop(builder, &setter, StringProp::Interpolated(string))
+                        set_string_prop(builder, &setter, StringProp::Interpolated(string), span)
                     }
                     Some(AttrValue::Expression(expr)) => quote! { #builder.#setter(#expr) },
                     // `<C disabled />` is short for `<C disabled={true} />`
@@ -139,17 +153,17 @@ fn generate_node(node: Node, target: &Ident) -> TokenStream2 {
                 quote! { .#setter(#children) }
             };
 
-            let build = Ident::new(BUILD_METHOD, Span::call_site());
+            let build = Ident::new(BUILD_METHOD, span);
+            let view = quote_spanned! { span=>
+                ::hypersynthetic::component::component_view(
+                    &#component_name,
+                    #builder
+                        #children_call
+                        .#build()
+                )
+            };
             let extend = quote! {
-                #target.extend(
-                    ::hypersynthetic::component::component_view(
-                        &#component_name,
-                        #builder
-                            #children_call
-                            .#build()
-                    )
-                    .into_nodes()
-                );
+                #target.extend(#view.into_nodes());
             };
             wrap_in_for_and_if(
                 extend,
@@ -200,7 +214,15 @@ enum StringProp<'a> {
 /// `PropType` in `hypersynthetic::__private`. The setter is written twice. The first
 /// time in a closure that is never called, which is only there for its type: it says
 /// what the setter takes. The second time for real.
-fn set_string_prop(builder: TokenStream2, setter: &Ident, string: StringProp) -> TokenStream2 {
+///
+/// `span` is the one the component call has, for the `match` that starts the
+/// expression: see where it's made.
+fn set_string_prop(
+    builder: TokenStream2,
+    setter: &Ident,
+    string: StringProp,
+    span: Span,
+) -> TokenStream2 {
     let builder_var = internal_ident("__hs_builder");
     let source_var = internal_ident("__hs_string");
     let literal_span = match string {
@@ -218,7 +240,7 @@ fn set_string_prop(builder: TokenStream2, setter: &Ident, string: StringProp) ->
     };
 
     match string {
-        StringProp::Literal(lit) => quote! {
+        StringProp::Literal(lit) => quote_spanned! { span=>
             match #builder {
                 #builder_var => {
                     let #value_var = {
@@ -237,7 +259,7 @@ fn set_string_prop(builder: TokenStream2, setter: &Ident, string: StringProp) ->
         // so a `&str` prop can borrow it while the component runs.
         StringProp::Interpolated(string) => {
             let format = generate_format(string);
-            quote! {
+            quote_spanned! { span=>
                 match (#builder, &mut ::std::option::Option::Some(#format)) {
                     (#builder_var, #source_var) => {
                         let #value_var = {

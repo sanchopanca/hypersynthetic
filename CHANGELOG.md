@@ -187,6 +187,12 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   parameter that the component needs, like `'x` in
   `fn Pair<'x>(first: &'x str, second: &'x str)`: it was about the generated function,
   which uses it once.
+- A missing prop, as in `<Job title="x" />` for `fn Job(title: &str, count: u32)`, is
+  reported at the component's name, `Job`, where it underlined the whole `html! { … }`.
+  The two warnings that come with it are there too. The message is still
+  typed-builder's: "this method takes 1 argument but 0 arguments were supplied", with
+  the prop's name in "argument #1 of type
+  `JobPropsBuilder_Error_Missing_required_field_count` is missing".
 - `</BR>` after a `<br>` gets the error that `</br>` gets: "`<br>` is a void element,
   so it has no closing tag: remove `</BR>`". It used to be "expected closing tag `p`,
   found `BR`", about the tag around it. A component named `Br` still closes with `</Br>`.
