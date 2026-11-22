@@ -42,14 +42,32 @@ fn IgnoresItsProps(first: &str, second: u8) -> HtmlFragment {
     html! { <p>"fixed too"</p> }
 }
 
+// Content between the tags that the component never shows is a mistake, so an unused
+// `children` is reported like any other parameter
+#[component]
+#[expect(unused_variables)]
+fn IgnoresItsChildren(children: HtmlFragment) -> HtmlFragment {
+    html! { <p>"no children"</p> }
+}
+
+#[component]
+fn IgnoresItsChildrenToo(#[expect(unused_variables)] children: HtmlFragment) -> HtmlFragment {
+    html! { <p>"none here either"</p> }
+}
+
 #[test]
 fn test_lint_attributes_reach_the_body() {
     let result = html! {
         <IgnoresItsProp text="unused" />
         <IgnoresItsProps first="unused" second={2} />
+        <IgnoresItsChildren>"a"</IgnoresItsChildren>
+        <IgnoresItsChildrenToo>"b"</IgnoresItsChildrenToo>
     };
 
-    assert_eq!(result.to_string(), "<p>fixed</p><p>fixed too</p>");
+    assert_eq!(
+        result.to_string(),
+        "<p>fixed</p><p>fixed too</p><p>no children</p><p>none here either</p>"
+    );
 }
 
 // A used component isn't dead code, so nothing is expected of it

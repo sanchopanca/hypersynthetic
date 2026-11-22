@@ -193,6 +193,13 @@ Changes to `hypersynthetic` and `hypersynthetic_macros`, which are released toge
   typed-builder's: "this method takes 1 argument but 0 arguments were supplied", with
   the prop's name in "argument #1 of type
   `JobPropsBuilder_Error_Missing_required_field_count` is missing".
+- With clippy's `pedantic` group, a component that only shows its `children` got
+  `needless_pass_by_value`, "consider taking a reference instead", and following that
+  broke the component, since the content between the tags is passed as an
+  `HtmlFragment`. It isn't reported for `children` any more. Other props still can
+  be, where the advice works (`items: Vec<String>` that is only read). With the
+  `restriction` lint `shadow_same` on, such a component gets "`children` is shadowed
+  by itself" instead.
 - `</BR>` after a `<br>` gets the error that `</br>` gets: "`<br>` is a void element,
   so it has no closing tag: remove `</BR>`". It used to be "expected closing tag `p`,
   found `BR`", about the tag around it. A component named `Br` still closes with `</Br>`.

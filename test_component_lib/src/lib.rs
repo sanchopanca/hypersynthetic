@@ -32,13 +32,20 @@ pub fn Heading(text: &str) -> HtmlFragment {
 }
 
 /// A box around its children.
-// `html!` reads a value in `{...}` without moving it, so clippy takes `children` for a
-// parameter that could be a reference. The content between the tags is passed by value.
+// `html!` reads a value in `{...}` without moving it, and clippy used to say that
+// `children` could be a reference. It can't: the content between the tags is passed
+// by value.
 #[component]
 #[must_use]
-#[allow(clippy::needless_pass_by_value)]
 pub fn Boxed(children: HtmlFragment) -> HtmlFragment {
     html! { <div class="box">{{ children }}</div> }
+}
+
+/// A frame around its children, with a caption.
+#[component]
+#[must_use]
+pub fn Framed(caption: &str, children: HtmlFragment) -> HtmlFragment {
+    html! { <figure>{children}<figcaption>{caption}</figcaption></figure> }
 }
 
 /// A counter whose count is optional.

@@ -154,6 +154,7 @@ pub fn component(attr: TokenStream, item: TokenStream) -> TokenStream {
             pat_type.attrs.retain(|attr| !is_builder_attr(attr));
         }
     }
+    move_children_into_body(&mut internal_function);
 
     // Each attribute goes where it means something (see [AttributeTarget]). The
     // lint levels the component allows are allowed for the props struct too, which
@@ -559,6 +560,62 @@ fn is_html_fragment(ty: &syn::Type) -> bool {
             .is_some_and(|segment| segment.ident == "HtmlFragment"),
         _ => false,
     }
+}
+
+/// Starts the function's body with `let children = children;`, so that clippy doesn't
+/// take `children` for a parameter that could be a reference.
+///
+/// `html!` shows a value in `{...}` through a reference, so a component that only
+/// shows its children never moves them, and clippy's `needless_pass_by_value` says
+/// "consider taking a reference instead". For `children` that's always wrong: the
+/// content between the tags is passed as an `HtmlFragment`, which `check_children_prop`
+/// asks for. Moving the parameter answers the lint. The other ways don't work: the lint
+/// reads the function's lint level, not an `#[allow]` on the parameter, and one on the
+/// function would cover the other props too, where it can be right.
+///
+/// The new variable is the user's: it has the parameter's name and span, so the body
+/// sees it, and an unused `children` is reported where it was. The lint levels on the
+/// parameter (`#[allow(unused_variables)]`) move to it, since it's the variable now.
+/// `let`, `=` and `;` are the macro's, which keeps clippy from reporting the statement
+/// as redundant.
+///
+/// Only for a plain `children`: a `mut` one isn't reported, and `ref` or `@` would
+/// bind something else.
+fn move_children_into_body(function: &mut syn::ItemFn) {
+    let Some(pat_type) = function
+        .sig
+        .inputs
+        .iter_mut()
+        .find_map(|input| match input {
+            syn::FnArg::Typed(pat_type) => match &*pat_type.pat {
+                syn::Pat::Ident(pat_ident)
+                    if is_children(&pat_ident.ident)
+                        && pat_ident.by_ref.is_none()
+                        && pat_ident.mutability.is_none()
+                        && pat_ident.subpat.is_none() =>
+                {
+                    Some(pat_type)
+                }
+                _ => None,
+            },
+            syn::FnArg::Receiver(_) => None,
+        })
+    else {
+        return;
+    };
+    let lint_levels: Vec<_> = pat_type
+        .attrs
+        .extract_if(.., |attr| is_lint_level(attr))
+        .collect();
+    let syn::Pat::Ident(pat_ident) = &*pat_type.pat else {
+        unreachable!("matched above");
+    };
+    let name = &pat_ident.ident;
+    let statement: syn::Stmt = syn::parse_quote! {
+        #(#lint_levels)*
+        let #name = #name;
+    };
+    function.block.stmts.insert(0, statement);
 }
 
 /// The name a prop parameter binds. `mut`, `ref` and `name @ pattern` still

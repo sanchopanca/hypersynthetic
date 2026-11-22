@@ -398,6 +398,10 @@ pub mod __private;
 /// ```
 /// Clippy's `must_use_candidate`, from its `pedantic` group, asks for `#[must_use]` on
 /// a public component, as on any public function that returns a value.
+/// `needless_pass_by_value`, from the same group, can say that a prop could be a
+/// reference, as for any function, but not about `children`: the content between the
+/// tags is passed by value. A `children` that the component never uses is reported
+/// as an unused variable.
 ///
 /// One thing no attribute on a component reaches: a prop whose name isn't snake case
 /// (`Title: &str`) gets two warnings about the setter generated for it, "method
