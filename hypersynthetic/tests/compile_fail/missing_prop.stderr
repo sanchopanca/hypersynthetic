@@ -13,12 +13,21 @@ error[E0061]: this method takes 1 argument but 0 arguments were supplied
 17 |     let _ = html! { <div><Job title="x" /></div> };
    |                           ^^^ argument #1 of type `JobPropsBuilder_Error_Missing_required_field_count` is missing
    |
+note: the `__hs_build` call is resolved to the method in `ui::JobPropsBuilder<'a, ((&'a str,), ())>`, shadowing the methods of the same name on `ui::JobPropsBuilder<'a, ((), __count)>`
+  --> tests/compile_fail/missing_prop.rs:17:27
+   |
+17 |     let _ = html! { <div><Job title="x" /></div> };
+   |                           ^^^ refers to `ui::JobPropsBuilder::<'a, ((&'a str,), ())>::__hs_build`
 note: method defined here
   --> tests/compile_fail/missing_prop.rs:6:5
    |
  6 |     #[component]
    |     ^^^^^^^^^^^^
    = note: this error originates in the macro `html` which comes from the expansion of the attribute macro `component` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: you might have meant to call the other method; you can use the fully-qualified path to call it explicitly
+   |
+17 |     let _ = html! { <div><JobPropsBuilder::__hs_build(Job) title="x" /></div> };
+   |                           ++++++++++++++++++++++++++++   +
 
 warning: unreachable call
   --> tests/compile_fail/missing_prop.rs:17:27
@@ -46,12 +55,21 @@ error[E0061]: this method takes 1 argument but 0 arguments were supplied
 18 |     let _ = html! { <div><Job title="x{n}" /></div> };
    |                           ^^^ argument #1 of type `JobPropsBuilder_Error_Missing_required_field_count` is missing
    |
+note: the `__hs_build` call is resolved to the method in `ui::JobPropsBuilder<'a, ((&'a str,), ())>`, shadowing the methods of the same name on `ui::JobPropsBuilder<'a, ((), __count)>`
+  --> tests/compile_fail/missing_prop.rs:18:27
+   |
+18 |     let _ = html! { <div><Job title="x{n}" /></div> };
+   |                           ^^^ refers to `ui::JobPropsBuilder::<'a, ((&'a str,), ())>::__hs_build`
 note: method defined here
   --> tests/compile_fail/missing_prop.rs:6:5
    |
  6 |     #[component]
    |     ^^^^^^^^^^^^
    = note: this error originates in the macro `html` which comes from the expansion of the attribute macro `component` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: you might have meant to call the other method; you can use the fully-qualified path to call it explicitly
+   |
+18 |     let _ = html! { <div><JobPropsBuilder::__hs_build(Job) title="x{n}" /></div> };
+   |                           ++++++++++++++++++++++++++++   +
 
 warning: unreachable call
   --> tests/compile_fail/missing_prop.rs:18:27
@@ -78,12 +96,21 @@ error[E0061]: this method takes 1 argument but 0 arguments were supplied
 19 |     let _ = html! { <div><Job count={n} /></div> };
    |                           ^^^ argument #1 of type `JobPropsBuilder_Error_Missing_required_field_title` is missing
    |
+note: the `__hs_build` call is resolved to the method in `ui::JobPropsBuilder<'a, ((), __count)>`, shadowing the methods of the same name on `ui::JobPropsBuilder<'a, ((&'a str,), ())>`
+  --> tests/compile_fail/missing_prop.rs:19:27
+   |
+19 |     let _ = html! { <div><Job count={n} /></div> };
+   |                           ^^^ refers to `ui::JobPropsBuilder::<'a, ((), __count)>::__hs_build`
 note: method defined here
   --> tests/compile_fail/missing_prop.rs:6:5
    |
  6 |     #[component]
    |     ^^^^^^^^^^^^
    = note: this error originates in the macro `html` which comes from the expansion of the attribute macro `component` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: you might have meant to call the other method; you can use the fully-qualified path to call it explicitly
+   |
+19 |     let _ = html! { <div><JobPropsBuilder::__hs_build(Job) count={n} /></div> };
+   |                           ++++++++++++++++++++++++++++   +
 
 warning: unreachable call
   --> tests/compile_fail/missing_prop.rs:19:27
@@ -110,12 +137,21 @@ error[E0061]: this method takes 1 argument but 0 arguments were supplied
 21 |     let _ = html! { <ui::Job title="x" /> };
    |                          ^^^ argument #1 of type `JobPropsBuilder_Error_Missing_required_field_count` is missing
    |
+note: the `__hs_build` call is resolved to the method in `ui::JobPropsBuilder<'a, ((&'a str,), ())>`, shadowing the methods of the same name on `ui::JobPropsBuilder<'a, ((), __count)>`
+  --> tests/compile_fail/missing_prop.rs:21:26
+   |
+21 |     let _ = html! { <ui::Job title="x" /> };
+   |                          ^^^ refers to `ui::JobPropsBuilder::<'a, ((&'a str,), ())>::__hs_build`
 note: method defined here
   --> tests/compile_fail/missing_prop.rs:6:5
    |
  6 |     #[component]
    |     ^^^^^^^^^^^^
    = note: this error originates in the macro `html` which comes from the expansion of the attribute macro `component` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: you might have meant to call the other method; you can use the fully-qualified path to call it explicitly
+   |
+21 |     let _ = html! { <ui::JobPropsBuilder::__hs_build(Job) title="x" /> };
+   |                          ++++++++++++++++++++++++++++   +
 
 warning: unreachable call
   --> tests/compile_fail/missing_prop.rs:21:26
